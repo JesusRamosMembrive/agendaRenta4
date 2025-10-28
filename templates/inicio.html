@@ -28,41 +28,32 @@
               </a>
             </td>
 
-            <!-- Columnas de tipos de tareas (8 columnas con radios Ok/Problema) -->
+            <!-- Columnas de tipos de tareas (8 columnas con botones toggle) -->
             {% for task_type in task_types %}
               {% set task = section.tasks_by_type.get(task_type.id) %}
               <td>
                 <div class="cell-group" role="group" aria-label="{{ task_type.display_name }} {{ section.name }}">
-                  <form method="post" action="{{ url_for('update_task') }}" class="inline-form" data-task-id="{{ task.id if task else '' }}">
-                    <input type="hidden" name="task_id" value="{{ task.id if task else '' }}" />
-                    <input type="hidden" name="section_id" value="{{ section.id }}" />
-                    <input type="hidden" name="task_type_id" value="{{ task_type.id }}" />
-                    <input type="hidden" name="period" value="{{ period }}" />
+                  <div class="task-buttons"
+                       data-task-id="{{ task.id if task else '' }}"
+                       data-section-id="{{ section.id }}"
+                       data-task-type-id="{{ task_type.id }}"
+                       data-period="{{ period }}"
+                       data-current-status="{{ task.status if task else 'pending' }}">
 
-                    <label class="radio sm">
-                      <input
-                        type="radio"
-                        name="status_{{ section.id }}_{{ task_type.id }}"
-                        value="ok"
-                        class="ok"
-                        data-task-id="{{ task.id if task else '' }}"
-                        {% if task and task.status == 'ok' %}checked{% endif %}
-                      />
-                      Ok
-                    </label>
+                    <button type="button"
+                            class="task-btn task-btn-ok {% if task and task.status == 'ok' %}active{% endif %}"
+                            data-status="ok"
+                            title="Marcar como OK">
+                      ✓
+                    </button>
 
-                    <label class="radio sm">
-                      <input
-                        type="radio"
-                        name="status_{{ section.id }}_{{ task_type.id }}"
-                        value="problem"
-                        class="prob"
-                        data-task-id="{{ task.id if task else '' }}"
-                        {% if task and task.status == 'problem' %}checked{% endif %}
-                      />
-                      Problema
-                    </label>
-                  </form>
+                    <button type="button"
+                            class="task-btn task-btn-problem {% if task and task.status == 'problem' %}active{% endif %}"
+                            data-status="problem"
+                            title="Marcar como Problema">
+                      ⚠
+                    </button>
+                  </div>
                 </div>
               </td>
             {% endfor %}
@@ -123,42 +114,81 @@
 
 {% block extra_js %}
 <script>
-// Auto-submit cuando se marca un radio (guardar estado inmediatamente)
+// Auto-submit cuando se hace click en un botón de estado
 document.addEventListener('DOMContentLoaded', function() {
-  const radios = document.querySelectorAll('input[type="radio"]');
+  const taskButtons = document.querySelectorAll('.task-btn');
 
-  radios.forEach(radio => {
-    radio.addEventListener('change', function() {
-      const taskId = this.dataset.taskId;
-      const status = this.value; // 'ok' o 'problem'
-      const form = this.closest('form');
+  taskButtons.forEach(button => {
+    button.addEventListener('click', function() {
+      const container = this.closest('.task-buttons');
+      const clickedStatus = this.dataset.status;
+      const currentStatus = container.dataset.currentStatus;
+      const taskId = container.dataset.taskId;
+      const isActive = this.classList.contains('active');
 
-      if (!taskId) {
-        console.warn('Task ID not found');
-        return;
+      console.log('Button clicked:', clickedStatus, 'Current:', currentStatus, 'IsActive:', isActive);
+
+      let newStatus;
+
+      // If clicking the active button, set to pending (unmark)
+      if (isActive) {
+        newStatus = 'pending';
+        this.classList.remove('active');
+      } else {
+        // Remove active from all buttons in this group
+        container.querySelectorAll('.task-btn').forEach(btn => btn.classList.remove('active'));
+        // Set this button as active
+        this.classList.add('active');
+        newStatus = clickedStatus;
       }
 
-      // Auto-save via AJAX
-      const formData = new FormData(form);
+      // Update container's current status
+      container.dataset.currentStatus = newStatus;
 
-      fetch(form.action, {
-        method: 'POST',
-        body: formData
-      })
-      .then(response => response.json())
-      .then(data => {
-        if (data.success) {
-          console.log('Tarea guardada:', taskId, status);
-        } else {
-          console.error('Error guardando tarea:', data.error);
-          alert('Error al guardar. Por favor, intenta de nuevo.');
-        }
-      })
-      .catch(error => {
-        console.error('Error de red:', error);
-      });
+      // Save to server
+      saveTaskStatus(container, newStatus);
     });
   });
+
+  function saveTaskStatus(container, status) {
+    const taskId = container.dataset.taskId;
+    const sectionId = container.dataset.sectionId;
+    const taskTypeId = container.dataset.taskTypeId;
+    const period = container.dataset.period;
+
+    console.log('Saving - Task ID:', taskId || 'NEW', 'Status:', status);
+
+    // Prepare form data
+    const formData = new FormData();
+    formData.append('task_id', taskId || '');
+    formData.append('section_id', sectionId);
+    formData.append('task_type_id', taskTypeId);
+    formData.append('period', period);
+    formData.append('status', status);
+
+    fetch('{{ url_for("update_task") }}', {
+      method: 'POST',
+      body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        console.log('Saved successfully. Task ID:', data.task_id);
+
+        // Update task_id if it was a new task
+        if (!taskId && data.task_id) {
+          container.dataset.taskId = data.task_id;
+        }
+      } else {
+        console.error('Error:', data.error);
+        alert('Error al guardar. Por favor, intenta de nuevo.');
+      }
+    })
+    .catch(error => {
+      console.error('Network error:', error);
+      alert('Error de conexión. Por favor, verifica tu conexión e intenta de nuevo.');
+    });
+  }
 
   // Auto-save observaciones con debounce
   const textareas = document.querySelectorAll('textarea.obs');

@@ -60,6 +60,80 @@ def generate_available_periods():
     return periods
 
 
+def get_task_counts():
+    """
+    Get counts of pending, problem, and completed tasks.
+    Returns dict with 'pending', 'problems', 'completed' counts.
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    current_period = datetime.now().strftime('%Y-%m')
+
+    # Count total possible tasks (active sections * task types) for current period
+    cursor.execute("SELECT COUNT(*) as count FROM sections WHERE active = 1")
+    total_sections = cursor.fetchone()['count']
+
+    cursor.execute("SELECT COUNT(*) as count FROM task_types")
+    total_task_types = cursor.fetchone()['count']
+
+    total_possible_tasks = total_sections * total_task_types
+
+    # Count completed tasks (status='ok') for current period
+    cursor.execute("""
+        SELECT COUNT(*) as count
+        FROM tasks t
+        INNER JOIN sections s ON t.section_id = s.id
+        WHERE s.active = 1
+          AND t.status = 'ok'
+          AND t.period = ?
+    """, (current_period,))
+    ok_count = cursor.fetchone()['count']
+
+    # Count problem tasks for current period
+    cursor.execute("""
+        SELECT COUNT(*) as count
+        FROM tasks t
+        INNER JOIN sections s ON t.section_id = s.id
+        WHERE s.active = 1
+          AND t.status = 'problem'
+          AND t.period = ?
+    """, (current_period,))
+    problems_count = cursor.fetchone()['count']
+
+    # Pending = Total possible - OK - Problems
+    pending_count = total_possible_tasks - ok_count - problems_count
+
+    # Count completed tasks (all history) for "Realizadas" page
+    cursor.execute("""
+        SELECT COUNT(*) as count
+        FROM tasks t
+        INNER JOIN sections s ON t.section_id = s.id
+        WHERE s.active = 1
+          AND t.status = 'ok'
+    """)
+    completed_count = cursor.fetchone()['count']
+
+    conn.close()
+
+    return {
+        'pending': pending_count,
+        'problems': problems_count,
+        'completed': completed_count
+    }
+
+
+# ==============================================================================
+# CONTEXT PROCESSORS
+# ==============================================================================
+
+@app.context_processor
+def inject_task_counts():
+    """
+    Make task counts available to all templates
+    """
+    return {'task_counts': get_task_counts()}
+
+
 # ==============================================================================
 # TEMPLATE FILTERS
 # ==============================================================================
@@ -188,23 +262,158 @@ def inicio():
 @app.route('/pendientes')
 def pendientes():
     """
-    List of pending tasks (status='pending')
+    List of pending tasks (status='pending' only - not yet reviewed)
+    Shows tasks from 2025-10 onwards that have not been reviewed
     """
     period = session.get('current_period', datetime.now().strftime('%Y-%m'))
+    current_period = datetime.now().strftime('%Y-%m')
 
-    # TODO: Query pending tasks from database
-    return render_template('pendientes.html', period=period, pending_tasks=[])
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # Query only pending tasks (not reviewed) from 2025-10 to current month
+    cursor.execute("""
+        SELECT
+            t.id,
+            t.period,
+            t.status,
+            t.observations,
+            t.completed_date,
+            t.completed_by,
+            s.name as section_name,
+            s.url as section_url,
+            tt.display_name as task_type_name,
+            tt.periodicity
+        FROM tasks t
+        INNER JOIN sections s ON t.section_id = s.id
+        INNER JOIN task_types tt ON t.task_type_id = tt.id
+        WHERE
+            s.active = 1
+            AND t.status = 'pending'
+            AND t.period >= '2025-10'
+            AND t.period <= ?
+        ORDER BY t.period DESC, s.name ASC, tt.display_order ASC
+    """, (current_period,))
+
+    tasks_raw = cursor.fetchall()
+    pending_tasks = [dict(row) for row in tasks_raw]
+
+    conn.close()
+
+    # Generate available periods
+    available_periods = generate_available_periods()
+    current_user = 'José Ramos'
+
+    return render_template(
+        'pendientes.html',
+        period=period,
+        pending_tasks=pending_tasks,
+        available_periods=available_periods,
+        current_user=current_user
+    )
+
+
+@app.route('/problemas')
+def problemas():
+    """
+    List of tasks with problems (status='problem')
+    Shows tasks from 2025-10 onwards that have issues
+    """
+    period = session.get('current_period', datetime.now().strftime('%Y-%m'))
+    current_period = datetime.now().strftime('%Y-%m')
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # Query problem tasks from 2025-10 to current month
+    cursor.execute("""
+        SELECT
+            t.id,
+            t.period,
+            t.status,
+            t.observations,
+            t.completed_date,
+            t.completed_by,
+            s.name as section_name,
+            s.url as section_url,
+            tt.display_name as task_type_name,
+            tt.periodicity
+        FROM tasks t
+        INNER JOIN sections s ON t.section_id = s.id
+        INNER JOIN task_types tt ON t.task_type_id = tt.id
+        WHERE
+            s.active = 1
+            AND t.status = 'problem'
+            AND t.period >= '2025-10'
+            AND t.period <= ?
+        ORDER BY t.period DESC, s.name ASC, tt.display_order ASC
+    """, (current_period,))
+
+    tasks_raw = cursor.fetchall()
+    problem_tasks = [dict(row) for row in tasks_raw]
+
+    conn.close()
+
+    # Generate available periods
+    available_periods = generate_available_periods()
+    current_user = 'José Ramos'
+
+    return render_template(
+        'problemas.html',
+        period=period,
+        problem_tasks=problem_tasks,
+        available_periods=available_periods,
+        current_user=current_user
+    )
 
 
 @app.route('/realizadas')
 def realizadas():
     """
-    List of completed tasks (status='ok' or 'problem')
+    List of completed tasks (status='ok')
+    Shows complete history of all tasks marked as OK
     """
     period = session.get('current_period', datetime.now().strftime('%Y-%m'))
 
-    # TODO: Query completed tasks from database
-    return render_template('realizadas.html', period=period, completed_tasks=[])
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # Query all completed tasks (status='ok') from complete history
+    cursor.execute("""
+        SELECT
+            t.id,
+            t.period,
+            t.completed_date,
+            t.completed_by,
+            s.name as section_name,
+            s.url as section_url,
+            tt.display_name as task_type_name,
+            tt.periodicity
+        FROM tasks t
+        INNER JOIN sections s ON t.section_id = s.id
+        INNER JOIN task_types tt ON t.task_type_id = tt.id
+        WHERE
+            s.active = 1
+            AND t.status = 'ok'
+        ORDER BY t.completed_date DESC, t.period DESC, s.name ASC
+    """)
+
+    tasks_raw = cursor.fetchall()
+    completed_tasks = [dict(row) for row in tasks_raw]
+
+    conn.close()
+
+    # Generate available periods
+    available_periods = generate_available_periods()
+    current_user = 'José Ramos'
+
+    return render_template(
+        'realizadas.html',
+        period=period,
+        completed_tasks=completed_tasks,
+        available_periods=available_periods,
+        current_user=current_user
+    )
 
 
 @app.route('/configuracion')
@@ -232,6 +441,15 @@ def update_task():
         conn = get_db_connection()
         cursor = conn.cursor()
 
+        # Determine completed_date and completed_by based on status
+        if status in ('ok', 'problem'):
+            completed_date = datetime.now().strftime('%Y-%m-%d')
+            completed_by = 'José Ramos'
+        else:
+            # status='pending' means not completed yet
+            completed_date = None
+            completed_by = None
+
         # If task_id exists, update existing task
         if task_id:
             cursor.execute("""
@@ -240,18 +458,20 @@ def update_task():
                     completed_date = ?,
                     completed_by = ?
                 WHERE id = ?
-            """, (status, datetime.now().strftime('%Y-%m-%d'), 'José Ramos', task_id))
+            """, (status, completed_date, completed_by, task_id))
+            new_task_id = task_id
         else:
-            # Create new task if doesn't exist (shouldn't happen but just in case)
+            # Create new task if it doesn't exist yet
             cursor.execute("""
                 INSERT INTO tasks (section_id, task_type_id, period, status, completed_date, completed_by)
                 VALUES (?, ?, ?, ?, ?, ?)
-            """, (section_id, task_type_id, period, status, datetime.now().strftime('%Y-%m-%d'), 'José Ramos'))
+            """, (section_id, task_type_id, period, status, completed_date, completed_by))
+            new_task_id = cursor.lastrowid
 
         conn.commit()
         conn.close()
 
-        return jsonify({'success': True})
+        return jsonify({'success': True, 'task_id': new_task_id})
 
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500

@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block title %}Realizadas - Agenda Renta4{% endblock %}
+
+{% block content %}
+<div class="h1">Realizadas — Historial de tareas completadas</div>
+
+{% if completed_tasks %}
+  <div class="panel" style="margin-bottom: 20px; background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); border-left: 4px solid #10b981;">
+    <strong>✅ Total de tareas realizadas:</strong> {{ completed_tasks|length }}
+    <p style="margin: 8px 0 0 0; color: #065f46; font-size: 0.9em;">
+      Mostrando todo el historial de tareas completadas con éxito
+    </p>
+  </div>
+
+  <div class="table" role="table" aria-label="Listado de tareas realizadas">
+    <table>
+      <thead>
+        <tr>
+          <th class="sticky" style="width:12%">Período</th>
+          <th class="sticky" style="width:25%">URL / Sección</th>
+          <th class="sticky" style="width:18%">Tipo de Tarea</th>
+          <th class="sticky" style="width:15%">Completado el</th>
+          <th class="sticky" style="width:15%">Por</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for task in completed_tasks %}
+          <tr>
+            <!-- Período -->
+            <td>
+              <strong>{{ task.period|format_period }}</strong>
+            </td>
+
+            <!-- URL / Sección (clickeable) -->
+            <td>
+              <a href="{{ task.section_url }}" target="_blank" rel="noopener noreferrer" style="color: #2563eb; text-decoration: none; font-weight: 500;">
+                {{ task.section_name }}
+              </a>
+            </td>
+
+            <!-- Tipo de Tarea -->
+            <td>
+              {{ task.task_type_name }}
+              {% if task.periodicity %}
+                <span style="color: #6b7280; font-size: 0.85em;">({{ task.periodicity }})</span>
+              {% endif %}
+            </td>
+
+            <!-- Fecha de completado -->
+            <td>
+              {% if task.completed_date %}
+                <span style="color: #059669; font-weight: 500;">
+                  {{ task.completed_date|format_date }}
+                </span>
+              {% else %}
+                <span style="color: #9ca3af; font-style: italic;">-</span>
+              {% endif %}
+            </td>
+
+            <!-- Completado por -->
+            <td>
+              {% if task.completed_by %}
+                <div style="display: inline-flex; align-items: center; gap: 6px;">
+                  <div class="avatar" style="width: 24px; height: 24px; font-size: 0.7em;" title="{{ task.completed_by }}">
+                    {{ task.completed_by[:2] }}
+                  </div>
+                  <span style="color: #374151; font-size: 0.9em;">{{ task.completed_by }}</span>
+                </div>
+              {% else %}
+                <span style="color: #9ca3af; font-style: italic;">-</span>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="panel" style="margin-top: 14px; color: #6b7280;">
+    <strong>💡 Información:</strong>
+    <ul style="margin: 8px 0; padding-left: 20px; font-size: 0.9em;">
+      <li>Esta lista muestra todas las tareas marcadas como "OK" sin problemas</li>
+      <li>Las tareas están ordenadas por fecha de completado (más recientes primero)</li>
+      <li>Haz clic en el nombre de la URL para acceder directamente a la sección</li>
+    </ul>
+  </div>
+
+{% else %}
+  <div class="panel" style="text-align: center; padding: 40px; background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%); border-left: 4px solid #6366f1;">
+    <div style="font-size: 48px; margin-bottom: 16px;">📭</div>
+    <h3 style="color: #3730a3; margin: 0 0 8px 0;">No hay tareas realizadas</h3>
+    <p style="color: #4338ca; margin: 0;">
+      Todavía no se han completado tareas. Visita la página de Inicio para comenzar a marcar tareas como completadas.
+    </p>
+    <p style="margin-top: 12px;">
+      <a href="{{ url_for('inicio') }}" class="btn primary">Ir a Inicio</a>
+    </p>
+  </div>
+{% endif %}
+{% endblock %}

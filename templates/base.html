@@ -29,9 +29,15 @@
         </a>
         <a href="{{ url_for('pendientes') }}" class="{% if request.endpoint == 'pendientes' %}active{% endif %}">
           Pendientes
+          <span class="nav-counter">{{ task_counts.pending }}</span>
+        </a>
+        <a href="{{ url_for('problemas') }}" class="{% if request.endpoint == 'problemas' %}active{% endif %}">
+          Problemas
+          <span class="nav-counter">{{ task_counts.problems }}</span>
         </a>
         <a href="{{ url_for('realizadas') }}" class="{% if request.endpoint == 'realizadas' %}active{% endif %}">
           Realizadas
+          <span class="nav-counter">{{ task_counts.completed }}</span>
         </a>
         <a href="{{ url_for('configuracion') }}" class="{% if request.endpoint == 'configuracion' %}active{% endif %}">
           Configuración
