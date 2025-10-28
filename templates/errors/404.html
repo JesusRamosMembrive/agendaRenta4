@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block title %}404 - Página no encontrada{% endblock %}
+
+{% block content %}
+<div style="text-align: center; padding: 60px 20px;">
+  <h1 style="font-size: 72px; margin: 0; color: #e74c3c;">404</h1>
+  <h2 style="margin: 20px 0; color: #34495e;">Página no encontrada</h2>
+  <p style="color: #7f8c8d; margin-bottom: 30px;">
+    Lo sentimos, la página que buscas no existe o ha sido movida.
+  </p>
+  <a href="{{ url_for('inicio') }}" class="btn primary">
+    Volver al Inicio
+  </a>
+</div>
+{% endblock %}

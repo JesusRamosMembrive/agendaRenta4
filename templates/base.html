@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{% block title %}Agenda Renta4{% endblock %}</title>
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+
+  {% block extra_css %}{% endblock %}
+</head>
+<body>
+  <div class="app">
+    <!-- ===============================================================
+         Sidebar
+         =============================================================== -->
+    <aside class="sidebar">
+      <div class="brand">
+        <i class="dot"></i>
+        <span>Agenda Revisiones</span>
+      </div>
+
+      <div class="divider"></div>
+
+      <nav class="nav">
+        <a href="{{ url_for('inicio') }}" class="{% if request.endpoint == 'inicio' %}active{% endif %}">
+          Inicio
+        </a>
+        <a href="{{ url_for('pendientes') }}" class="{% if request.endpoint == 'pendientes' %}active{% endif %}">
+          Pendientes
+        </a>
+        <a href="{{ url_for('realizadas') }}" class="{% if request.endpoint == 'realizadas' %}active{% endif %}">
+          Realizadas
+        </a>
+        <a href="{{ url_for('configuracion') }}" class="{% if request.endpoint == 'configuracion' %}active{% endif %}">
+          Configuración
+        </a>
+      </nav>
+    </aside>
+
+    <!-- ===============================================================
+         Main Content
+         =============================================================== -->
+    <main>
+      <!-- Topbar -->
+      <div class="topbar">
+        <strong>{{ period|format_period if period else 'Selecciona periodo' }}</strong>
+
+        <!-- ComboBox de Periodos -->
+        {% if request.endpoint and available_periods %}
+        <form method="get" action="{{ url_for(request.endpoint) }}" id="period-form">
+          <select class="select" name="period" aria-label="Periodo" onchange="document.getElementById('period-form').submit()">
+            {% for p in available_periods %}
+              <option value="{{ p }}" {% if p == period %}selected{% endif %}>
+                {{ p|format_period }}
+              </option>
+            {% endfor %}
+          </select>
+        </form>
+        {% endif %}
+
+        <div class="spacer"></div>
+
+        <!-- Búsqueda -->
+        <input class="input" placeholder="Buscar…" aria-label="Buscar" />
+
+        <!-- Avatar Usuario -->
+        <div class="avatar" title="{{ current_user }}">
+          {{ current_user[:2] if current_user else 'JR' }}
+        </div>
+      </div>
+
+      <!-- Content -->
+      <div class="content">
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            <div class="flash-messages">
+              {% for category, message in messages %}
+                <div class="flash {{ category }}">
+                  {% if category == 'success' %}✓{% elif category == 'error' %}✗{% else %}ℹ{% endif %}
+                  {{ message }}
+                </div>
+              {% endfor %}
+            </div>
+          {% endif %}
+        {% endwith %}
+
+        <!-- Page Content -->
+        {% block content %}{% endblock %}
+      </div>
+    </main>
+  </div>
+
+  <!-- JavaScript -->
+  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+
+  {% block extra_js %}{% endblock %}
+</body>
+</html>

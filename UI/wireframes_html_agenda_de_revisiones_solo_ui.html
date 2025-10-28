@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Agenda de Revisiones — Wireframes UI</title>
+  <style>
+    :root{
+      --bg:#0b0c10;           /* fondo oscuro para contraste */
+      --panel:#111217;
+      --card:#151823;
+      --muted:#8b93a7;
+      --text:#e7e9ee;
+      --primary:#5b8cff;
+      --success:#34c759;
+      --warning:#f6c445;
+      --danger:#ff6b6b;
+      --border:#222535;
+      --shadow:0 6px 18px rgba(0,0,0,.25);
+      --radius:16px;
+      --space:14px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, 'Helvetica Neue', Arial, 'Noto Sans', 'Apple Color Emoji','Segoe UI Emoji';
+      background:linear-gradient(180deg,#0b0c10 0%, #0d1018 100%);
+      color:var(--text);
+    }
+    a{color:inherit; text-decoration:none}
+    .app{display:grid; grid-template-columns: 260px 1fr; min-height:100vh}
+    /* Sidebar */
+    .sidebar{
+      position:sticky; top:0; align-self:start; height:100vh; overflow:auto;
+      padding:24px 18px; background:var(--panel); border-right:1px solid var(--border);
+    }
+    .brand{display:flex; align-items:center; gap:10px; font-weight:700; letter-spacing:.3px}
+    .brand .dot{width:12px; height:12px; border-radius:8px; background:var(--primary); box-shadow:0 0 0 6px rgba(91,140,255,.12)}
+    .nav{margin-top:22px; display:flex; flex-direction:column; gap:6px}
+    .nav a{padding:10px 12px; border-radius:12px; color:var(--muted); border:1px solid transparent}
+    .nav a.active,.nav a:hover{color:var(--text); background:linear-gradient(180deg,#171a26,#121522); border-color:var(--border)}
+    .divider{height:1px; background:var(--border); margin:14px 0}
+
+    /* Topbar */
+    .topbar{display:flex; align-items:center; gap:12px; padding:16px 22px; position:sticky; top:0; z-index:5; background:rgba(13,16,24,.75); backdrop-filter: blur(10px); border-bottom:1px solid var(--border)}
+    .spacer{flex:1}
+    .select,.input,.textarea{background:#0f121b; border:1px solid var(--border); color:var(--text); border-radius:12px; padding:10px 12px}
+    .avatar{width:30px; height:30px; border-radius:50%; background:linear-gradient(135deg,#5b8cff,#8aa8ff)}
+
+    /* Content */
+    .content{padding:22px}
+    .h1{font-size:22px; font-weight:700; margin:6px 0 14px}
+    .kpis{display:grid; grid-template-columns:repeat(12,1fr); gap:14px}
+    .card{grid-column: span 3; background:linear-gradient(180deg,#141827,#111421); border:1px solid var(--border); border-radius:var(--radius); padding:18px; box-shadow: var(--shadow)}
+    .card h3{margin:0 0 8px; font-size:13px; color:var(--muted); font-weight:600}
+    .big{font-size:28px; font-weight:800}
+
+    /* Table */
+    .table{margin-top:16px; border:1px solid var(--border); border-radius:14px; overflow:hidden}
+    .table table{width:100%; border-collapse:collapse; font-size:14px}
+    .table th,.table td{padding:12px 14px; border-bottom:1px solid var(--border)}
+    /* URL list behavior */
+    .url-detail{display:none; background:#0f1320}
+    /* detail row visibility controlled by JS */
+    .url-detail.open{display:table-row}
+    /* compact radios per task */
+    .cell-group{display:flex; gap:8px; flex-wrap:wrap}
+    .radio.sm{padding:4px 8px}
+    .radio.sm input{width:10px; height:10px}
+    .task-head{writing-mode:horizontal-tb}
+    .url-col{max-width: 280px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+    .table th.sticky{position:sticky; top:0; z-index:2}
+    .radio-group{display:inline-flex; gap:10px; align-items:center}
+    .radio{display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border:1px solid var(--border); border-radius:999px; cursor:pointer; user-select:none}
+    .radio input{appearance:none; width:12px; height:12px; border-radius:50%; border:1px solid #6b7280; display:inline-block; position:relative}
+    .radio input.ok:checked{background:linear-gradient(180deg,#34c759,#1ea94c); border-color:#188a3b}
+    .radio input.prob:checked{background:linear-gradient(180deg,#ff6b6b,#ff4b4b); border-color:#d63d3d}
+    .status-dot{display:inline-block; width:14px; height:14px; border-radius:50%; border:1px solid var(--border); vertical-align:middle}
+    .sd-green{background:linear-gradient(180deg,#34c759,#1ea94c); border-color:#188a3b}
+    .sd-orange{background:linear-gradient(180deg,#f6c445,#e0ab1f); border-color:#b98a16}
+    .sd-red{background:linear-gradient(180deg,#ff6b6b,#ff4b4b); border-color:#d63d3d}
+    .sd-neutral{background:transparent; border-color:#394055}
+    .st-ok{background:rgba(52,199,89,.12); color:#cfead6}
+    .st-prob{background:rgba(255,107,107,.12); color:#ffd0d0}
+    .obs{width:100%; background:#0f121b; border:1px solid var(--border); color:var(--text); border-radius:10px; padding:10px; resize:vertical; min-height:64px}
+    .table th{background:#0f1320; text-align:left; color:#a7afc5; font-weight:600}
+    .row-actions a{padding:8px 10px; border:1px solid var(--border); border-radius:10px}
+
+    /* Badges & progress */
+    .badge{display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border-radius:999px; font-size:12px; border:1px solid var(--border); color:#cfd6ea}
+    .bd-pend{background:rgba(246,196,69,.12)}
+    .bd-prog{background:rgba(91,140,255,.12)}
+    .bd-done{background:rgba(52,199,89,.12)}
+    .progress{height:8px; background:#0f1320; border:1px solid var(--border); border-radius:999px; overflow:hidden}
+    .progress > i{display:block; height:100%; background:linear-gradient(90deg, #5b8cff, #8aa8ff)}
+
+    /* Layout screens (show/hide via :target) */
+    section.screen{display:none}
+#inicio{display:block}
+section.screen:target{display:block}
+
+    /* Pills filter */
+    .filters{display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:10px 0 4px}
+    .pill{padding:8px 10px; border:1px solid var(--border); border-radius:999px; font-size:12px; color:#c7cee4}
+
+    /* Detail */
+    .detail-header{display:flex; gap:14px; align-items:center; flex-wrap:wrap; margin:6px 0 16px}
+    .detail-tabs{display:flex; gap:8px; margin:8px 0 14px}
+    .tab{padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:#0f1320; color:#c7cee4}
+
+    .grid-2{display:grid; grid-template-columns: 1.2fr .8fr; gap:14px}
+    .panel{background:linear-gradient(180deg,#141827,#111421); border:1px solid var(--border); border-radius:14px; padding:16px; box-shadow:var(--shadow)}
+    .panel h3{margin:0 0 10px; font-size:14px; color:#a7afc5}
+
+    /* Modal (pure CSS demo) */
+    .modal {position: fixed; inset:0; background: rgba(0,0,0,.55); display:none; align-items:center; justify-content:center; padding:20px}
+    .modal .box{max-width:920px; width:100%; background:linear-gradient(180deg,#151929,#111421); border:1px solid var(--border); border-radius:16px; box-shadow: var(--shadow); overflow:hidden}
+    .modal .box header{display:flex; justify-content:space-between; align-items:center; padding:14px 16px; border-bottom:1px solid var(--border)}
+    .modal .box main{padding:14px 16px}
+    .modal .box footer{display:flex; justify-content:flex-end; gap:10px; padding:14px 16px; border-top:1px solid var(--border)}
+    .btn{padding:10px 12px; border-radius:10px; border:1px solid var(--border); background:#0f1320; color:#e7e9ee}
+    .btn.primary{background:linear-gradient(180deg,#5b8cff,#4a7cf0); border-color:#3d69d6}
+    .btn.ghost{background:transparent}
+    /* open modal by hash */
+    #modal-checklist:target{display:flex}
+
+    /* Responsive */
+    @media (max-width: 1000px){
+      .app{grid-template-columns: 78px 1fr}
+      .sidebar .brand span{display:none}
+      .nav a{padding:10px}
+    }
+    @media (max-width: 720px){
+      .kpis .card{grid-column: span 6}
+      .grid-2{grid-template-columns: 1fr}
+      .topbar{flex-wrap:wrap}
+    }
+    @media (max-width: 420px){
+      .kpis .card{grid-column: span 12}
+    }
+    .page-header{display:grid; grid-template-columns:1.2fr 1fr 1fr; gap:12px; margin:8px 0 16px}
+  .ph-card{background:linear-gradient(180deg,#141827,#111421); border:1px solid var(--border); border-radius:12px; padding:12px 14px}
+  .ph-row{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+  .label{font-size:12px; color:#a7afc5; display:block; margin-bottom:6px}
+  .chip{display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border-radius:999px; font-size:12px; border:1px solid var(--border); color:#cfd6ea; background:#0f1320}
+  .switch{display:inline-flex; align-items:center; gap:8px; font-size:13px}
+  .switch i{width:36px; height:20px; border-radius:999px; background:#0f1320; border:1px solid var(--border); position:relative}
+  .switch i::after{content:""; position:absolute; top:2px; left:2px; width:14px; height:14px; border-radius:50%; background:#5b8cff}
+  .switch.off i::after{left:18px; background:#6c6f7a}
+  .textarea{min-height:38px; resize:vertical}
+</style>
+</head>
+<body>
+  <div class="app">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="brand"><i class="dot"></i><span>Agenda Revisiones</span></div>
+      <div class="divider"></div>
+      <nav class="nav">
+        <a href="#inicio" class="active">Inicio</a>
+        <a href="#pendientes">Pendientes</a>
+        <a href="#realizadas">Realizadas</a>
+        <a href="#configuracion">Configuracion</a>
+      </nav>
+    </aside>
+
+    <!-- Main -->
+    <main>
+      <div class="topbar">
+        <strong>Nov 2025</strong>
+        <select class="select" aria-label="Periodo">
+          <option>Nov 2025</option>
+          <option>Oct 2025</option>
+          <option>Sep 2025</option>
+        </select>
+        <div class="spacer"></div>
+        <input class="input" placeholder="Buscar…" aria-label="Buscar" />
+        <div class="avatar" title="JR"></div>
+      </div>
+
+      <div class="content">
+
+        <!-- Fallback (Inicio por defecto) -->
+        
+
+        <!-- Inicio -->
+        <section id="inicio" class="screen">
+          <div class="h1">Inicio — URLs del mes</div>
+          <div class="table" role="table" aria-label="Listado de URLs y tareas">
+            <table>
+              <thead>
+                <tr>
+                  <th class="sticky" style="width:22%">URL / Página</th>
+                  <th class="sticky task-head">Enlaces rotos</th>
+                  <th class="sticky task-head">Enlaces incorrectos</th>
+                  <th class="sticky task-head">Textos – erratas</th>
+                  <th class="sticky task-head">Información actualizada</th>
+                  <th class="sticky task-head">Preguntas frecuentes</th>
+                  <th class="sticky task-head">CTAs</th>
+                  <th class="sticky task-head">Imágenes</th>
+                  <th class="sticky task-head">Diseño</th>
+                  <th class="sticky task-head" style="width:120px">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <!-- Fila 1 -->
+                <tr class="url-row">
+                  <td class="url-col">/renta-fija-detalle</td>
+                  <td>
+                    <div class="cell-group" role="group" aria-label="Enlaces rotos /renta-fija-detalle">
+                      <label class="radio sm"><input type="radio" name="r1c1" class="ok"/> Ok</label>
+                      <label class="radio sm"><input type="radio" name="r1c1" class="prob"/> Problema</label>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="cell-group" role="group" aria-label="Enlaces incorrectos /renta-fija-detalle">
+                      <label class="radio sm"><input type="radio" name="r1c2" class="ok"/> Ok</label>
+                      <label class="radio sm"><input type="radio" name="r1c2" class="prob"/> Problema</label>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="cell-group" role="group" aria-label="Textos – erratas /renta-fija-detalle">
+                      <label class="radio sm"><input type="radio" name="r1c3" class="ok"/> Ok</label>
+                      <label class="radio sm"><input type="radio" name="r1c3" class="prob"/> Problema</label>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="cell-group" role="group" aria-label="Información actualizada /renta-fija-detalle">
+                      <label class="radio sm"><input type="radio" name="r1c4" class="ok"/> Ok</label>
+                      <label class="radio sm"><input type="radio" name="r1c4" class="prob"/> Problema</label>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="cell-group" role="group" aria-label="Preguntas frecuentes /renta-fija-detalle">
+                      <label class="radio sm"><input type="radio" name="r1c5" class="ok"/> Ok</label>
+                      <label class="radio sm"><input type="radio" name="r1c5" class="prob"/> Problema</label>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="cell-group" role="group" aria-label="CTAs /renta-fija-detalle">
+                      <label class="radio sm"><input type="radio" name="r1c6" class="ok"/> Ok</label>
+                      <label class="radio sm"><input type="radio" name="r1c6" class="prob"/> Problema</label>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="cell-group" role="group" aria-label="Imágenes /renta-fija-detalle">
+                      <label class="radio sm"><input type="radio" name="r1c7" class="ok"/> Ok</label>
+                      <label class="radio sm"><input type="radio" name="r1c7" class="prob"/> Problema</label>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="cell-group" role="group" aria-label="Diseño /renta-fija-detalle">
+                      <label class="radio sm"><input type="radio" name="r1c8" class="ok"/> Ok</label>
+                      <label class="radio sm"><input type="radio" name="r1c8" class="prob"/> Problema</label>
+                    </div>
+                  </td>
+                  <td><span class="status-dot sd-neutral" aria-label="Status"></span></td>
+                </tr>
+                <tr class="url-detail"><td colspan="10">
+                    <div class="label" style="margin-bottom:6px">Observación para /renta-fija-detalle (se muestra si hay alguna columna en "Problema")</div>
+                    <textarea class="obs" placeholder="Describe la(s) incidencia(s)…"></textarea>
+                  </td>
+                </tr>
+
+                <!-- Fila 2 -->
+                <tr class="url-row">
+                  <td class="url-col">/landing-productos</td>
+                  <td><div class="cell-group" aria-label="Enlaces rotos /landing-productos"><label class="radio sm"><input type="radio" name="r2c1" class="ok"/> Ok</label><label class="radio sm"><input type="radio" name="r2c1" class="prob"/> Problema</label></div></td>
+                  <td><div class="cell-group" aria-label="Enlaces incorrectos /landing-productos"><label class="radio sm"><input type="radio" name="r2c2" class="ok"/> Ok</label><label class="radio sm"><input type="radio" name="r2c2" class="prob"/> Problema</label></div></td>
+                  <td><div class="cell-group" aria-label="Textos – erratas /landing-productos"><label class="radio sm"><input type="radio" name="r2c3" class="ok"/> Ok</label><label class="radio sm"><input type="radio" name="r2c3" class="prob"/> Problema</label></div></td>
+                  <td><div class="cell-group" aria-label="Información actualizada /landing-productos"><label class="radio sm"><input type="radio" name="r2c4" class="ok"/> Ok</label><label class="radio sm"><input type="radio" name="r2c4" class="prob"/> Problema</label></div></td>
+                  <td><div class="cell-group" aria-label="Preguntas frecuentes /landing-productos"><label class="radio sm"><input type="radio" name="r2c5" class="ok"/> Ok</label><label class="radio sm"><input type="radio" name="r2c5" class="prob"/> Problema</label></div></td>
+                  <td><div class="cell-group" aria-label="CTAs /landing-productos"><label class="radio sm"><input type="radio" name="r2c6" class="ok"/> Ok</label><label class="radio sm"><input type="radio" name="r2c6" class="prob"/> Problema</label></div></td>
+                  <td><div class="cell-group" aria-label="Imágenes /landing-productos"><label class="radio sm"><input type="radio" name="r2c7" class="ok"/> Ok</label><label class="radio sm"><input type="radio" name="r2c7" class="prob"/> Problema</label></div></td>
+                  <td><div class="cell-group" aria-label="Diseño /landing-productos"><label class="radio sm"><input type="radio" name="r2c8" class="ok"/> Ok</label><label class="radio sm"><input type="radio" name="r2c8" class="prob"/> Problema</label></div></td>
+                  <td><span class="status-dot sd-neutral" aria-label="Status"></span></td>
+                </tr>
+                <tr class="url-detail"><td colspan="10">
+                    <div class="label" style="margin-bottom:6px">Observación para /landing-productos</div>
+                    <textarea class="obs" placeholder="Describe la(s) incidencia(s)…"></textarea>
+                  </td>
+                </tr>
+
+                <!-- Fila 3 -->
+                <tr class="url-row">
+                  <td class="url-col">/contacto</td>
+                  <td><div class="cell-group" aria-label="Enlaces rotos /contacto"><label class="radio sm"><input type="radio" name="r3c1" class="ok"/> Ok</label><label class="radio sm"><input type="radio" name="r3c1" class="prob"/> Problema</label></div></td>
+                  <td><div class="cell-group" aria-label="Enlaces incorrectos /contacto"><label class="radio sm"><input type="radio" name="r3c2" class="ok"/> Ok</label><label class="radio sm"><input type="radio" name="r3c2" class="prob"/> Problema</label></div></td>
+                  <td><div class="cell-group" aria-label="Textos – erratas /contacto"><label class="radio sm"><input type="radio" name="r3c3" class="ok"/> Ok</label><label class="radio sm"><input type="radio" name="r3c3" class="prob"/> Problema</label></div></td>
+                  <td><div class="cell-group" aria-label="Información actualizada /contacto"><label class="radio sm"><input type="radio" name="r3c4" class="ok"/> Ok</label><label class="radio sm"><input type="radio" name="r3c4" class="prob"/> Problema</label></div></td>
+                  <td><div class="cell-group" aria-label="Preguntas frecuentes /contacto"><label class="radio sm"><input type="radio" name="r3c5" class="ok"/> Ok</label><label class="radio sm"><input type="radio" name="r3c5" class="prob"/> Problema</label></div></td>
+                  <td><div class="cell-group" aria-label="CTAs /contacto"><label class="radio sm"><input type="radio" name="r3c6" class="ok"/> Ok</label><label class="radio sm"><input type="radio" name="r3c6" class="prob"/> Problema</label></div></td>
+                  <td><div class="cell-group" aria-label="Imágenes /contacto"><label class="radio sm"><input type="radio" name="r3c7" class="ok"/> Ok</label><label class="radio sm"><input type="radio" name="r3c7" class="prob"/> Problema</label></div></td>
+                  <td><div class="cell-group" aria-label="Diseño /contacto"><label class="radio sm"><input type="radio" name="r3c8" class="ok"/> Ok</label><label class="radio sm"><input type="radio" name="r3c8" class="prob"/> Problema</label></div></td>
+                  <td><span class="status-dot sd-neutral" aria-label="Status"></span></td>
+                </tr>
+                <tr class="url-detail"><td colspan="10">
+                    <div class="label" style="margin-bottom:6px">Observación para /contacto</div>
+                    <textarea class="obs" placeholder="Describe la(s) incidencia(s)…"></textarea>
+                  </td>
+                </tr>
+
+              </tbody>
+            </table>
+          </div>
+          <div class="panel" style="margin-top:14px; color:#a7afc5">Nota: maqueta estática. Puedes desmarcar haciendo clic de nuevo sobre la opción ya seleccionada (Ok o Problema). El círculo de Status: verde = todo OK, naranja = hay problemas, rojo = más de 4 problemas.</div>
+        </section>
+
+        <!-- Pendientes -->
+        <section id="pendientes" class="screen">
+          <div class="h1">Pendientes</div>
+          <div class="filters">
+            <span class="pill">Periodo: Nov 2025</span>
+            <span class="pill">Estado: Pendiente/En progreso</span>
+          </div>
+          <div class="table">
+            <table>
+              <thead><tr><th>Topic</th><th>Periodo</th><th>Progreso</th><th>Responsable</th><th>Estado</th><th>Acciones</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td>Renta fija</td><td>Nov 2025</td>
+                  <td><div class="progress"><i style="width:60%"></i></div></td>
+                  <td>Ana</td>
+                  <td><span class="badge bd-pend">Pendiente</span></td>
+                  <td class="row-actions"><a href="#detalle">Abrir ▶</a></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Realizadas -->
+        <section id="realizadas" class="screen">
+          <div class="h1">Realizadas</div>
+          <div class="filters"><span class="pill">Rango: Oct–Nov 2025</span><span class="pill">Topic: Todos</span></div>
+          <div class="table">
+            <table>
+              <thead><tr><th>Topic</th><th>Periodo</th><th>Finalizado</th><th>Progreso</th><th>Ver</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td>Renta fija</td><td>Oct 2025</td><td>31/10/2025</td>
+                  <td><div class="progress"><i style="width:100%"></i></div></td>
+                  <td class="row-actions"><a href="#detalle">Ver ▶</a></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Topics & Páginas -->
+        
+
+        <!-- Usuarios / Compartir -->
+        
+
+        <!-- Detalle de ciclo -->
+        
+
+      </div>
+    </main>
+  </div>
+
+  <script>
+// Radios con desmarcado al hacer clic de nuevo
+(function(){
+  function onClick(e){
+    const t = e.target;
+    if(!(t instanceof HTMLInputElement)) return;
+    if(t.type !== 'radio') return;
+    const name = t.name;
+    // Si ya marcaste este mismo, al volver a pulsar, se desmarca
+    if(t.dataset.waschecked === 'true'){
+      t.checked = false;
+      t.dataset.waschecked = 'false';
+      e.preventDefault();
+      return;
+    }
+    // Limpiar flags del grupo
+    document.querySelectorAll('input[type="radio"][name="'+name+'"]')
+      .forEach(el => { if(el !== t) el.dataset.waschecked = 'false'; });
+    // Marcar el actual como último clicado
+    t.dataset.waschecked = 'true';
+  }
+  document.addEventListener('click', onClick, true);
+})();
+</script>
+<script>
+// 1) Toggle para radios con desmarcado también cuando se hace clic en la etiqueta
+(function(){
+  function getInputFromTarget(target){
+    if(target instanceof HTMLInputElement) return target;
+    if(target instanceof HTMLLabelElement){
+      return target.querySelector('input[type="radio"]');
+    }
+    return null;
+  }
+  function handlePointerDown(e){
+    const input = getInputFromTarget(e.target);
+    if(!input) return;
+    if(input.type !== 'radio') return;
+    // Si ya estaba marcado, marcar flag para desmarcar en click
+    if(input.checked){
+      input.dataset.toggleOff = 'true';
+    } else {
+      // Al pulsar otro radio del mismo grupo, limpiamos flags del grupo
+      document.querySelectorAll('input[type="radio"][name="'+input.name+'"]').forEach(el=>{el.dataset.toggleOff='false';});
+    }
+  }
+  function handleClick(e){
+    const input = getInputFromTarget(e.target);
+    if(!input) return;
+    if(input.type !== 'radio') return;
+    if(input.dataset.toggleOff === 'true'){
+      // Evitar que quede marcado; forzar desmarque
+      input.checked = false;
+      input.dataset.toggleOff = 'false';
+      e.preventDefault();
+      e.stopPropagation();
+    } else {
+      // Limpia flags en su grupo
+      document.querySelectorAll('input[type="radio"][name="'+input.name+'"]').forEach(el=>{ if(el!==input) el.dataset.toggleOff='false'; });
+    }
+    // Después de cada clic, recalcular estado de la fila
+    queueMicrotask(updateAllRows);
+  }
+  document.addEventListener('pointerdown', handlePointerDown, true);
+  document.addEventListener('click', handleClick, true);
+})();
+
+// 2) Cálculo de Status por fila y apertura de observaciones
+function updateRow(row){
+  const radios = row.querySelectorAll('input[type="radio"]');
+  let problems = 0, oks = 0;
+  const groups = 8;
+  radios.forEach(r=>{
+    if(r.checked){
+      if(r.classList.contains('prob')) problems++;
+      if(r.classList.contains('ok')) oks++;
+    }
+  });
+  const statusCell = row.querySelector('td:last-child .status-dot');
+  const detail = row.nextElementSibling;
+  if(detail && detail.classList.contains('url-detail')){
+    if(problems>0){ detail.classList.add('open'); } else { detail.classList.remove('open'); }
+  }
+  statusCell.className = 'status-dot sd-neutral';
+  if(problems===0 && oks===groups){ statusCell.className='status-dot sd-green'; }
+  else if(problems>4){ statusCell.className='status-dot sd-red'; }
+  else if(problems>0){ statusCell.className='status-dot sd-orange'; }
+}
+function updateAllRows(){
+  document.querySelectorAll('tr.url-row').forEach(updateRow);
+}
+// Inicializar al cargar
+document.addEventListener('DOMContentLoaded', updateAllRows);
+// Recalcular en cambios
+document.addEventListener('change', function(e){
+  if(e.target && e.target.matches('input[type="radio"]')){
+    const row = e.target.closest('tr.url-row');
+    if(row) updateRow(row);
+  }
+});
+</script>
+</body>
+</html>

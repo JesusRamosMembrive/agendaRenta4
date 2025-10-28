@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+
+{% block title %}Inicio - Agenda Renta4{% endblock %}
+
+{% block content %}
+<div class="h1">Inicio — URLs del mes</div>
+
+{% if sections %}
+  <div class="table" role="table" aria-label="Listado de URLs y tareas">
+    <table>
+      <thead>
+        <tr>
+          <th class="sticky" style="width:22%">URL / Página</th>
+          {% for task_type in task_types %}
+            <th class="sticky task-head">{{ task_type.display_name }}</th>
+          {% endfor %}
+          <th class="sticky task-head" style="width:120px">Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for section in sections %}
+          <!-- Fila principal con URL y radios -->
+          <tr class="url-row" data-section-url="{{ section.url }}" data-section-id="{{ section.id }}">
+            <!-- Columna URL -->
+            <td class="url-col" title="{{ section.url }}">
+              <a href="{{ section.url }}" target="_blank" rel="noopener noreferrer" style="color: inherit; text-decoration: none;">
+                {{ section.name }}
+              </a>
+            </td>
+
+            <!-- Columnas de tipos de tareas (8 columnas con radios Ok/Problema) -->
+            {% for task_type in task_types %}
+              {% set task = section.tasks_by_type.get(task_type.id) %}
+              <td>
+                <div class="cell-group" role="group" aria-label="{{ task_type.display_name }} {{ section.name }}">
+                  <form method="post" action="{{ url_for('update_task') }}" class="inline-form" data-task-id="{{ task.id if task else '' }}">
+                    <input type="hidden" name="task_id" value="{{ task.id if task else '' }}" />
+                    <input type="hidden" name="section_id" value="{{ section.id }}" />
+                    <input type="hidden" name="task_type_id" value="{{ task_type.id }}" />
+                    <input type="hidden" name="period" value="{{ period }}" />
+
+                    <label class="radio sm">
+                      <input
+                        type="radio"
+                        name="status_{{ section.id }}_{{ task_type.id }}"
+                        value="ok"
+                        class="ok"
+                        data-task-id="{{ task.id if task else '' }}"
+                        {% if task and task.status == 'ok' %}checked{% endif %}
+                      />
+                      Ok
+                    </label>
+
+                    <label class="radio sm">
+                      <input
+                        type="radio"
+                        name="status_{{ section.id }}_{{ task_type.id }}"
+                        value="problem"
+                        class="prob"
+                        data-task-id="{{ task.id if task else '' }}"
+                        {% if task and task.status == 'problem' %}checked{% endif %}
+                      />
+                      Problema
+                    </label>
+                  </form>
+                </div>
+              </td>
+            {% endfor %}
+
+            <!-- Columna Status (dot con color) -->
+            <td>
+              <span class="status-dot sd-neutral" aria-label="Status"></span>
+            </td>
+          </tr>
+
+          <!-- Fila de observaciones (se muestra solo si hay problemas) -->
+          <tr class="url-detail">
+            <td colspan="{{ task_types|length + 2 }}">
+              <div class="label" style="margin-bottom:6px">
+                Observaciones para {{ section.name }}
+              </div>
+              <form method="post" action="{{ url_for('save_observations') }}">
+                <input type="hidden" name="section_id" value="{{ section.id }}" />
+                <input type="hidden" name="period" value="{{ period }}" />
+                <textarea
+                  class="obs"
+                  name="observations"
+                  placeholder="Describe las incidencias encontradas..."
+                  data-section-id="{{ section.id }}"
+                >{% if section.observations %}{{ section.observations }}{% endif %}</textarea>
+                <div style="margin-top: 8px; text-align: right;">
+                  <button type="submit" class="btn primary">Guardar observaciones</button>
+                </div>
+              </form>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="panel" style="margin-top:14px; color:#a7afc5">
+    <strong>Instrucciones:</strong>
+    <ul style="margin: 8px 0; padding-left: 20px;">
+      <li>Haz clic en "Ok" si todo está correcto</li>
+      <li>Haz clic en "Problema" si hay incidencias</li>
+      <li>Puedes desmarcar haciendo clic de nuevo en la opción seleccionada</li>
+      <li>El círculo de Status indica: <span class="status-dot sd-green"></span> todo OK, <span class="status-dot sd-orange"></span> hay problemas, <span class="status-dot sd-red"></span> muchos problemas</li>
+      <li>Las observaciones aparecen automáticamente cuando marcas algún problema</li>
+    </ul>
+  </div>
+
+{% else %}
+  <div class="panel">
+    <h3>No hay secciones disponibles</h3>
+    <p>No se encontraron URLs para revisar en este periodo.</p>
+    <p style="margin-top: 12px;">
+      <a href="{{ url_for('configuracion') }}" class="btn primary">Ir a Configuración</a>
+    </p>
+  </div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Auto-submit cuando se marca un radio (guardar estado inmediatamente)
+document.addEventListener('DOMContentLoaded', function() {
+  const radios = document.querySelectorAll('input[type="radio"]');
+
+  radios.forEach(radio => {
+    radio.addEventListener('change', function() {
+      const taskId = this.dataset.taskId;
+      const status = this.value; // 'ok' o 'problem'
+      const form = this.closest('form');
+
+      if (!taskId) {
+        console.warn('Task ID not found');
+        return;
+      }
+
+      // Auto-save via AJAX
+      const formData = new FormData(form);
+
+      fetch(form.action, {
+        method: 'POST',
+        body: formData
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          console.log('Tarea guardada:', taskId, status);
+        } else {
+          console.error('Error guardando tarea:', data.error);
+          alert('Error al guardar. Por favor, intenta de nuevo.');
+        }
+      })
+      .catch(error => {
+        console.error('Error de red:', error);
+      });
+    });
+  });
+
+  // Auto-save observaciones con debounce
+  const textareas = document.querySelectorAll('textarea.obs');
+  textareas.forEach(textarea => {
+    let timeout = null;
+
+    textarea.addEventListener('input', function() {
+      clearTimeout(timeout);
+
+      timeout = setTimeout(() => {
+        const form = this.closest('form');
+        const formData = new FormData(form);
+
+        fetch(form.action, {
+          method: 'POST',
+          body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            console.log('Observaciones guardadas');
+          }
+        })
+        .catch(error => {
+          console.error('Error guardando observaciones:', error);
+        });
+      }, 1000); // Auto-save después de 1 segundo de inactividad
+    });
+  });
+});
+</script>
+{% endblock %}

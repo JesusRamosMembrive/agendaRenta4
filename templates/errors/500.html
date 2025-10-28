@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block title %}500 - Error interno del servidor{% endblock %}
+
+{% block content %}
+<div style="text-align: center; padding: 60px 20px;">
+  <h1 style="font-size: 72px; margin: 0; color: #e67e22;">500</h1>
+  <h2 style="margin: 20px 0; color: #34495e;">Error interno del servidor</h2>
+  <p style="color: #7f8c8d; margin-bottom: 30px;">
+    Lo sentimos, algo salió mal en nuestro servidor. Por favor, intenta de nuevo más tarde.
+  </p>
+  <a href="{{ url_for('inicio') }}" class="btn primary">
+    Volver al Inicio
+  </a>
+</div>
+{% endblock %}
