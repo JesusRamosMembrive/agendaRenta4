@@ -9,7 +9,7 @@
   {
     "path": "add_notification_email.py",
     "relative": true,
-    "modified_at": "2025-10-29T17:14:54.880108+00:00",
+    "modified_at": "2025-10-29T18:15:28.091665+00:00",
     "symbols": [
       {
         "name": "add_email",
@@ -38,7 +38,7 @@
   {
     "path": "app.py",
     "relative": true,
-    "modified_at": "2025-10-29T17:18:22.330001+00:00",
+    "modified_at": "2025-10-29T18:15:28.091665+00:00",
     "symbols": [
       {
         "name": "User",
@@ -249,14 +249,14 @@
   {
     "path": "constants.py",
     "relative": true,
-    "modified_at": "2025-10-29T17:16:45.589583+00:00",
+    "modified_at": "2025-10-29T18:15:28.091665+00:00",
     "symbols": [],
     "errors": []
   },
   {
     "path": "create_tasks_for_period.py",
     "relative": true,
-    "modified_at": "2025-10-29T17:15:13.559188+00:00",
+    "modified_at": "2025-10-29T18:15:28.091665+00:00",
     "symbols": [
       {
         "name": "should_create_task_for_period",
@@ -357,7 +357,7 @@
   {
     "path": "load_sections.py",
     "relative": true,
-    "modified_at": "2025-10-29T17:15:34.809279+00:00",
+    "modified_at": "2025-10-29T18:15:28.091665+00:00",
     "symbols": [
       {
         "name": "generate_section_name",
@@ -386,7 +386,7 @@
   {
     "path": "manage_users.py",
     "relative": true,
-    "modified_at": "2025-10-29T17:14:28.695997+00:00",
+    "modified_at": "2025-10-29T18:15:28.091665+00:00",
     "symbols": [
       {
         "name": "add_user",
@@ -436,7 +436,7 @@
   {
     "path": "migrate_to_postgres.py",
     "relative": true,
-    "modified_at": "2025-10-29T17:56:59.402373+00:00",
+    "modified_at": "2025-10-29T18:15:28.091665+00:00",
     "symbols": [
       {
         "name": "get_sqlite_schema",
@@ -522,7 +522,7 @@
   {
     "path": "templates/base.html",
     "relative": true,
-    "modified_at": "2025-10-29T17:30:55.173332+00:00",
+    "modified_at": "2025-10-29T18:15:28.091665+00:00",
     "symbols": [],
     "errors": []
   },
@@ -557,7 +557,7 @@
   {
     "path": "templates/login.html",
     "relative": true,
-    "modified_at": "2025-10-29T17:31:59.002618+00:00",
+    "modified_at": "2025-10-29T18:15:28.091665+00:00",
     "symbols": [],
     "errors": []
   },
@@ -585,40 +585,40 @@
   {
     "path": "utils.py",
     "relative": true,
-    "modified_at": "2025-10-29T17:01:12.197917+00:00",
+    "modified_at": "2025-10-29T18:15:28.091665+00:00",
     "symbols": [
       {
         "name": "get_db_connection",
         "kind": "function",
-        "lineno": 24,
+        "lineno": 32,
         "parent": null,
-        "docstring": "Create and return a database connection.\n\nReturns:\n    sqlite3.Connection: Database connection with Row factory"
+        "docstring": "Create and return a database connection.\nSupports both SQLite (development) and PostgreSQL (production).\n\nReturns:\n    Connection: Database connection (sqlite3 or psycopg2)"
       },
       {
         "name": "db_cursor",
         "kind": "function",
-        "lineno": 37,
+        "lineno": 52,
         "parent": null,
-        "docstring": "Context manager for database operations.\nAutomatically handles connection lifecycle, commit/rollback, and cleanup.\n\nArgs:\n    commit: Whether to commit changes on success (default: True)\n\nUsage:\n    with db_cursor() as cursor:\n        cursor.execute(\"SELECT * FROM users\")\n        results = cursor.fetchall()\n    # Connection automatically committed and closed\n\nYields:\n    sqlite3.Cursor: Database cursor for queries"
+        "docstring": "Context manager for database operations.\nAutomatically handles connection lifecycle, commit/rollback, and cleanup.\nWorks with both SQLite and PostgreSQL.\n\nArgs:\n    commit: Whether to commit changes on success (default: True)\n\nUsage:\n    with db_cursor() as cursor:\n        cursor.execute(\"SELECT * FROM users\")\n        results = cursor.fetchall()\n    # Connection automatically committed and closed\n\nYields:\n    Cursor: Database cursor for queries"
       },
       {
         "name": "format_date",
         "kind": "function",
-        "lineno": 71,
+        "lineno": 93,
         "parent": null,
         "docstring": "Format date string to Spanish format: dd/mm/yyyy\n\nArgs:\n    date_str: Date string in format YYYY-MM-DD\n\nReturns:\n    str: Date in format dd/mm/yyyy, or original string if parsing fails"
       },
       {
         "name": "format_period",
         "kind": "function",
-        "lineno": 90,
+        "lineno": 112,
         "parent": null,
         "docstring": "Format period string from '2025-11' to 'Noviembre 2025'\n\nArgs:\n    period_str: Period string in format YYYY-MM\n\nReturns:\n    str: Period in Spanish format, or original string if parsing fails"
       },
       {
         "name": "generate_available_periods",
         "kind": "function",
-        "lineno": 111,
+        "lineno": 133,
         "parent": null,
         "docstring": "Generate list of available periods (last 6 months + current + next 6 months).\n\nReturns:\n    list: List of period strings in format 'YYYY-MM'"
       }

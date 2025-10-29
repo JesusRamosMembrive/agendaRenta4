@@ -1,24 +1,98 @@
 # Estado Actual
 
 **Fecha**: 2025-10-29
-**Etapa**: 1 (Prototipado)
-**Sesión**: Sistema de Alertas Automáticas
+**Etapa**: 1 (Prototipado) - ✅ **COMPLETADO Y DESPLEGADO EN PRODUCCIÓN**
+**Sesión Final**: Migración completa a PostgreSQL y despliegue en Render
 
-## Objetivo de hoy
-✅ COMPLETADO: Implementación completa del sistema de alertas automáticas
-- Generación de alertas según periodicidad configurada
-- Página de visualización de alertas con contador en sidebar
-- Funcionalidad de resolución/descarte de alertas con **toggle** (marcar/desmarcar)
-- Pruebas completas de todos los componentes
-- ✅ CORRECCIÓN 1: Alertas ahora son por tipo de tarea (8 máx), no por URL (173×8)
-- ✅ CORRECCIÓN 2: Toggle de alertas - no desaparecen al resolver, se pueden reactivar
+## 🎉 STAGE 1 COMPLETADO Y EN PRODUCCIÓN
+
+La aplicación está **desplegada y funcionando** en Render con PostgreSQL.
+
+### Logros de la sesión final (2025-10-29 tarde)
+
+✅ **Migración completa de SQLite a PostgreSQL**
+- Migración exitosa de 1267 filas de datos
+- Configuración de PostgreSQL local para desarrollo
+- Actualización completa del código para PostgreSQL everywhere
+- Eliminación de toda la lógica dual SQLite/PostgreSQL
+
+✅ **Despliegue en producción (Render)**
+- Aplicación desplegada y funcionando
+- Base de datos PostgreSQL en Render
+- Build exitoso con Python 3.11.9
+- Todos los servicios comunicándose correctamente
 
 ---
 
-## Sesión Anterior (2025-10-28)
-**Objetivo**: Mejoras de interfaz, nueva sección Problemas, y contadores en sidebar
+## Progreso de la sesión final (2025-10-29 tarde)
 
-## Progreso de hoy (Sesión actual 2025-10-29)
+### Migración PostgreSQL - Cambios Técnicos
+
+**Archivos modificados:**
+
+1. **utils.py** - Simplificación completa
+   - ❌ Eliminado: `import sqlite3`
+   - ❌ Eliminado: `DATABASE_PATH`
+   - ❌ Eliminado: `adapt_query()` function
+   - ❌ Eliminado: Lógica condicional SQLite/PostgreSQL
+   - ✅ Solo PostgreSQL: `psycopg2` + `DATABASE_URL`
+   - ✅ Context manager `db_cursor()` optimizado para PostgreSQL
+
+2. **app.py** - 40+ queries actualizadas
+   - Cambiados todos los placeholders `?` → `%s`
+   - Eliminado import de `DATABASE_PATH` y `adapt_query`
+   - Agregado `load_dotenv()` al inicio
+   - Eliminada verificación de archivo de base de datos
+   - Actualizado uso de booleanos (1/0 → TRUE/FALSE donde corresponde)
+
+3. **manage_users.py** - Queries PostgreSQL
+   - Cambiados 5 placeholders `?` → `%s`
+   - `sqlite3.IntegrityError` → `psycopg2.IntegrityError`
+   - Eliminado import de `DATABASE_PATH`
+
+4. **.env** (local)
+   - `DATABASE_URL=postgresql://jesusramos:dev-password@localhost/agendaRenta4`
+
+**Migración de datos:**
+- Script: `migrate_to_postgres.py`
+- Datos migrados: 1267 filas
+- Tablas: sections, task_types, tasks, alert_settings, notification_preferences, users, pending_alerts
+- Conversión automática de booleanos SQLite (0/1) a PostgreSQL (FALSE/TRUE)
+- Reset de sequences automático
+
+**Commit:**
+- Hash: `557a59b`
+- Mensaje: "Migrate: Cambio completo de SQLite a PostgreSQL"
+- Branch: `master`
+
+### Problemas Resueltos en Migración
+
+1. **Python version incompatibility**
+   - Error: `psycopg2-binary` no compatible con Python 3.13.4
+   - Solución: `runtime.txt` con Python 3.11.9 + psycopg2-binary 2.9.11
+
+2. **Boolean type mismatch**
+   - Error: PostgreSQL esperaba BOOLEAN pero recibía INTEGER
+   - Solución: Actualización de migration script + 19 queries en código
+
+3. **Database region mismatch**
+   - Error: Web service y PostgreSQL en diferentes regiones
+   - Solución: Recrear servicios en Frankfurt (misma región)
+
+4. **SQL placeholder syntax**
+   - Error: SQLite usa `?`, PostgreSQL usa `%s`
+   - Solución: Cambio global de todos los placeholders (40+ queries)
+
+5. **Import errors**
+   - Error: Referencias a `DATABASE_PATH` y `adapt_query` inexistentes
+   - Solución: Limpieza completa de imports obsoletos
+
+---
+
+## Sesión Anterior (2025-10-29 mañana)
+**Objetivo**: Sistema de Alertas Automáticas
+
+## Progreso sesión de alertas (2025-10-29 mañana)
 - [x] Crear tabla `pending_alerts` en base de datos
 - [x] Implementar función `generate_alerts()` para crear alertas según periodicidad
 - [x] Implementar función `check_alert_day()` con lógica para todas las frecuencias
@@ -285,9 +359,9 @@
 - Input de búsqueda existe pero no funciona
 - Pendiente para futuras iteraciones
 
-## Estado actual del sistema
+## 🚀 Estado actual del sistema (EN PRODUCCIÓN)
 
-**Funcionando correctamente:**
+**✅ Funcionando en producción (Render + PostgreSQL):**
 - ✅ Marcar/desmarcar tareas como OK o Problema (toggle buttons)
 - ✅ Auto-guardado de observaciones
 - ✅ Contadores en sidebar actualizados dinámicamente (Pendientes, Alertas, Problemas, Realizadas)
@@ -300,55 +374,69 @@
 - ✅ CRUD de URLs (añadir, editar, activar/desactivar, eliminar)
 - ✅ Configuración de alertas por tipo de tarea (periodicidad + día específico)
 - ✅ Configuración de preferencias de notificación
-- ✅ **NUEVO:** Sistema de alertas automáticas completamente funcional
+- ✅ Sistema de alertas automáticas completamente funcional
   - Generación de alertas según periodicidad configurada
   - Visualización de alertas pendientes con contador animado
   - Resolución/descarte de alertas individuales
   - Edge case handling para meses con menos días
+- ✅ **PostgreSQL en desarrollo Y producción** (dev/prod parity)
+- ✅ **Aplicación desplegada en Render** con PostgreSQL managed database
 
-**Pendiente/No implementado:**
+**⏸️ Pendiente para futuras iteraciones (Stage 2+):**
 - ⏸️ Búsqueda funcional
-- ⏸️ Autenticación de usuarios (hardcoded 'José Ramos')
+- ⏸️ Sistema de autenticación multi-usuario (actualmente hardcoded)
 - ⏸️ Filtros avanzados por fecha/tipo
 - ⏸️ Exportación de reportes
-- ⏸️ Sistema de envío real de notificaciones (email/desktop) - Por ahora solo configuración
+- ⏸️ Sistema de envío real de notificaciones (email/desktop)
 - ⏸️ Programación automática (cron job) para ejecutar generate_alerts() diariamente
 - ⏸️ Notificaciones in-app cuando se generan nuevas alertas
+- ⏸️ **Web scraper/crawler automático** (Stage 2)
 
-## Próxima sesión
+## 🎯 Próxima sesión - Preparar Stage 2
 
-**Prioridades sugeridas:**
+**🎉 STAGE 1 COMPLETADO Y DESPLEGADO**
 
-1. ✅ **Sistema de Alertas Automáticas** - COMPLETADO
-   - Generación de alertas según periodicidad
-   - Visualización y gestión de alertas
-   - Contador animado en sidebar
+La aplicación está funcionando en producción. Todos los objetivos de Stage 1 cumplidos:
+- ✅ Sistema manual de revisión de tareas
+- ✅ Configuración de URLs (CRUD completo)
+- ✅ Configuración de alertas con periodicidad
+- ✅ Sistema de alertas automáticas
+- ✅ PostgreSQL en desarrollo y producción
+- ✅ Aplicación desplegada en Render
 
-2. **Programación automática de alertas** (Opcional para Stage 1)
-   - Crear script Python para ejecutar generate_alerts() diariamente
-   - Configurar cron job o systemd timer
-   - O simplemente documentar que se ejecuta manualmente
+**Sugerencias para próxima sesión:**
 
-3. **Implementar búsqueda** (Nice to have)
-   - Filtrar por nombre de sección en tabla
-   - JavaScript simple client-side
+### Opción A: Mejoras opcionales de Stage 1
+1. **Autenticación multi-usuario**
+   - Sistema de login/logout funcional
+   - Gestión de usuarios (crear, editar, eliminar)
+   - Permisos por rol (admin, revisor)
 
-4. **Validaciones y errores** (Nice to have)
-   - Manejo de errores en AJAX calls
-   - Feedback visual cuando falla guardado
+2. **Búsqueda funcional**
+   - Filtrar secciones en tabla por nombre
+   - JavaScript client-side simple
 
-**Estado de Stage 1:**
-✅ **STAGE 1 PRÁCTICAMENTE COMPLETO**
-- Sistema manual de revisión de tareas: ✅
-- Configuración de URLs: ✅
-- Configuración de alertas con periodicidad: ✅
-- Sistema de alertas automáticas: ✅
-- Lo único pendiente es la automatización del cron job (opcional)
+3. **Cron job para alertas**
+   - Script para ejecutar `generate_alerts()` diariamente
+   - Configuración en servidor o usar servicio como cron-job.org
 
-**Siguiente paso recomendado:**
-- Preparar el terreno para **Stage 2 (Web Scraper/Crawler)**
-- Definir arquitectura del scraper
-- Decidir qué herramientas usar (Playwright, BeautifulSoup, Scrapy, etc.)
+### Opción B: Comenzar Stage 2 (Web Scraper)
+1. **Definir arquitectura del scraper**
+   - Evaluar herramientas: Playwright, BeautifulSoup, Scrapy
+   - Decidir si scraper corre en Render o separado
+   - Diseñar estructura de datos para guardar resultados
+
+2. **Prototipo inicial**
+   - Scraper básico para 1-2 URLs de prueba
+   - Guardar resultados en nueva tabla `scan_results`
+   - Endpoint para visualizar resultados
+
+3. **Integración con sistema de alertas**
+   - Scraper se ejecuta cuando hay alerta activa
+   - Resultados aparecen en página de alerta
+   - Sistema de comparación (cambios vs. última revisión)
+
+**Recomendación: Opción B** - Stage 1 está completo y funcional. Es buen momento para empezar Stage 2.
 
 ## Bugs conocidos
 - ✅ (RESUELTO) Status-dot no cambiaba de color (implementado 2025-10-29)
@@ -356,11 +444,30 @@
 
 ## Notas técnicas
 
-- Base de datos: SQLite (agendaRenta4.db)
-- Tablas: sections, task_types, tasks, alert_settings, notification_preferences, notifications, **pending_alerts**
-- Task status: 'pending', 'ok', 'problem'
-- Periodo actual: 2025-10 (formato YYYY-MM)
-- Context processor inyecta task_counts en todos los templates (incluyendo alerts)
+### Stack actual (Producción)
+- **Base de datos**: PostgreSQL (Render managed database)
+- **Servidor web**: Gunicorn (puerto configurado por Render)
+- **Hosting**: Render (Frankfurt region)
+- **Python**: 3.11.9
+- **Framework**: Flask 3.0.0
+- **Database driver**: psycopg2-binary 2.9.11
+
+### Base de datos local (Desarrollo)
+- **Base de datos**: PostgreSQL (localhost)
+- **Connection string**: `postgresql://jesusramos:dev-password@localhost/agendaRenta4`
+- **Migración**: 1267 filas desde SQLite
+
+### Esquema de base de datos
+- **Tablas**: sections, task_types, tasks, alert_settings, notification_preferences, notifications, pending_alerts, users
+- **Task status**: 'pending', 'ok', 'problem'
+- **Periodo actual**: 2025-10 (formato YYYY-MM)
+- **Context processor**: Inyecta task_counts en todos los templates (incluyendo alerts)
+
+### Deployment
+- **Archivo de configuración**: render.yaml (Render Blueprint)
+- **Build script**: build.sh
+- **Runtime**: runtime.txt (Python 3.11.9)
+- **Branch de producción**: master
 
 ### Sistema de Alertas Automáticas (IMPLEMENTADO ✅)
 
