@@ -262,7 +262,16 @@
 ## Notas técnicas
 
 - Base de datos: SQLite (agendaRenta4.db)
-- Tablas: sections, task_types, tasks
+- Tablas: sections, task_types, tasks, alert_settings, notification_preferences, notifications
 - Task status: 'pending', 'ok', 'problem'
 - Periodo actual: 2025-10 (formato YYYY-MM)
 - Context processor inyecta task_counts en todos los templates
+
+### Lógica de alertas (para implementación futura)
+**Edge case - Días del mes que no existen:**
+- Si se configura alerta para día 29, 30 o 31 en meses con menos días:
+  * Se usará el **último día del mes**
+  * Ejemplo: Alerta día 31 en febrero → se genera el día 28 (o 29 en bisiestos)
+  * Ejemplo: Alerta día 31 en abril → se genera el día 30
+- Decisión tomada: 2025-10-29
+- Estado: Configuración guardada en BD, lógica de generación pendiente para Stage 2

@@ -1,0 +1,323 @@
+[
+  {
+    "path": "app.py",
+    "relative": true,
+    "modified_at": "2025-10-29T08:53:00.820323+00:00",
+    "symbols": [
+      {
+        "name": "get_db_connection",
+        "kind": "function",
+        "lineno": 24,
+        "parent": null,
+        "docstring": null
+      },
+      {
+        "name": "generate_available_periods",
+        "kind": "function",
+        "lineno": 37,
+        "parent": null,
+        "docstring": null
+      },
+      {
+        "name": "get_task_counts",
+        "kind": "function",
+        "lineno": 63,
+        "parent": null,
+        "docstring": null
+      },
+      {
+        "name": "inject_task_counts",
+        "kind": "function",
+        "lineno": 130,
+        "parent": null,
+        "docstring": null
+      },
+      {
+        "name": "format_date",
+        "kind": "function",
+        "lineno": 142,
+        "parent": null,
+        "docstring": null
+      },
+      {
+        "name": "format_period",
+        "kind": "function",
+        "lineno": 156,
+        "parent": null,
+        "docstring": null
+      },
+      {
+        "name": "index",
+        "kind": "function",
+        "lineno": 176,
+        "parent": null,
+        "docstring": null
+      },
+      {
+        "name": "inicio",
+        "kind": "function",
+        "lineno": 184,
+        "parent": null,
+        "docstring": null
+      },
+      {
+        "name": "pendientes",
+        "kind": "function",
+        "lineno": 263,
+        "parent": null,
+        "docstring": null
+      },
+      {
+        "name": "problemas",
+        "kind": "function",
+        "lineno": 328,
+        "parent": null,
+        "docstring": null
+      },
+      {
+        "name": "realizadas",
+        "kind": "function",
+        "lineno": 382,
+        "parent": null,
+        "docstring": null
+      },
+      {
+        "name": "configuracion",
+        "kind": "function",
+        "lineno": 431,
+        "parent": null,
+        "docstring": null
+      },
+      {
+        "name": "update_task",
+        "kind": "function",
+        "lineno": 501,
+        "parent": null,
+        "docstring": null
+      },
+      {
+        "name": "save_observations",
+        "kind": "function",
+        "lineno": 553,
+        "parent": null,
+        "docstring": null
+      },
+      {
+        "name": "save_alert_settings",
+        "kind": "function",
+        "lineno": 587,
+        "parent": null,
+        "docstring": null
+      },
+      {
+        "name": "save_notification_preferences",
+        "kind": "function",
+        "lineno": 620,
+        "parent": null,
+        "docstring": null
+      },
+      {
+        "name": "add_url",
+        "kind": "function",
+        "lineno": 651,
+        "parent": null,
+        "docstring": null
+      },
+      {
+        "name": "edit_url",
+        "kind": "function",
+        "lineno": 681,
+        "parent": null,
+        "docstring": null
+      },
+      {
+        "name": "toggle_url",
+        "kind": "function",
+        "lineno": 711,
+        "parent": null,
+        "docstring": null
+      },
+      {
+        "name": "delete_url",
+        "kind": "function",
+        "lineno": 744,
+        "parent": null,
+        "docstring": null
+      },
+      {
+        "name": "not_found",
+        "kind": "function",
+        "lineno": 779,
+        "parent": null,
+        "docstring": null
+      },
+      {
+        "name": "internal_error",
+        "kind": "function",
+        "lineno": 793,
+        "parent": null,
+        "docstring": null
+      }
+    ],
+    "errors": []
+  },
+  {
+    "path": "create_tasks_for_period.py",
+    "relative": true,
+    "modified_at": "2025-10-28T14:38:23.357858+00:00",
+    "symbols": [
+      {
+        "name": "should_create_task_for_period",
+        "kind": "function",
+        "lineno": 18,
+        "parent": null,
+        "docstring": null
+      },
+      {
+        "name": "create_tasks_for_period",
+        "kind": "function",
+        "lineno": 59,
+        "parent": null,
+        "docstring": null
+      },
+      {
+        "name": "get_db_task_stats",
+        "kind": "function",
+        "lineno": 173,
+        "parent": null,
+        "docstring": null
+      },
+      {
+        "name": "main",
+        "kind": "function",
+        "lineno": 216,
+        "parent": null,
+        "docstring": null
+      }
+    ],
+    "errors": []
+  },
+  {
+    "path": "database.py",
+    "relative": true,
+    "modified_at": "2025-10-28T14:26:48.815377+00:00",
+    "symbols": [
+      {
+        "name": "init_db",
+        "kind": "function",
+        "lineno": 15,
+        "parent": null,
+        "docstring": null
+      },
+      {
+        "name": "seed_task_types",
+        "kind": "function",
+        "lineno": 95,
+        "parent": null,
+        "docstring": null
+      },
+      {
+        "name": "drop_all_tables",
+        "kind": "function",
+        "lineno": 132,
+        "parent": null,
+        "docstring": null
+      },
+      {
+        "name": "get_db_stats",
+        "kind": "function",
+        "lineno": 159,
+        "parent": null,
+        "docstring": null
+      },
+      {
+        "name": "main",
+        "kind": "function",
+        "lineno": 179,
+        "parent": null,
+        "docstring": null
+      }
+    ],
+    "errors": []
+  },
+  {
+    "path": "explore_excel.py",
+    "relative": true,
+    "modified_at": "2025-10-28T09:10:18.532930+00:00",
+    "symbols": [
+      {
+        "name": "explore_excel",
+        "kind": "function",
+        "lineno": 19,
+        "parent": null,
+        "docstring": null
+      },
+      {
+        "name": "main",
+        "kind": "function",
+        "lineno": 109,
+        "parent": null,
+        "docstring": null
+      }
+    ],
+    "errors": []
+  },
+  {
+    "path": "load_sections.py",
+    "relative": true,
+    "modified_at": "2025-10-28T14:35:24.571819+00:00",
+    "symbols": [
+      {
+        "name": "generate_section_name",
+        "kind": "function",
+        "lineno": 24,
+        "parent": null,
+        "docstring": null
+      },
+      {
+        "name": "load_sections_from_excel",
+        "kind": "function",
+        "lineno": 70,
+        "parent": null,
+        "docstring": null
+      },
+      {
+        "name": "main",
+        "kind": "function",
+        "lineno": 174,
+        "parent": null,
+        "docstring": null
+      }
+    ],
+    "errors": []
+  },
+  {
+    "path": "seed_users.py",
+    "relative": true,
+    "modified_at": "2025-10-28T14:43:00.950510+00:00",
+    "symbols": [
+      {
+        "name": "seed_users",
+        "kind": "function",
+        "lineno": 16,
+        "parent": null,
+        "docstring": null
+      },
+      {
+        "name": "list_users",
+        "kind": "function",
+        "lineno": 64,
+        "parent": null,
+        "docstring": null
+      },
+      {
+        "name": "main",
+        "kind": "function",
+        "lineno": 97,
+        "parent": null,
+        "docstring": null
+      }
+    ],
+    "errors": []
+  }
+]
