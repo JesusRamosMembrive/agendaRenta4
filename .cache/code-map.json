@@ -2,161 +2,196 @@
   {
     "path": "app.py",
     "relative": true,
-    "modified_at": "2025-10-29T08:53:00.820323+00:00",
+    "modified_at": "2025-10-29T09:30:42.671728+00:00",
     "symbols": [
       {
         "name": "get_db_connection",
         "kind": "function",
-        "lineno": 24,
+        "lineno": 25,
         "parent": null,
-        "docstring": null
+        "docstring": "Create and return a database connection."
       },
       {
         "name": "generate_available_periods",
         "kind": "function",
-        "lineno": 37,
+        "lineno": 38,
         "parent": null,
-        "docstring": null
+        "docstring": "Generate list of available periods (last 6 months + next 6 months).\nReturns list of strings in format 'YYYY-MM'."
       },
       {
         "name": "get_task_counts",
         "kind": "function",
-        "lineno": 63,
+        "lineno": 64,
         "parent": null,
-        "docstring": null
+        "docstring": "Get counts of pending, problem, completed tasks, and pending alerts.\nReturns dict with 'pending', 'problems', 'completed', 'alerts' counts."
+      },
+      {
+        "name": "generate_alerts",
+        "kind": "function",
+        "lineno": 135,
+        "parent": null,
+        "docstring": "Generate pending alerts based on alert_settings configuration.\nThis function should be run periodically (daily) to create alerts.\n\nArgs:\n    reference_date: Date to use as reference (default: today)\n\nReturns:\n    dict with stats: {'generated': count, 'skipped': count, 'errors': []}"
+      },
+      {
+        "name": "check_alert_day",
+        "kind": "function",
+        "lineno": 223,
+        "parent": null,
+        "docstring": "Check if the reference_date matches the alert configuration.\n\nArgs:\n    reference_date: date object to check\n    frequency: alert frequency (daily, weekly, biweekly, monthly, quarterly, semiannual, annual)\n    alert_day: specific day configuration (day of week or day of month)\n\nReturns:\n    bool: True if alert should be generated for this date"
       },
       {
         "name": "inject_task_counts",
         "kind": "function",
-        "lineno": 130,
+        "lineno": 302,
         "parent": null,
-        "docstring": null
+        "docstring": "Make task counts available to all templates"
       },
       {
         "name": "format_date",
         "kind": "function",
-        "lineno": 142,
+        "lineno": 314,
         "parent": null,
-        "docstring": null
+        "docstring": "Format date string to Spanish format: dd/mm/yyyy"
       },
       {
         "name": "format_period",
         "kind": "function",
-        "lineno": 156,
+        "lineno": 328,
         "parent": null,
-        "docstring": null
+        "docstring": "Format period string from '2025-11' to 'Noviembre 2025'"
       },
       {
         "name": "index",
         "kind": "function",
-        "lineno": 176,
+        "lineno": 348,
         "parent": null,
-        "docstring": null
+        "docstring": "Redirect to inicio page (main dashboard)"
       },
       {
         "name": "inicio",
         "kind": "function",
-        "lineno": 184,
+        "lineno": 356,
         "parent": null,
-        "docstring": null
+        "docstring": "Main dashboard - Table with all URLs and their 8 task types"
       },
       {
         "name": "pendientes",
         "kind": "function",
-        "lineno": 263,
+        "lineno": 435,
         "parent": null,
-        "docstring": null
+        "docstring": "List of ALL pending tasks (not marked as OK or Problem)\nGenerates all possible combinations and excludes completed/problem tasks"
       },
       {
         "name": "problemas",
         "kind": "function",
-        "lineno": 328,
+        "lineno": 500,
         "parent": null,
-        "docstring": null
+        "docstring": "List of tasks with problems (status='problem')\nShows tasks from 2025-10 onwards that have issues"
       },
       {
         "name": "realizadas",
         "kind": "function",
-        "lineno": 382,
+        "lineno": 554,
         "parent": null,
-        "docstring": null
+        "docstring": "List of completed tasks (status='ok')\nShows complete history of all tasks marked as OK"
       },
       {
         "name": "configuracion",
         "kind": "function",
-        "lineno": 431,
+        "lineno": 603,
         "parent": null,
-        "docstring": null
+        "docstring": "Configuration page - CRUD for URLs, Alerts and Notification preferences"
       },
       {
         "name": "update_task",
         "kind": "function",
-        "lineno": 501,
+        "lineno": 673,
         "parent": null,
-        "docstring": null
+        "docstring": "Update task status (ok/problem) via AJAX\nReturns JSON response"
       },
       {
         "name": "save_observations",
         "kind": "function",
-        "lineno": 553,
+        "lineno": 725,
         "parent": null,
-        "docstring": null
+        "docstring": "Save observations for all tasks of a section (when there are problems)\nReturns JSON response"
       },
       {
         "name": "save_alert_settings",
         "kind": "function",
-        "lineno": 587,
+        "lineno": 759,
         "parent": null,
-        "docstring": null
+        "docstring": "Save alert settings for all task types\nExpects JSON: [{ task_type_id, alert_frequency, alert_day, enabled }, ...]"
       },
       {
         "name": "save_notification_preferences",
         "kind": "function",
-        "lineno": 620,
+        "lineno": 792,
         "parent": null,
-        "docstring": null
+        "docstring": "Save notification preferences for current user"
       },
       {
         "name": "add_url",
         "kind": "function",
-        "lineno": 651,
+        "lineno": 823,
         "parent": null,
-        "docstring": null
+        "docstring": "Add new URL/section"
       },
       {
         "name": "edit_url",
         "kind": "function",
-        "lineno": 681,
+        "lineno": 853,
         "parent": null,
-        "docstring": null
+        "docstring": "Edit existing URL/section"
       },
       {
         "name": "toggle_url",
         "kind": "function",
-        "lineno": 711,
+        "lineno": 883,
         "parent": null,
-        "docstring": null
+        "docstring": "Toggle active status of URL/section"
       },
       {
         "name": "delete_url",
         "kind": "function",
-        "lineno": 744,
+        "lineno": 916,
         "parent": null,
-        "docstring": null
+        "docstring": "Delete URL/section (only if no associated tasks)"
+      },
+      {
+        "name": "trigger_generate_alerts",
+        "kind": "function",
+        "lineno": 951,
+        "parent": null,
+        "docstring": "Manually trigger alert generation for testing.\nCan accept optional date parameter (YYYY-MM-DD format)."
+      },
+      {
+        "name": "alertas",
+        "kind": "function",
+        "lineno": 982,
+        "parent": null,
+        "docstring": "Display all pending alerts (not dismissed)"
+      },
+      {
+        "name": "dismiss_alert",
+        "kind": "function",
+        "lineno": 1027,
+        "parent": null,
+        "docstring": "Dismiss (mark as resolved) a pending alert"
       },
       {
         "name": "not_found",
         "kind": "function",
-        "lineno": 779,
+        "lineno": 1055,
         "parent": null,
-        "docstring": null
+        "docstring": "Handle 404 errors"
       },
       {
         "name": "internal_error",
         "kind": "function",
-        "lineno": 793,
+        "lineno": 1069,
         "parent": null,
-        "docstring": null
+        "docstring": "Handle 500 errors"
       }
     ],
     "errors": []
@@ -171,28 +206,28 @@
         "kind": "function",
         "lineno": 18,
         "parent": null,
-        "docstring": null
+        "docstring": "Determina si se debe crear una tarea para un periodo dado seg\u00fan su periodicidad.\n\nArgs:\n    period: Periodo en formato \"YYYY-MM\" (ej: \"2025-11\")\n    periodicity: Tipo de periodicidad (\"weekly\", \"monthly\", \"quarterly\", \"biannual\", \"yearly\")\n\nReturns:\n    True si se debe crear la tarea, False si no"
       },
       {
         "name": "create_tasks_for_period",
         "kind": "function",
         "lineno": 59,
         "parent": null,
-        "docstring": null
+        "docstring": "Crea tareas para un periodo espec\u00edfico seg\u00fan las periodicidades configuradas.\n\nArgs:\n    period: Periodo en formato \"YYYY-MM\" (ej: \"2025-11\")\n    db_path: Ruta a la base de datos SQLite\n    verbose: Si True, muestra mensajes de progreso"
       },
       {
         "name": "get_db_task_stats",
         "kind": "function",
         "lineno": 173,
         "parent": null,
-        "docstring": null
+        "docstring": "Muestra estad\u00edsticas de tareas en la BD."
       },
       {
         "name": "main",
         "kind": "function",
         "lineno": 216,
         "parent": null,
-        "docstring": null
+        "docstring": "Script principal con argumentos CLI."
       }
     ],
     "errors": []
@@ -207,35 +242,35 @@
         "kind": "function",
         "lineno": 15,
         "parent": null,
-        "docstring": null
+        "docstring": "Crea las tablas de la base de datos si no existen."
       },
       {
         "name": "seed_task_types",
         "kind": "function",
         "lineno": 95,
         "parent": null,
-        "docstring": null
+        "docstring": "Inserta los 8 tipos de tareas con sus periodicidades iniciales."
       },
       {
         "name": "drop_all_tables",
         "kind": "function",
         "lineno": 132,
         "parent": null,
-        "docstring": null
+        "docstring": "\u26a0\ufe0f PELIGRO: Elimina todas las tablas (usar solo en desarrollo)"
       },
       {
         "name": "get_db_stats",
         "kind": "function",
         "lineno": 159,
         "parent": null,
-        "docstring": null
+        "docstring": "Muestra estad\u00edsticas de la base de datos (n\u00famero de registros por tabla)."
       },
       {
         "name": "main",
         "kind": "function",
         "lineno": 179,
         "parent": null,
-        "docstring": null
+        "docstring": "Script principal - Inicializa la BD y pobla tipos de tareas."
       }
     ],
     "errors": []
@@ -250,7 +285,7 @@
         "kind": "function",
         "lineno": 19,
         "parent": null,
-        "docstring": null
+        "docstring": "Explora estructura del archivo Excel y muestra informaci\u00f3n detallada."
       },
       {
         "name": "main",
@@ -272,21 +307,21 @@
         "kind": "function",
         "lineno": 24,
         "parent": null,
-        "docstring": null
+        "docstring": "Genera un nombre descriptivo para la secci\u00f3n a partir de la URL.\n\nArgs:\n    url: URL completa (ej: \"https://www.r4.com/planes-de-pensiones/categorias\")\n    hierarchy_levels: Lista de niveles de jerarqu\u00eda (Col 2-6)\n\nReturns:\n    Nombre descriptivo (ej: \"Planes de Pensiones - Categor\u00edas\")"
       },
       {
         "name": "load_sections_from_excel",
         "kind": "function",
         "lineno": 70,
         "parent": null,
-        "docstring": null
+        "docstring": "Lee el Excel y carga las secciones (URLs) en la base de datos.\n\nArgs:\n    excel_path: Ruta al archivo Excel\n    db_path: Ruta a la base de datos SQLite"
       },
       {
         "name": "main",
         "kind": "function",
         "lineno": 174,
         "parent": null,
-        "docstring": null
+        "docstring": "Script principal."
       }
     ],
     "errors": []
@@ -301,21 +336,21 @@
         "kind": "function",
         "lineno": 16,
         "parent": null,
-        "docstring": null
+        "docstring": "Inserta usuarios de prueba en la tabla 'users'."
       },
       {
         "name": "list_users",
         "kind": "function",
         "lineno": 64,
         "parent": null,
-        "docstring": null
+        "docstring": "Lista todos los usuarios en la BD."
       },
       {
         "name": "main",
         "kind": "function",
         "lineno": 97,
         "parent": null,
-        "docstring": null
+        "docstring": "Script principal."
       }
     ],
     "errors": []

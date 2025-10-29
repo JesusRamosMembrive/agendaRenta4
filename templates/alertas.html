@@ -1,0 +1,243 @@
+{% extends "base.html" %}
+
+{% block title %}Alertas - Agenda Renta4{% endblock %}
+
+{% block content %}
+<div class="h1">Alertas — Avisos programados</div>
+
+{% if pending_alerts %}
+  {% set active_count = pending_alerts | selectattr('dismissed', 'equalto', 0) | list | length %}
+  {% set dismissed_count = pending_alerts | selectattr('dismissed', 'equalto', 1) | list | length %}
+
+  <div class="panel" style="margin-bottom: 20px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); border-left: 4px solid #fbbf24;">
+    <strong style="color: #fffbeb;">⚠️ Alertas activas:</strong> <span style="color: #fffbeb; font-weight: 600;">{{ active_count }}</span>
+    <span style="color: #fef3c7; margin-left: 16px;">Resueltas: {{ dismissed_count }}</span>
+    <p style="margin: 8px 0 0 0; color: #fef3c7; font-size: 0.9em;">
+      Estas alertas se generaron automáticamente según la periodicidad configurada
+    </p>
+  </div>
+
+  <div class="table" role="table" aria-label="Listado de alertas pendientes">
+    <table>
+      <thead>
+        <tr>
+          <th class="sticky" style="width:15%">Fecha Aviso</th>
+          <th class="sticky" style="width:35%">Tipo de Tarea</th>
+          <th class="sticky" style="width:20%">Periodicidad</th>
+          <th class="sticky" style="width:15%">Generada</th>
+          <th class="sticky" style="width:15%">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for alert in pending_alerts %}
+          <tr data-alert-id="{{ alert.id }}" data-dismissed="{{ alert.dismissed }}"
+              style="{% if alert.dismissed %}opacity: 0.5; background: rgba(16, 185, 129, 0.05);{% endif %}">
+            <!-- Fecha de Aviso -->
+            <td>
+              <strong style="color: {% if alert.dismissed %}#10b981{% else %}#f59e0b{% endif %};">
+                {{ alert.due_date|format_date }}
+              </strong>
+            </td>
+
+            <!-- Tipo de Tarea -->
+            <td>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                {% if alert.dismissed %}
+                  <span style="color: #10b981; font-size: 1.2em;">✓</span>
+                {% endif %}
+                <div>
+                  <strong style="font-size: 1.05em;">{{ alert.task_type_name }}</strong>
+                  <p style="margin: 4px 0 0 0; color: #6b7280; font-size: 0.85em;">
+                    Revisar todas las URLs para esta tarea
+                  </p>
+                </div>
+              </div>
+            </td>
+
+            <!-- Periodicidad -->
+            <td>
+              {% if alert.periodicity %}
+                <span style="color: #6b7280; font-size: 0.9em;">{{ alert.periodicity }}</span>
+              {% else %}
+                <span style="color: #9ca3af; font-style: italic;">-</span>
+              {% endif %}
+            </td>
+
+            <!-- Generada el -->
+            <td>
+              <span style="color: #6b7280; font-size: 0.85em;">
+                {{ alert.generated_at|format_date }}
+              </span>
+              {% if alert.dismissed and alert.dismissed_at %}
+                <br>
+                <span style="color: #10b981; font-size: 0.75em;">
+                  Resuelta: {{ alert.dismissed_at|format_date }}
+                </span>
+              {% endif %}
+            </td>
+
+            <!-- Acciones -->
+            <td>
+              <button
+                type="button"
+                class="btn btn-sm {% if alert.dismissed %}ghost{% else %}primary{% endif %}"
+                onclick="toggleAlert({{ alert.id }})"
+                title="{% if alert.dismissed %}Reactivar alerta{% else %}Marcar como resuelta{% endif %}">
+                {% if alert.dismissed %}
+                  ↻ Reactivar
+                {% else %}
+                  ✓ Resolver
+                {% endif %}
+              </button>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="panel" style="margin-top: 14px; color: #6b7280;">
+    <strong>💡 Información sobre alertas:</strong>
+    <ul style="margin: 8px 0; padding-left: 20px; font-size: 0.9em;">
+      <li>Las alertas se generan automáticamente según la configuración de periodicidad de cada tipo de tarea</li>
+      <li>Cada alerta te recuerda revisar <strong>todas las URLs</strong> para ese tipo de tarea específico</li>
+      <li>Haz clic en <strong>"✓ Resolver"</strong> cuando hayas completado la revisión. Las alertas resueltas se muestran con menor opacidad y fondo verde</li>
+      <li>Si marcas una alerta como resuelta por error, puedes hacer clic en <strong>"↻ Reactivar"</strong> para devolverla a estado activo</li>
+      <li>Las alertas resueltas permanecen visibles en la lista para que puedas revisarlas o reactivarlas si es necesario</li>
+      <li>Ve a la página de <strong>Inicio</strong> para marcar las tareas individuales como OK o Problema</li>
+      <li>Para configurar la periodicidad de las alertas, ve a la página de <strong>Configuración</strong></li>
+    </ul>
+  </div>
+
+  <!-- Button to manually generate alerts (admin only) -->
+  <div class="panel" style="margin-top: 14px; background: rgba(91, 140, 255, 0.05); border-left: 3px solid var(--primary);">
+    <strong style="color: var(--primary);">🔧 Admin:</strong>
+    <p style="margin: 8px 0; font-size: 0.9em; color: var(--muted);">
+      Generar alertas manualmente para probar el sistema
+    </p>
+    <button
+      type="button"
+      class="btn primary"
+      onclick="generateAlerts()"
+      style="margin-top: 8px;">
+      🔄 Generar Alertas de Hoy
+    </button>
+  </div>
+
+{% else %}
+  <div class="panel" style="text-align: center; padding: 40px; background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); border-left: 4px solid #10b981;">
+    <div style="font-size: 48px; margin-bottom: 16px;">✅</div>
+    <h3 style="color: #065f46; margin: 0 0 8px 0;">No hay alertas pendientes</h3>
+    <p style="color: #047857; margin: 0;">
+      Todas las alertas han sido resueltas. ¡Buen trabajo!
+    </p>
+    <p style="margin-top: 12px;">
+      <a href="{{ url_for('inicio') }}" class="btn primary">Ir a Inicio</a>
+    </p>
+  </div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Toggle alert status (active ↔ dismissed)
+function toggleAlert(alertId) {
+  const row = document.querySelector(`tr[data-alert-id="${alertId}"]`);
+  if (!row) return;
+
+  const isDismissed = row.dataset.dismissed === '1';
+  const action = isDismissed ? 'reactivar' : 'resolver';
+
+  if (!confirm(`¿${action.charAt(0).toUpperCase() + action.slice(1)} esta alerta?`)) {
+    return;
+  }
+
+  fetch(`/alertas/dismiss/${alertId}`, {
+    method: 'POST'
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      // Update row data attribute
+      row.dataset.dismissed = data.dismissed.toString();
+
+      // Update row styling
+      if (data.dismissed) {
+        // Mark as dismissed
+        row.style.opacity = '0.5';
+        row.style.background = 'rgba(16, 185, 129, 0.05)';
+      } else {
+        // Mark as active
+        row.style.opacity = '1';
+        row.style.background = '';
+      }
+
+      // Update date color
+      const dateCell = row.querySelector('td:first-child strong');
+      if (dateCell) {
+        dateCell.style.color = data.dismissed ? '#10b981' : '#f59e0b';
+      }
+
+      // Update task type cell with checkmark
+      const taskCell = row.querySelector('td:nth-child(2)');
+      if (taskCell) {
+        const checkmark = taskCell.querySelector('span[style*="color: #10b981"]');
+        if (data.dismissed && !checkmark) {
+          // Add checkmark
+          const div = taskCell.querySelector('div');
+          div.innerHTML = '<span style="color: #10b981; font-size: 1.2em;">✓</span>' + div.innerHTML;
+        } else if (!data.dismissed && checkmark) {
+          // Remove checkmark
+          checkmark.remove();
+        }
+      }
+
+      // Update button
+      const button = row.querySelector('button');
+      if (button) {
+        button.className = data.dismissed ? 'btn btn-sm ghost' : 'btn btn-sm primary';
+        button.title = data.dismissed ? 'Reactivar alerta' : 'Marcar como resuelta';
+        button.innerHTML = data.dismissed ? '↻ Reactivar' : '✓ Resolver';
+      }
+
+      // Update counters in header banner
+      location.reload();
+    } else {
+      alert('Error al cambiar estado de la alerta: ' + (data.error || 'Error desconocido'));
+    }
+  })
+  .catch(error => {
+    console.error('Error:', error);
+    alert('Error de conexión al cambiar estado de la alerta');
+  });
+}
+
+// Generate alerts manually (admin function)
+function generateAlerts() {
+  if (!confirm('¿Generar alertas para el día de hoy? Esto creará alertas según la configuración de periodicidad.')) {
+    return;
+  }
+
+  fetch('/admin/generate-alerts', {
+    method: 'POST'
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      alert(`Alertas generadas:\n- Generadas: ${data.stats.generated}\n- Omitidas: ${data.stats.skipped}\n- Errores: ${data.stats.errors.length}`);
+
+      // Reload page to show new alerts
+      if (data.stats.generated > 0) {
+        location.reload();
+      }
+    } else {
+      alert('Error al generar alertas: ' + (data.error || 'Error desconocido'));
+    }
+  })
+  .catch(error => {
+    console.error('Error:', error);
+    alert('Error de conexión al generar alertas');
+  });
+}
+</script>
+{% endblock %}

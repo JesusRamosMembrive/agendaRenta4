@@ -2,17 +2,49 @@
 
 **Fecha**: 2025-10-29
 **Etapa**: 1 (Prototipado)
-**Sesión**: Corrección de bug - Status dot no cambiaba de color
+**Sesión**: Sistema de Alertas Automáticas
 
 ## Objetivo de hoy
-✅ COMPLETADO: Implementación de lógica JavaScript para actualizar el color del status-dot
+✅ COMPLETADO: Implementación completa del sistema de alertas automáticas
+- Generación de alertas según periodicidad configurada
+- Página de visualización de alertas con contador en sidebar
+- Funcionalidad de resolución/descarte de alertas con **toggle** (marcar/desmarcar)
+- Pruebas completas de todos los componentes
+- ✅ CORRECCIÓN 1: Alertas ahora son por tipo de tarea (8 máx), no por URL (173×8)
+- ✅ CORRECCIÓN 2: Toggle de alertas - no desaparecen al resolver, se pueden reactivar
 
 ---
 
 ## Sesión Anterior (2025-10-28)
 **Objetivo**: Mejoras de interfaz, nueva sección Problemas, y contadores en sidebar
 
-## Progreso de hoy
+## Progreso de hoy (Sesión actual 2025-10-29)
+- [x] Crear tabla `pending_alerts` en base de datos
+- [x] Implementar función `generate_alerts()` para crear alertas según periodicidad
+- [x] Implementar función `check_alert_day()` con lógica para todas las frecuencias
+- [x] Crear rutas de alertas en app.py:
+  - [x] POST `/admin/generate-alerts` - Generar alertas manualmente
+  - [x] GET `/alertas` - Visualizar alertas pendientes (TODAS, no solo activas)
+  - [x] POST `/alertas/dismiss/<id>` - Toggle alerta (activa ↔ resuelta)
+- [x] Actualizar `get_task_counts()` para incluir contador de alertas
+- [x] Agregar link y contador de alertas en sidebar (templates/base.html)
+- [x] Crear template `alertas.html` con visualización completa
+- [x] Agregar estilos CSS para `.alert-counter` con animación pulse
+- [x] Probar generación de alertas: 8 alertas máximo (1 por tipo de tarea)
+- [x] Probar toggle de alertas: funcionamiento correcto en ambas direcciones
+- [x] Validar lógica de `check_alert_day()` con 10 casos de prueba (todos ✓)
+- [x] **Corrección - Cambiar sistema de alertas:**
+  - [x] Eliminar section_id de tabla pending_alerts
+  - [x] Modificar generate_alerts() para crear solo 1 alerta por task_type
+  - [x] Actualizar template para mostrar tipos de tarea en lugar de URLs
+- [x] **Corrección - Implementar toggle de alertas:**
+  - [x] Modificar endpoint dismiss para hacer toggle en lugar de solo resolver
+  - [x] Actualizar template para mostrar TODAS las alertas (activas y resueltas)
+  - [x] Diferenciar visualmente alertas resueltas (opacidad 50%, fondo verde)
+  - [x] Cambiar botón dinámicamente: "✓ Resolver" ↔ "↻ Reactivar"
+  - [x] Mostrar checkmark verde en alertas resueltas
+
+## Progreso sesiones anteriores
 - [x] Implementar función JavaScript `updateRowStatus()` para calcular color del status-dot
 - [x] Integrar llamada automática después de cada cambio de estado
 - [x] Inicializar status-dots al cargar la página
@@ -39,7 +71,59 @@
 
 ## Implementación
 
-### Archivos Modificados (Sesión actual 2025-10-29)
+### Archivos Modificados/Creados (Sesión actual - Sistema de Alertas)
+
+**agendaRenta4.db** - Nueva tabla
+- `pending_alerts` - Alertas pendientes generadas automáticamente
+  * id, task_type_id, due_date, generated_at, dismissed, dismissed_at
+  * UNIQUE constraint en (task_type_id, due_date) para evitar duplicados
+  * **NOTA:** NO tiene section_id - una alerta por tipo de tarea, no por URL
+  * Máximo 8 alertas simultáneas (una por cada tipo de tarea)
+
+**app.py** - Nuevas funciones y rutas (líneas ~64-132, ~950-1048)
+- Función `get_task_counts()` actualizada para incluir contador de alertas
+- Función `generate_alerts(reference_date=None)` (líneas ~135-199)
+  * Genera alertas según configuración de alert_settings
+  * **Crea una alerta por task_type, NO por sección**
+  * Verifica periodicidad con check_alert_day()
+  * Crea registros en pending_alerts evitando duplicados
+  * Retorna estadísticas: {generated, skipped, errors}
+  * Máximo 8 alertas por ejecución (una por tipo de tarea)
+- Función `check_alert_day(reference_date, frequency, alert_day)` (líneas ~214-285)
+  * Valida si una fecha cumple criterios de alerta
+  * Lógica para: daily, weekly, biweekly, monthly, quarterly, semiannual, annual
+  * Edge case: usa min(target_day, last_day_of_month) para meses cortos
+- POST `/admin/generate-alerts` - Endpoint para generar alertas manualmente
+- GET `/alertas` - Página de visualización de alertas pendientes (sin JOIN a sections)
+- POST `/alertas/dismiss/<id>` - Marcar alerta como resuelta
+
+**templates/alertas.html** (NUEVO - ~172 líneas)
+- Tabla con alertas pendientes mostrando:
+  * Fecha de aviso, **tipo de tarea**, periodicidad, fecha de generación
+  * Texto: "Revisar todas las URLs para esta tarea"
+  * Botón "Resolver" para cada alerta
+  * **SIN columna de URL/sección** - las alertas son genéricas por tipo
+- Panel informativo sobre el sistema de alertas
+- Panel de administración con botón para generar alertas manualmente
+- JavaScript para:
+  * Función `dismissAlert(id)` - Resolver alerta con confirmación
+  * Función `generateAlerts()` - Generar alertas manualmente
+  * Animación de fade-out al resolver
+  * Recarga de página si no quedan alertas
+
+**templates/base.html** (líneas 34-39)
+- Nuevo link "Alertas" en navegación (entre Pendientes y Problemas)
+- Contador `.nav-counter.alert-counter` solo visible si hay alertas > 0
+- Recibe `task_counts.alerts` del context processor
+
+**static/css/style.css** (líneas 118-131)
+- `.nav-counter.alert-counter` - Estilo especial para contador de alertas
+  * Color amarillo/warning (#f6c445)
+  * Fondo semi-transparente rgba(246, 196, 69, 0.2)
+  * Animación `pulse-alert` de 2s que pulsa la opacidad
+- `.btn.btn-sm` - Botones pequeños (padding: 6px 10px, font-size: 13px)
+
+### Archivos Modificados (Sesiones anteriores)
 
 **templates/inicio.html** (líneas 115-269)
 - Nueva función JavaScript `updateRowStatus(row)` (líneas 233-267)
@@ -206,16 +290,21 @@
 **Funcionando correctamente:**
 - ✅ Marcar/desmarcar tareas como OK o Problema (toggle buttons)
 - ✅ Auto-guardado de observaciones
-- ✅ Contadores en sidebar actualizados dinámicamente
-- ✅ Navegación entre Inicio, Pendientes, Problemas, Realizadas
+- ✅ Contadores en sidebar actualizados dinámicamente (Pendientes, Alertas, Problemas, Realizadas)
+- ✅ Navegación entre Inicio, Pendientes, Alertas, Problemas, Realizadas
 - ✅ Selector de periodo en Inicio
 - ✅ Hiperlinks en nombres de URL/sección
 - ✅ Status-dot cambia de color según estado de tareas (verde/naranja/rojo)
 - ✅ Página Pendientes muestra TODAS las tareas sin marcar (no solo las de BD)
 - ✅ Página Configuración completa con 3 secciones funcionales
 - ✅ CRUD de URLs (añadir, editar, activar/desactivar, eliminar)
-- ✅ Configuración de alertas por tipo de tarea
+- ✅ Configuración de alertas por tipo de tarea (periodicidad + día específico)
 - ✅ Configuración de preferencias de notificación
+- ✅ **NUEVO:** Sistema de alertas automáticas completamente funcional
+  - Generación de alertas según periodicidad configurada
+  - Visualización de alertas pendientes con contador animado
+  - Resolución/descarte de alertas individuales
+  - Edge case handling para meses con menos días
 
 **Pendiente/No implementado:**
 - ⏸️ Búsqueda funcional
@@ -223,37 +312,43 @@
 - ⏸️ Filtros avanzados por fecha/tipo
 - ⏸️ Exportación de reportes
 - ⏸️ Sistema de envío real de notificaciones (email/desktop) - Por ahora solo configuración
-- ⏸️ Programación de alertas automáticas basadas en periodicidad
-- ⏸️ Contador de notificaciones en topbar
+- ⏸️ Programación automática (cron job) para ejecutar generate_alerts() diariamente
+- ⏸️ Notificaciones in-app cuando se generan nuevas alertas
 
 ## Próxima sesión
 
 **Prioridades sugeridas:**
 
-1. ✅ **Página Configuración** - COMPLETADO
-   - Implementación completa de CRUD de URLs
-   - Configuración de alertas y notificaciones
-   - Todo funcional y siguiendo Stage 1
+1. ✅ **Sistema de Alertas Automáticas** - COMPLETADO
+   - Generación de alertas según periodicidad
+   - Visualización y gestión de alertas
+   - Contador animado en sidebar
 
-2. **Mejorar página Pendientes** (si es necesario)
-   - Generar todas las combinaciones pendientes sin registro en BD
-   - O simplemente documentar que es así por diseño
+2. **Programación automática de alertas** (Opcional para Stage 1)
+   - Crear script Python para ejecutar generate_alerts() diariamente
+   - Configurar cron job o systemd timer
+   - O simplemente documentar que se ejecuta manualmente
 
-3. **Implementar búsqueda**
+3. **Implementar búsqueda** (Nice to have)
    - Filtrar por nombre de sección en tabla
    - JavaScript simple client-side
 
-4. **Validaciones y errores**
+4. **Validaciones y errores** (Nice to have)
    - Manejo de errores en AJAX calls
    - Feedback visual cuando falla guardado
 
-**Siguiente objetivo realista para Stage 1:**
-✅ COMPLETADO - Página de Configuración implementada
+**Estado de Stage 1:**
+✅ **STAGE 1 PRÁCTICAMENTE COMPLETO**
+- Sistema manual de revisión de tareas: ✅
+- Configuración de URLs: ✅
+- Configuración de alertas con periodicidad: ✅
+- Sistema de alertas automáticas: ✅
+- Lo único pendiente es la automatización del cron job (opcional)
 
-**Nuevos objetivos sugeridos:**
-- Implementar sistema básico de alertas automáticas
-- Agregar contador de notificaciones en topbar
-- Mejorar búsqueda y filtros
+**Siguiente paso recomendado:**
+- Preparar el terreno para **Stage 2 (Web Scraper/Crawler)**
+- Definir arquitectura del scraper
+- Decidir qué herramientas usar (Playwright, BeautifulSoup, Scrapy, etc.)
 
 ## Bugs conocidos
 - ✅ (RESUELTO) Status-dot no cambiaba de color (implementado 2025-10-29)
@@ -262,16 +357,45 @@
 ## Notas técnicas
 
 - Base de datos: SQLite (agendaRenta4.db)
-- Tablas: sections, task_types, tasks, alert_settings, notification_preferences, notifications
+- Tablas: sections, task_types, tasks, alert_settings, notification_preferences, notifications, **pending_alerts**
 - Task status: 'pending', 'ok', 'problem'
 - Periodo actual: 2025-10 (formato YYYY-MM)
-- Context processor inyecta task_counts en todos los templates
+- Context processor inyecta task_counts en todos los templates (incluyendo alerts)
 
-### Lógica de alertas (para implementación futura)
+### Sistema de Alertas Automáticas (IMPLEMENTADO ✅)
+
+**Generación de alertas:**
+- Función `generate_alerts(reference_date=None)` en app.py
+- Se ejecuta manualmente mediante POST `/admin/generate-alerts`
+- Consulta todas las configuraciones activas en `alert_settings`
+- Para cada configuración, verifica si la fecha de referencia cumple los criterios
+- **Crea UNA alerta por task_type** (máximo 8 alertas totales, no 173×8)
+- Evita duplicados con constraint UNIQUE(task_type_id, due_date)
+- Cada alerta recuerda revisar **todas las URLs** para ese tipo de tarea
+
+**Lógica de periodicidad (`check_alert_day`):**
+- **daily**: Siempre True
+- **weekly**: Compara día de la semana (0=Monday, 6=Sunday)
+- **biweekly**: Como weekly pero solo en semanas pares (week_number % 2 == 0)
+- **monthly**: Compara día del mes (1-31)
+- **quarterly**: Como monthly pero solo en meses 1, 4, 7, 10
+- **semiannual**: Como monthly pero solo en meses 1, 7
+- **annual**: Como monthly pero solo en mes 1
+
 **Edge case - Días del mes que no existen:**
 - Si se configura alerta para día 29, 30 o 31 en meses con menos días:
-  * Se usará el **último día del mes**
+  * Se usa `min(target_day, calendar.monthrange(year, month)[1])`
   * Ejemplo: Alerta día 31 en febrero → se genera el día 28 (o 29 en bisiestos)
   * Ejemplo: Alerta día 31 en abril → se genera el día 30
-- Decisión tomada: 2025-10-29
-- Estado: Configuración guardada en BD, lógica de generación pendiente para Stage 2
+- **Estado:** ✅ Implementado y probado
+- **Validación:** 10 casos de prueba ejecutados correctamente
+
+**Visualización:**
+- Página `/alertas` muestra todas las alertas con dismissed=0
+- Contador animado en sidebar (pulsa amarillo)
+- Botón "Resolver" marca alerta como dismissed=1
+- Botón admin "Generar Alertas" para testing manual
+
+**Para producción (pendiente):**
+- Configurar cron job o systemd timer para ejecutar generate_alerts() diariamente
+- Ejemplo cron: `0 9 * * * cd /path/to/app && python3 -c "from app import generate_alerts; generate_alerts()"`

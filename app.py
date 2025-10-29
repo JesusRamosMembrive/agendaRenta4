@@ -5,7 +5,8 @@ Flask application principal
 """
 
 import os
-from datetime import datetime
+import calendar
+from datetime import datetime, date, timedelta
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 from dotenv import load_dotenv
 import sqlite3
@@ -62,8 +63,8 @@ def generate_available_periods():
 
 def get_task_counts():
     """
-    Get counts of pending, problem, and completed tasks.
-    Returns dict with 'pending', 'problems', 'completed' counts.
+    Get counts of pending, problem, completed tasks, and pending alerts.
+    Returns dict with 'pending', 'problems', 'completed', 'alerts' counts.
     """
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -113,13 +114,163 @@ def get_task_counts():
     """)
     completed_count = cursor.fetchone()['count']
 
+    # Count pending alerts (not dismissed)
+    cursor.execute("""
+        SELECT COUNT(*) as count
+        FROM pending_alerts
+        WHERE dismissed = 0
+    """)
+    alerts_count = cursor.fetchone()['count']
+
     conn.close()
 
     return {
         'pending': pending_count,
         'problems': problems_count,
-        'completed': completed_count
+        'completed': completed_count,
+        'alerts': alerts_count
     }
+
+
+def generate_alerts(reference_date=None):
+    """
+    Generate pending alerts based on alert_settings configuration.
+    Creates one alert per task_type (not per section).
+    This function should be run periodically (daily) to create alerts.
+
+    Args:
+        reference_date: Date to use as reference (default: today)
+
+    Returns:
+        dict with stats: {'generated': count, 'skipped': count, 'errors': []}
+    """
+    if reference_date is None:
+        reference_date = date.today()
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    stats = {'generated': 0, 'skipped': 0, 'errors': []}
+
+    try:
+        # Get all active alert settings
+        cursor.execute("""
+            SELECT task_type_id, alert_frequency, alert_day, enabled
+            FROM alert_settings
+            WHERE enabled = 1
+        """)
+        alert_settings = cursor.fetchall()
+
+        for alert_setting in alert_settings:
+            task_type_id = alert_setting['task_type_id']
+            frequency = alert_setting['alert_frequency']
+            alert_day = alert_setting['alert_day']
+
+            # Check if today matches the alert criteria
+            should_alert = check_alert_day(reference_date, frequency, alert_day)
+
+            if not should_alert:
+                stats['skipped'] += 1
+                continue
+
+            try:
+                # Create one alert per task_type (not per section)
+                cursor.execute("""
+                    INSERT OR IGNORE INTO pending_alerts
+                    (task_type_id, due_date)
+                    VALUES (?, ?)
+                """, (task_type_id, reference_date))
+
+                if cursor.rowcount > 0:
+                    stats['generated'] += 1
+                else:
+                    stats['skipped'] += 1
+
+            except Exception as e:
+                stats['errors'].append(f"Error creating alert for task_type={task_type_id}: {str(e)}")
+
+        conn.commit()
+
+    except Exception as e:
+        stats['errors'].append(f"Fatal error: {str(e)}")
+    finally:
+        conn.close()
+
+    return stats
+
+
+def check_alert_day(reference_date, frequency, alert_day):
+    """
+    Check if the reference_date matches the alert configuration.
+
+    Args:
+        reference_date: date object to check
+        frequency: alert frequency (daily, weekly, biweekly, monthly, quarterly, semiannual, annual)
+        alert_day: specific day configuration (day of week or day of month)
+
+    Returns:
+        bool: True if alert should be generated for this date
+    """
+    if frequency == 'daily':
+        return True
+
+    if frequency in ['weekly', 'biweekly']:
+        # Map weekday names to numbers (monday=0, sunday=6)
+        weekday_map = {
+            'monday': 0, 'tuesday': 1, 'wednesday': 2, 'thursday': 3,
+            'friday': 4, 'saturday': 5, 'sunday': 6
+        }
+        target_weekday = weekday_map.get(alert_day)
+
+        if target_weekday is None:
+            return False
+
+        # Check if today is the configured weekday
+        if reference_date.weekday() != target_weekday:
+            return False
+
+        # For biweekly, also check if it's an even/odd week
+        # Simple implementation: alert on weeks where week_number % 2 == 0
+        if frequency == 'biweekly':
+            week_number = reference_date.isocalendar()[1]
+            return week_number % 2 == 0
+
+        return True
+
+    if frequency in ['monthly', 'quarterly', 'semiannual', 'annual']:
+        # Get target day (handle edge case for months with fewer days)
+        try:
+            target_day = int(alert_day)
+        except (ValueError, TypeError):
+            return False
+
+        # Get last day of current month
+        last_day = calendar.monthrange(reference_date.year, reference_date.month)[1]
+
+        # Adjust target day if month doesn't have enough days
+        effective_day = min(target_day, last_day)
+
+        # Check if today is the target day
+        if reference_date.day != effective_day:
+            return False
+
+        # Additional checks for quarterly/semiannual/annual
+        if frequency == 'quarterly':
+            # Alert only in Jan, Apr, Jul, Oct
+            return reference_date.month in [1, 4, 7, 10]
+
+        if frequency == 'semiannual':
+            # Alert only in Jan and Jul
+            return reference_date.month in [1, 7]
+
+        if frequency == 'annual':
+            # Alert only in January
+            return reference_date.month == 1
+
+        # Monthly: always true if day matches
+        return True
+
+    return False
 
 
 # ==============================================================================
@@ -766,6 +917,135 @@ def delete_url(url_id):
         conn.close()
 
         return jsonify({'success': True, 'message': 'URL eliminada correctamente'})
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ==============================================================================
+# ALERTS ROUTES
+# ==============================================================================
+
+@app.route('/admin/generate-alerts', methods=['POST'])
+def trigger_generate_alerts():
+    """
+    Manually trigger alert generation for testing.
+    Can accept optional date parameter (YYYY-MM-DD format).
+    """
+    try:
+        # Get optional date from request
+        date_str = request.form.get('date') or request.args.get('date')
+
+        if date_str:
+            try:
+                reference_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+            except ValueError:
+                return jsonify({'success': False, 'error': 'Invalid date format. Use YYYY-MM-DD'}), 400
+        else:
+            reference_date = None  # Will use today by default
+
+        # Generate alerts
+        stats = generate_alerts(reference_date)
+
+        return jsonify({
+            'success': True,
+            'message': 'Alertas generadas correctamente',
+            'stats': stats
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/alertas')
+def alertas():
+    """
+    Display ALL alerts (both active and dismissed)
+    One alert per task_type, not per section
+    """
+    period = session.get('current_period', datetime.now().strftime('%Y-%m'))
+    current_user = 'José Ramos'
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # Get ALL alerts with task type info (both active and dismissed)
+    cursor.execute("""
+        SELECT
+            pa.id,
+            pa.due_date,
+            pa.generated_at,
+            pa.dismissed,
+            pa.dismissed_at,
+            tt.display_name as task_type_name,
+            tt.periodicity
+        FROM pending_alerts pa
+        INNER JOIN task_types tt ON pa.task_type_id = tt.id
+        ORDER BY pa.dismissed ASC, pa.due_date ASC, tt.display_order ASC
+    """)
+
+    alerts_raw = cursor.fetchall()
+    all_alerts = [dict(row) for row in alerts_raw]
+
+    conn.close()
+
+    # Generate available periods
+    available_periods = generate_available_periods()
+
+    return render_template(
+        'alertas.html',
+        period=period,
+        pending_alerts=all_alerts,
+        available_periods=available_periods,
+        current_user=current_user
+    )
+
+
+@app.route('/alertas/dismiss/<int:alert_id>', methods=['POST'])
+def dismiss_alert(alert_id):
+    """
+    Toggle alert status (active ↔ dismissed)
+    """
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Get current status
+        cursor.execute("SELECT dismissed FROM pending_alerts WHERE id = ?", (alert_id,))
+        row = cursor.fetchone()
+
+        if not row:
+            return jsonify({'success': False, 'error': 'Alerta no encontrada'}), 404
+
+        current_dismissed = row['dismissed']
+        new_dismissed = 0 if current_dismissed else 1
+
+        # Toggle dismissed status
+        if new_dismissed:
+            # Mark as dismissed
+            cursor.execute("""
+                UPDATE pending_alerts
+                SET dismissed = 1, dismissed_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            """, (alert_id,))
+            message = 'Alerta marcada como resuelta'
+        else:
+            # Mark as active again
+            cursor.execute("""
+                UPDATE pending_alerts
+                SET dismissed = 0, dismissed_at = NULL
+                WHERE id = ?
+            """, (alert_id,))
+            message = 'Alerta reactivada'
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({
+            'success': True,
+            'message': message,
+            'dismissed': new_dismissed
+        })
 
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500

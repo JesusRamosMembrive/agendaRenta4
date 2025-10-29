@@ -31,6 +31,12 @@
           Pendientes
           <span class="nav-counter">{{ task_counts.pending }}</span>
         </a>
+        <a href="{{ url_for('alertas') }}" class="{% if request.endpoint == 'alertas' %}active{% endif %}">
+          Alertas
+          {% if task_counts.alerts > 0 %}
+            <span class="nav-counter alert-counter">{{ task_counts.alerts }}</span>
+          {% endif %}
+        </a>
         <a href="{{ url_for('problemas') }}" class="{% if request.endpoint == 'problemas' %}active{% endif %}">
           Problemas
           <span class="nav-counter">{{ task_counts.problems }}</span>
