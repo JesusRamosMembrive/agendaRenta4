@@ -14,7 +14,15 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Database configuration
+# Check for PostgreSQL DATABASE_URL (production) or use SQLite (development)
+DATABASE_URL = os.getenv('DATABASE_URL')
 DATABASE_PATH = os.getenv('DATABASE_PATH', 'agendaRenta4.db')
+USE_POSTGRES = DATABASE_URL is not None
+
+# Import PostgreSQL driver if needed
+if USE_POSTGRES:
+    import psycopg2
+    import psycopg2.extras
 
 
 # ==============================================================================
@@ -24,13 +32,20 @@ DATABASE_PATH = os.getenv('DATABASE_PATH', 'agendaRenta4.db')
 def get_db_connection():
     """
     Create and return a database connection.
+    Supports both SQLite (development) and PostgreSQL (production).
 
     Returns:
-        sqlite3.Connection: Database connection with Row factory
+        Connection: Database connection (sqlite3 or psycopg2)
     """
-    conn = sqlite3.connect(DATABASE_PATH)
-    conn.row_factory = sqlite3.Row  # Return rows as dict-like objects
-    return conn
+    if USE_POSTGRES:
+        # PostgreSQL connection (production)
+        conn = psycopg2.connect(DATABASE_URL)
+        return conn
+    else:
+        # SQLite connection (development)
+        conn = sqlite3.connect(DATABASE_PATH)
+        conn.row_factory = sqlite3.Row  # Return rows as dict-like objects
+        return conn
 
 
 @contextmanager
@@ -38,6 +53,7 @@ def db_cursor(commit=True):
     """
     Context manager for database operations.
     Automatically handles connection lifecycle, commit/rollback, and cleanup.
+    Works with both SQLite and PostgreSQL.
 
     Args:
         commit: Whether to commit changes on success (default: True)
@@ -49,10 +65,16 @@ def db_cursor(commit=True):
         # Connection automatically committed and closed
 
     Yields:
-        sqlite3.Cursor: Database cursor for queries
+        Cursor: Database cursor for queries
     """
     conn = get_db_connection()
-    cursor = conn.cursor()
+
+    # Use RealDictCursor for PostgreSQL to get dict-like rows
+    if USE_POSTGRES:
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    else:
+        cursor = conn.cursor()
+
     try:
         yield cursor
         if commit:
