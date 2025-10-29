@@ -31,201 +31,236 @@
   {
     "path": "app.py",
     "relative": true,
-    "modified_at": "2025-10-29T11:34:01.332632+00:00",
+    "modified_at": "2025-10-29T14:47:25.689319+00:00",
     "symbols": [
       {
         "name": "get_db_connection",
         "kind": "function",
-        "lineno": 39,
+        "lineno": 47,
         "parent": null,
         "docstring": "Create and return a database connection."
       },
       {
+        "name": "User",
+        "kind": "class",
+        "lineno": 60,
+        "parent": null,
+        "docstring": "User class for Flask-Login"
+      },
+      {
+        "name": "__init__",
+        "kind": "method",
+        "lineno": 62,
+        "parent": "User",
+        "docstring": null
+      },
+      {
+        "name": "load_user",
+        "kind": "function",
+        "lineno": 68,
+        "parent": null,
+        "docstring": "Load user by ID for Flask-Login"
+      },
+      {
         "name": "generate_available_periods",
         "kind": "function",
-        "lineno": 52,
+        "lineno": 85,
         "parent": null,
         "docstring": "Generate list of available periods (last 6 months + next 6 months).\nReturns list of strings in format 'YYYY-MM'."
       },
       {
         "name": "get_task_counts",
         "kind": "function",
-        "lineno": 78,
+        "lineno": 111,
         "parent": null,
         "docstring": "Get counts of pending, problem, completed tasks, and pending alerts.\nReturns dict with 'pending', 'problems', 'completed', 'alerts' counts."
       },
       {
         "name": "generate_alerts",
         "kind": "function",
-        "lineno": 149,
+        "lineno": 182,
         "parent": null,
         "docstring": "Generate pending alerts based on alert_settings configuration.\nCreates one alert per task_type (not per section).\nThis function should be run periodically (daily) to create alerts.\n\nArgs:\n    reference_date: Date to use as reference (default: today)\n\nReturns:\n    dict with stats: {'generated': count, 'skipped': count, 'errors': [], 'email_stats': {...}}"
       },
       {
         "name": "check_alert_day",
         "kind": "function",
-        "lineno": 236,
+        "lineno": 268,
         "parent": null,
         "docstring": "Check if the reference_date matches the alert configuration.\n\nArgs:\n    reference_date: date object to check\n    frequency: alert frequency (daily, weekly, biweekly, monthly, quarterly, semiannual, annual)\n    alert_day: specific day configuration (day of week or day of month)\n\nReturns:\n    bool: True if alert should be generated for this date"
       },
       {
         "name": "send_email_notifications",
         "kind": "function",
-        "lineno": 310,
+        "lineno": 342,
         "parent": null,
         "docstring": "Send email notifications for newly generated alerts.\n\nArgs:\n    alert_list: List of dicts with keys: task_type_name, due_date, etc.\n\nReturns:\n    dict with stats: {'sent': count, 'failed': count, 'errors': []}"
       },
       {
         "name": "inject_task_counts",
         "kind": "function",
-        "lineno": 452,
+        "lineno": 484,
         "parent": null,
         "docstring": "Make task counts available to all templates"
       },
       {
         "name": "format_date",
         "kind": "function",
-        "lineno": 464,
+        "lineno": 496,
         "parent": null,
         "docstring": "Format date string to Spanish format: dd/mm/yyyy"
       },
       {
         "name": "format_period",
         "kind": "function",
-        "lineno": 478,
+        "lineno": 510,
         "parent": null,
         "docstring": "Format period string from '2025-11' to 'Noviembre 2025'"
       },
       {
+        "name": "login",
+        "kind": "function",
+        "lineno": 530,
+        "parent": null,
+        "docstring": "Login page and authentication"
+      },
+      {
+        "name": "logout",
+        "kind": "function",
+        "lineno": 562,
+        "parent": null,
+        "docstring": "Logout current user"
+      },
+      {
         "name": "index",
         "kind": "function",
-        "lineno": 498,
+        "lineno": 575,
         "parent": null,
         "docstring": "Redirect to inicio page (main dashboard)"
       },
       {
         "name": "inicio",
         "kind": "function",
-        "lineno": 506,
+        "lineno": 584,
         "parent": null,
         "docstring": "Main dashboard - Table with all URLs and their 8 task types"
       },
       {
         "name": "pendientes",
         "kind": "function",
-        "lineno": 585,
+        "lineno": 664,
         "parent": null,
         "docstring": "List of ALL pending tasks (not marked as OK or Problem)\nGenerates all possible combinations and excludes completed/problem tasks"
       },
       {
         "name": "problemas",
         "kind": "function",
-        "lineno": 650,
+        "lineno": 730,
         "parent": null,
         "docstring": "List of tasks with problems (status='problem')\nShows tasks from 2025-10 onwards that have issues"
       },
       {
         "name": "realizadas",
         "kind": "function",
-        "lineno": 704,
+        "lineno": 785,
         "parent": null,
         "docstring": "List of completed tasks (status='ok')\nShows complete history of all tasks marked as OK"
       },
       {
         "name": "configuracion",
         "kind": "function",
-        "lineno": 753,
+        "lineno": 835,
         "parent": null,
         "docstring": "Configuration page - CRUD for URLs, Alerts and Notification preferences"
       },
       {
         "name": "update_task",
         "kind": "function",
-        "lineno": 823,
+        "lineno": 906,
         "parent": null,
         "docstring": "Update task status (ok/problem) via AJAX\nReturns JSON response"
       },
       {
         "name": "save_observations",
         "kind": "function",
-        "lineno": 875,
+        "lineno": 959,
         "parent": null,
         "docstring": "Save observations for all tasks of a section (when there are problems)\nReturns JSON response"
       },
       {
         "name": "save_alert_settings",
         "kind": "function",
-        "lineno": 909,
+        "lineno": 993,
         "parent": null,
         "docstring": "Save alert settings for all task types\nExpects JSON: [{ task_type_id, alert_frequency, alert_day, enabled }, ...]"
       },
       {
         "name": "save_notification_preferences",
         "kind": "function",
-        "lineno": 942,
+        "lineno": 1027,
         "parent": null,
         "docstring": "Save notification preferences for current user"
       },
       {
         "name": "add_url",
         "kind": "function",
-        "lineno": 973,
+        "lineno": 1059,
         "parent": null,
         "docstring": "Add new URL/section"
       },
       {
         "name": "edit_url",
         "kind": "function",
-        "lineno": 1003,
+        "lineno": 1090,
         "parent": null,
         "docstring": "Edit existing URL/section"
       },
       {
         "name": "toggle_url",
         "kind": "function",
-        "lineno": 1033,
+        "lineno": 1121,
         "parent": null,
         "docstring": "Toggle active status of URL/section"
       },
       {
         "name": "delete_url",
         "kind": "function",
-        "lineno": 1066,
+        "lineno": 1155,
         "parent": null,
         "docstring": "Delete URL/section (only if no associated tasks)"
       },
       {
         "name": "trigger_generate_alerts",
         "kind": "function",
-        "lineno": 1101,
+        "lineno": 1191,
         "parent": null,
         "docstring": "Manually trigger alert generation for testing.\nCan accept optional date parameter (YYYY-MM-DD format)."
       },
       {
         "name": "alertas",
         "kind": "function",
-        "lineno": 1132,
+        "lineno": 1222,
         "parent": null,
         "docstring": "Display ALL alerts (both active and dismissed)\nOne alert per task_type, not per section"
       },
       {
         "name": "dismiss_alert",
         "kind": "function",
-        "lineno": 1176,
+        "lineno": 1266,
         "parent": null,
         "docstring": "Toggle alert status (active \u2194 dismissed)"
       },
       {
         "name": "not_found",
         "kind": "function",
-        "lineno": 1230,
+        "lineno": 1320,
         "parent": null,
         "docstring": "Handle 404 errors"
       },
       {
         "name": "internal_error",
         "kind": "function",
-        "lineno": 1244,
+        "lineno": 1334,
         "parent": null,
         "docstring": "Handle 500 errors"
       }
@@ -358,6 +393,63 @@
         "lineno": 174,
         "parent": null,
         "docstring": "Script principal."
+      }
+    ],
+    "errors": []
+  },
+  {
+    "path": "manage_users.py",
+    "relative": true,
+    "modified_at": "2025-10-29T14:49:15.078920+00:00",
+    "symbols": [
+      {
+        "name": "get_db_connection",
+        "kind": "function",
+        "lineno": 17,
+        "parent": null,
+        "docstring": "Get database connection"
+      },
+      {
+        "name": "add_user",
+        "kind": "function",
+        "lineno": 23,
+        "parent": null,
+        "docstring": "Add a new user"
+      },
+      {
+        "name": "list_users",
+        "kind": "function",
+        "lineno": 53,
+        "parent": null,
+        "docstring": "List all users"
+      },
+      {
+        "name": "delete_user",
+        "kind": "function",
+        "lineno": 88,
+        "parent": null,
+        "docstring": "Delete a user"
+      },
+      {
+        "name": "change_password",
+        "kind": "function",
+        "lineno": 125,
+        "parent": null,
+        "docstring": "Change user password"
+      },
+      {
+        "name": "show_help",
+        "kind": "function",
+        "lineno": 160,
+        "parent": null,
+        "docstring": "Show usage help"
+      },
+      {
+        "name": "main",
+        "kind": "function",
+        "lineno": 196,
+        "parent": null,
+        "docstring": null
       }
     ],
     "errors": []

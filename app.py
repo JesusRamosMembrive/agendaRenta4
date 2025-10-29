@@ -9,6 +9,8 @@ import calendar
 from datetime import datetime, date, timedelta
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 from flask_mail import Mail, Message
+from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
+from werkzeug.security import generate_password_hash, check_password_hash
 from dotenv import load_dotenv
 import sqlite3
 
@@ -35,6 +37,12 @@ app.config['MAIL_DEBUG'] = os.getenv('MAIL_DEBUG', 'True') == 'True'
 # Initialize Flask-Mail
 mail = Mail(app)
 
+# Initialize Flask-Login
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
+login_manager.login_message = 'Por favor inicia sesión para acceder a esta página.'
+
 
 def get_db_connection():
     """
@@ -43,6 +51,31 @@ def get_db_connection():
     conn = sqlite3.connect(DATABASE_PATH)
     conn.row_factory = sqlite3.Row  # Return rows as dict-like objects
     return conn
+
+
+# ==============================================================================
+# USER AUTHENTICATION
+# ==============================================================================
+
+class User(UserMixin):
+    """User class for Flask-Login"""
+    def __init__(self, id, username, full_name):
+        self.id = id
+        self.username = username
+        self.full_name = full_name
+
+@login_manager.user_loader
+def load_user(user_id):
+    """Load user by ID for Flask-Login"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT id, username, full_name FROM users WHERE id = ?', (user_id,))
+    user_data = cursor.fetchone()
+    conn.close()
+
+    if user_data:
+        return User(id=user_data['id'], username=user_data['username'], full_name=user_data['full_name'])
+    return None
 
 
 # ==============================================================================
@@ -205,24 +238,23 @@ def generate_alerts(reference_date=None):
 
         conn.commit()
 
-        # If new alerts were generated, send email notifications
-        if stats['generated'] > 0:
-            # Fetch newly generated alerts for email
-            cursor.execute("""
-                SELECT
-                    tt.display_name as task_type_name,
-                    pa.due_date,
-                    tt.periodicity
-                FROM pending_alerts pa
-                INNER JOIN task_types tt ON pa.task_type_id = tt.id
-                WHERE pa.due_date = ?
-                ORDER BY tt.display_name ASC
-            """, (reference_date,))
+        # Fetch alerts for this day (both new and existing) to send email notifications
+        cursor.execute("""
+            SELECT
+                tt.display_name as task_type_name,
+                pa.due_date,
+                tt.periodicity
+            FROM pending_alerts pa
+            INNER JOIN task_types tt ON pa.task_type_id = tt.id
+            WHERE pa.due_date = ? AND pa.dismissed = 0
+            ORDER BY tt.display_name ASC
+        """, (reference_date,))
 
-            new_alerts = cursor.fetchall()
+        alerts_for_email = cursor.fetchall()
 
-            # Send email notifications
-            email_stats = send_email_notifications(new_alerts)
+        # Send email notifications if there are alerts (new or existing)
+        if alerts_for_email:
+            email_stats = send_email_notifications(alerts_for_email)
             stats['email_stats'] = email_stats
 
     except Exception as e:
@@ -491,10 +523,55 @@ def format_period(period_str):
 
 
 # ==============================================================================
-# ROUTES
+# AUTHENTICATION ROUTES
+# ==============================================================================
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    """Login page and authentication"""
+    # If user is already logged in, redirect to inicio
+    if current_user.is_authenticated:
+        return redirect(url_for('inicio'))
+
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('SELECT id, username, password_hash, full_name FROM users WHERE username = ?', (username,))
+        user_data = cursor.fetchone()
+        conn.close()
+
+        if user_data and check_password_hash(user_data['password_hash'], password):
+            # Create user object and log in
+            user = User(id=user_data['id'], username=user_data['username'], full_name=user_data['full_name'])
+            login_user(user, remember=True, duration=timedelta(days=30))
+            flash(f'¡Bienvenido/a, {user_data["full_name"]}!', 'success')
+
+            # Redirect to next page or inicio
+            next_page = request.args.get('next')
+            return redirect(next_page) if next_page else redirect(url_for('inicio'))
+        else:
+            flash('Usuario o contraseña incorrectos', 'error')
+
+    return render_template('login.html')
+
+@app.route('/logout')
+@login_required
+def logout():
+    """Logout current user"""
+    logout_user()
+    flash('Has cerrado sesión correctamente', 'success')
+    return redirect(url_for('login'))
+
+
+# ==============================================================================
+# APPLICATION ROUTES
 # ==============================================================================
 
 @app.route('/')
+@login_required
 def index():
     """
     Redirect to inicio page (main dashboard)
@@ -503,6 +580,7 @@ def index():
 
 
 @app.route('/inicio')
+@login_required
 def inicio():
     """
     Main dashboard - Table with all URLs and their 8 task types
@@ -582,6 +660,7 @@ def inicio():
 
 
 @app.route('/pendientes')
+@login_required
 def pendientes():
     """
     List of ALL pending tasks (not marked as OK or Problem)
@@ -647,6 +726,7 @@ def pendientes():
 
 
 @app.route('/problemas')
+@login_required
 def problemas():
     """
     List of tasks with problems (status='problem')
@@ -701,6 +781,7 @@ def problemas():
 
 
 @app.route('/realizadas')
+@login_required
 def realizadas():
     """
     List of completed tasks (status='ok')
@@ -750,6 +831,7 @@ def realizadas():
 
 
 @app.route('/configuracion')
+@login_required
 def configuracion():
     """
     Configuration page - CRUD for URLs, Alerts and Notification preferences
@@ -820,6 +902,7 @@ def configuracion():
 
 
 @app.route('/tasks/update', methods=['POST'])
+@login_required
 def update_task():
     """
     Update task status (ok/problem) via AJAX
@@ -872,6 +955,7 @@ def update_task():
 
 
 @app.route('/save_observations', methods=['POST'])
+@login_required
 def save_observations():
     """
     Save observations for all tasks of a section (when there are problems)
@@ -906,6 +990,7 @@ def save_observations():
 # ==============================================================================
 
 @app.route('/configuracion/alertas', methods=['POST'])
+@login_required
 def save_alert_settings():
     """
     Save alert settings for all task types
@@ -939,6 +1024,7 @@ def save_alert_settings():
 
 
 @app.route('/configuracion/notificaciones', methods=['POST'])
+@login_required
 def save_notification_preferences():
     """
     Save notification preferences for current user
@@ -970,6 +1056,7 @@ def save_notification_preferences():
 
 
 @app.route('/configuracion/url/add', methods=['POST'])
+@login_required
 def add_url():
     """
     Add new URL/section
@@ -1000,6 +1087,7 @@ def add_url():
 
 
 @app.route('/configuracion/url/edit/<int:url_id>', methods=['POST'])
+@login_required
 def edit_url(url_id):
     """
     Edit existing URL/section
@@ -1030,6 +1118,7 @@ def edit_url(url_id):
 
 
 @app.route('/configuracion/url/toggle/<int:url_id>', methods=['POST'])
+@login_required
 def toggle_url(url_id):
     """
     Toggle active status of URL/section
@@ -1063,6 +1152,7 @@ def toggle_url(url_id):
 
 
 @app.route('/configuracion/url/delete/<int:url_id>', methods=['POST'])
+@login_required
 def delete_url(url_id):
     """
     Delete URL/section (only if no associated tasks)
@@ -1098,6 +1188,7 @@ def delete_url(url_id):
 # ==============================================================================
 
 @app.route('/admin/generate-alerts', methods=['POST'])
+@login_required
 def trigger_generate_alerts():
     """
     Manually trigger alert generation for testing.
@@ -1129,6 +1220,7 @@ def trigger_generate_alerts():
 
 
 @app.route('/alertas')
+@login_required
 def alertas():
     """
     Display ALL alerts (both active and dismissed)
@@ -1173,6 +1265,7 @@ def alertas():
 
 
 @app.route('/alertas/dismiss/<int:alert_id>', methods=['POST'])
+@login_required
 def dismiss_alert(alert_id):
     """
     Toggle alert status (active ↔ dismissed)
