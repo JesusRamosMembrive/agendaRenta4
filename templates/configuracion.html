@@ -21,8 +21,9 @@
       <table>
         <thead>
           <tr>
-            <th style="width: 35%">Tipo de Tarea</th>
-            <th style="width: 30%">Frecuencia de Alerta</th>
+            <th style="width: 30%">Tipo de Tarea</th>
+            <th style="width: 25%">Frecuencia de Alerta</th>
+            <th style="width: 25%">Día de Aviso</th>
             <th style="width: 15%; text-align: center;">Activada</th>
           </tr>
         </thead>
@@ -39,7 +40,8 @@
               <select
                 class="select alert-frequency"
                 style="width: 100%; font-size: 14px;"
-                data-task-type-id="{{ task_type.id }}">
+                data-task-type-id="{{ task_type.id }}"
+                onchange="updateDayOptions({{ task_type.id }}, this.value)">
                 <option value="daily" {% if task_type.alert.alert_frequency == 'daily' %}selected{% endif %}>Diario</option>
                 <option value="weekly" {% if task_type.alert.alert_frequency == 'weekly' %}selected{% endif %}>Semanal</option>
                 <option value="biweekly" {% if task_type.alert.alert_frequency == 'biweekly' %}selected{% endif %}>Quincenal</option>
@@ -47,6 +49,15 @@
                 <option value="quarterly" {% if task_type.alert.alert_frequency == 'quarterly' %}selected{% endif %}>Trimestral</option>
                 <option value="semiannual" {% if task_type.alert.alert_frequency == 'semiannual' %}selected{% endif %}>Semestral</option>
                 <option value="annual" {% if task_type.alert.alert_frequency == 'annual' %}selected{% endif %}>Anual</option>
+              </select>
+            </td>
+            <td>
+              <select
+                class="select alert-day"
+                style="width: 100%; font-size: 14px;"
+                data-task-type-id="{{ task_type.id }}"
+                id="alert-day-{{ task_type.id }}">
+                <!-- Options will be populated by JavaScript -->
               </select>
             </td>
             <td style="text-align: center;">
@@ -282,6 +293,98 @@
 // ============================================================
 // ALERTAS DE TAREAS
 // ============================================================
+
+// Datos iniciales de alert_day desde el backend
+const initialAlertDays = {
+  {% for task_type in task_types %}
+  {{ task_type.id }}: '{{ task_type.alert.alert_day or "1" }}',
+  {% endfor %}
+};
+
+// Datos iniciales de alert_frequency desde el backend
+const initialAlertFrequencies = {
+  {% for task_type in task_types %}
+  {{ task_type.id }}: '{{ task_type.alert.alert_frequency }}',
+  {% endfor %}
+};
+
+// Función para actualizar opciones del selector de día según frecuencia
+function updateDayOptions(taskTypeId, frequency) {
+  const daySelect = document.getElementById('alert-day-' + taskTypeId);
+  const currentValue = daySelect.value;
+
+  // Limpiar opciones actuales
+  daySelect.innerHTML = '';
+
+  if (frequency === 'daily') {
+    // Para diario, no necesita día específico
+    daySelect.disabled = true;
+    const option = document.createElement('option');
+    option.value = '';
+    option.textContent = 'Todos los días';
+    daySelect.appendChild(option);
+  } else if (frequency === 'weekly' || frequency === 'biweekly') {
+    // Para semanal/quincenal: días de la semana
+    daySelect.disabled = false;
+    const daysOfWeek = [
+      { value: 'monday', text: 'Lunes' },
+      { value: 'tuesday', text: 'Martes' },
+      { value: 'wednesday', text: 'Miércoles' },
+      { value: 'thursday', text: 'Jueves' },
+      { value: 'friday', text: 'Viernes' },
+      { value: 'saturday', text: 'Sábado' },
+      { value: 'sunday', text: 'Domingo' }
+    ];
+
+    daysOfWeek.forEach(day => {
+      const option = document.createElement('option');
+      option.value = day.value;
+      option.textContent = day.text;
+      if (currentValue === day.value) {
+        option.selected = true;
+      }
+      daySelect.appendChild(option);
+    });
+
+    // Si no hay valor seleccionado, seleccionar lunes por defecto
+    if (!currentValue || !['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].includes(currentValue)) {
+      daySelect.value = 'monday';
+    }
+  } else {
+    // Para mensual/trimestral/semestral/anual: días del mes (1-31)
+    daySelect.disabled = false;
+    for (let i = 1; i <= 31; i++) {
+      const option = document.createElement('option');
+      option.value = i.toString();
+      option.textContent = 'Día ' + i;
+      if (currentValue === i.toString()) {
+        option.selected = true;
+      }
+      daySelect.appendChild(option);
+    }
+
+    // Si no hay valor seleccionado, seleccionar día 1 por defecto
+    if (!currentValue || isNaN(parseInt(currentValue))) {
+      daySelect.value = '1';
+    }
+  }
+}
+
+// Inicializar selectores de día al cargar la página
+function initializeDaySelectors() {
+  {% for task_type in task_types %}
+  updateDayOptions({{ task_type.id }}, '{{ task_type.alert.alert_frequency }}');
+  // Restaurar el valor guardado
+  const daySelect{{ task_type.id }} = document.getElementById('alert-day-{{ task_type.id }}');
+  if (daySelect{{ task_type.id }} && !daySelect{{ task_type.id }}.disabled) {
+    daySelect{{ task_type.id }}.value = initialAlertDays[{{ task_type.id }}] || daySelect{{ task_type.id }}.value;
+  }
+  {% endfor %}
+}
+
+// Inicializar al cargar la página
+document.addEventListener('DOMContentLoaded', initializeDaySelectors);
+
 document.getElementById('form-alerts').addEventListener('submit', function(e) {
   e.preventDefault();
 
@@ -291,11 +394,14 @@ document.getElementById('form-alerts').addEventListener('submit', function(e) {
   rows.forEach(row => {
     const taskTypeId = row.dataset.taskTypeId;
     const frequency = row.querySelector('.alert-frequency').value;
+    const daySelect = document.getElementById('alert-day-' + taskTypeId);
+    const day = daySelect.disabled ? null : daySelect.value;
     const enabled = row.querySelector('.alert-enabled').checked;
 
     alertsData.push({
       task_type_id: parseInt(taskTypeId),
       alert_frequency: frequency,
+      alert_day: day,
       enabled: enabled
     });
   });

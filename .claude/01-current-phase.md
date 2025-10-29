@@ -23,6 +23,10 @@
   - [x] Sección de Gestión de URLs (CRUD completo)
 - [x] Crear 3 nuevas tablas en BD: alert_settings, notification_preferences, notifications
 - [x] Implementar 6 nuevas rutas POST para guardar configuraciones
+- [x] Agregar selector de día específico para alertas:
+  - [x] Columna alert_day en tabla alert_settings
+  - [x] Selector dinámico: días de la semana (semanal/quincenal) o días del mes (mensual/trimestral/etc)
+  - [x] JavaScript para actualizar opciones según frecuencia elegida
 
 ## Progreso sesión anterior (2025-10-28)
 - [x] Cambiar botones a solo iconos (✓ y ⚠)
@@ -58,7 +62,8 @@
 
 **agendaRenta4.db** - Nuevas tablas
 - `alert_settings` - Configuración de alertas por tipo de tarea
-  * task_type_id, alert_frequency (daily/weekly/biweekly/monthly/quarterly/semiannual/annual), enabled
+  * task_type_id, alert_frequency (daily/weekly/biweekly/monthly/quarterly/semiannual/annual), alert_day (día específico), enabled
+  * alert_day: NULL para daily, día de la semana (monday-sunday) para weekly/biweekly, día del mes (1-31) para monthly/quarterly/semiannual/annual
 - `notification_preferences` - Preferencias de notificación del usuario
   * user_name, email, enable_email, enable_desktop, enable_in_app
 - `notifications` - Notificaciones en app (para futuro)
@@ -78,12 +83,17 @@
 - `/configuracion/url/toggle/<id>` - Activar/desactivar URL
 - `/configuracion/url/delete/<id>` - Eliminar URL (solo si no tiene tareas)
 
-**templates/configuracion.html** (NUEVO - 622 líneas)
+**templates/configuracion.html** (NUEVO - ~730 líneas)
 - Sección 1: Alertas de Tareas
   * Tabla con 8 task_types
-  * Select de periodicidad (7 opciones)
+  * Select de periodicidad (7 opciones: diario, semanal, quincenal, mensual, trimestral, semestral, anual)
+  * Select de día de aviso (dinámico según frecuencia):
+    - Diario: deshabilitado ("Todos los días")
+    - Semanal/Quincenal: días de la semana (Lunes-Domingo)
+    - Mensual/Trimestral/Semestral/Anual: días del mes (1-31)
   * Toggle switch para activar/desactivar
-  * Botón guardar (envía JSON a backend)
+  * JavaScript que actualiza opciones de día al cambiar frecuencia
+  * Botón guardar (envía JSON a backend con alert_day incluido)
 - Sección 2: Tipo de Notificaciones
   * Checkbox: Notificación en app (badge en topbar)
   * Checkbox: Notificación de escritorio (requiere permiso browser)

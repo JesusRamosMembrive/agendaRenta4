@@ -446,7 +446,7 @@ def configuracion():
 
     # Get alert settings for each task type
     cursor.execute("""
-        SELECT task_type_id, alert_frequency, enabled
+        SELECT task_type_id, alert_frequency, alert_day, enabled
         FROM alert_settings
     """)
     alert_settings_raw = cursor.fetchall()
@@ -456,6 +456,7 @@ def configuracion():
     for task_type in task_types:
         task_type['alert'] = alert_settings.get(task_type['id'], {
             'alert_frequency': task_type['periodicity'],
+            'alert_day': '1',  # default day
             'enabled': True
         })
 
@@ -586,7 +587,7 @@ def save_observations():
 def save_alert_settings():
     """
     Save alert settings for all task types
-    Expects JSON: [{ task_type_id, alert_frequency, enabled }, ...]
+    Expects JSON: [{ task_type_id, alert_frequency, alert_day, enabled }, ...]
     """
     try:
         alerts_data = request.get_json()
@@ -597,13 +598,14 @@ def save_alert_settings():
         for alert in alerts_data:
             task_type_id = alert.get('task_type_id')
             alert_frequency = alert.get('alert_frequency')
+            alert_day = alert.get('alert_day')
             enabled = alert.get('enabled', True)
 
             # Update or insert alert_settings
             cursor.execute("""
-                INSERT OR REPLACE INTO alert_settings (task_type_id, alert_frequency, enabled)
-                VALUES (?, ?, ?)
-            """, (task_type_id, alert_frequency, 1 if enabled else 0))
+                INSERT OR REPLACE INTO alert_settings (task_type_id, alert_frequency, alert_day, enabled)
+                VALUES (?, ?, ?, ?)
+            """, (task_type_id, alert_frequency, alert_day, 1 if enabled else 0))
 
         conn.commit()
         conn.close()
