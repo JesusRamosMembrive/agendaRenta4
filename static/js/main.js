@@ -245,30 +245,27 @@ document.addEventListener('DOMContentLoaded', setupSearch);
   const themeIcon = document.getElementById('theme-icon');
   const htmlElement = document.documentElement;
 
-  // Cargar tema guardado o usar tema claro por defecto
-  function loadTheme() {
-    const savedTheme = localStorage.getItem('theme') || 'light';
-    setTheme(savedTheme);
-  }
-
-  // Aplicar tema
-  function setTheme(theme) {
-    htmlElement.setAttribute('data-theme', theme);
-
-    // Actualizar icono
+  // Actualizar solo el icono según el tema actual
+  function updateIcon() {
+    const currentTheme = htmlElement.getAttribute('data-theme') || 'light';
     if (themeIcon) {
-      themeIcon.textContent = theme === 'dark' ? '🌙' : '☀️';
+      themeIcon.textContent = currentTheme === 'dark' ? '🌙' : '☀️';
     }
-
-    // Guardar en localStorage
-    localStorage.setItem('theme', theme);
   }
 
   // Toggle entre temas
   function toggleTheme() {
     const currentTheme = htmlElement.getAttribute('data-theme') || 'light';
     const newTheme = currentTheme === 'light' ? 'dark' : 'light';
-    setTheme(newTheme);
+
+    // Aplicar tema
+    htmlElement.setAttribute('data-theme', newTheme);
+
+    // Guardar en localStorage
+    localStorage.setItem('theme', newTheme);
+
+    // Actualizar icono
+    updateIcon();
   }
 
   // Event listener para el botón
@@ -276,6 +273,6 @@ document.addEventListener('DOMContentLoaded', setupSearch);
     themeToggleBtn.addEventListener('click', toggleTheme);
   }
 
-  // Cargar tema al iniciar
-  loadTheme();
+  // Actualizar icono al cargar (el tema ya está aplicado por el script inline)
+  updateIcon();
 })();
