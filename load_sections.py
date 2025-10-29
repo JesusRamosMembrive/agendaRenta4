@@ -141,7 +141,7 @@ def load_sections_from_excel(excel_path, db_path):
         try:
             cursor.execute("""
                 INSERT INTO sections (name, url, active)
-                VALUES (?, ?, 1)
+                VALUES (?, ?, TRUE)
             """, (name, url))
             inserted += 1
             print(f"   ✓ {name}")
@@ -187,7 +187,7 @@ def main():
     # Mostrar estadísticas finales
     conn = sqlite3.connect(DATABASE_PATH)
     cursor = conn.cursor()
-    cursor.execute("SELECT COUNT(*) FROM sections WHERE active = 1")
+    cursor.execute("SELECT COUNT(*) FROM sections WHERE active = TRUE")
     count = cursor.fetchone()[0]
     conn.close()
 

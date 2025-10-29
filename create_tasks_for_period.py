@@ -72,7 +72,7 @@ def create_tasks_for_period(period, db_path, verbose=True):
     cursor = conn.cursor()
 
     # Obtener todas las secciones activas
-    cursor.execute("SELECT id, name FROM sections WHERE active = 1")
+    cursor.execute("SELECT id, name FROM sections WHERE active = TRUE")
     sections = cursor.fetchall()
 
     if not sections:

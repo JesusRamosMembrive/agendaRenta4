@@ -45,6 +45,10 @@ def convert_sqlite_to_postgres_schema(sqlite_schema):
         'INTEGER PRIMARY KEY': 'SERIAL PRIMARY KEY',
         'DATETIME DEFAULT CURRENT_TIMESTAMP': 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP',
         'DATETIME': 'TIMESTAMP',
+        'BOOLEAN DEFAULT 1': 'BOOLEAN DEFAULT TRUE',
+        'BOOLEAN DEFAULT 0': 'BOOLEAN DEFAULT FALSE',
+        'INTEGER DEFAULT 1': 'INTEGER DEFAULT 1',  # Keep INTEGER defaults as-is
+        'INTEGER DEFAULT 0': 'INTEGER DEFAULT 0',
         'TEXT': 'TEXT',
         'INTEGER': 'INTEGER',
         'REAL': 'REAL',
@@ -71,8 +75,16 @@ def migrate_table_data(sqlite_conn, pg_conn, table_name):
         print(f"  ⚠️  {table_name}: No data to migrate")
         return 0
 
-    # Get column names
+    # Get column names and types
     columns = [description[0] for description in sqlite_cursor.description]
+
+    # Get PostgreSQL column types to know which need conversion
+    pg_cursor.execute(f"""
+        SELECT column_name, data_type
+        FROM information_schema.columns
+        WHERE table_name = %s
+    """, (table_name,))
+    pg_columns = {row[0]: row[1] for row in pg_cursor.fetchall()}
 
     # Build INSERT statement
     placeholders = ','.join(['%s'] * len(columns))
@@ -83,7 +95,19 @@ def migrate_table_data(sqlite_conn, pg_conn, table_name):
     count = 0
     for row in rows:
         try:
-            pg_cursor.execute(insert_sql, row)
+            # Convert SQLite row to list and fix boolean types
+            row_data = []
+            for i, value in enumerate(row):
+                col_name = columns[i]
+                col_type = pg_columns.get(col_name, '')
+
+                # Convert SQLite integers (0/1) to PostgreSQL booleans (False/True)
+                if col_type == 'boolean' and isinstance(value, int):
+                    row_data.append(bool(value))
+                else:
+                    row_data.append(value)
+
+            pg_cursor.execute(insert_sql, row_data)
             count += 1
         except Exception as e:
             print(f"  ❌ Error inserting row in {table_name}: {e}")

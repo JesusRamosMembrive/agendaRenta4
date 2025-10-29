@@ -14,7 +14,7 @@ def add_email(email, name=None):
         with db_cursor() as cursor:
             cursor.execute("""
                 INSERT INTO notification_emails (email, name, active)
-                VALUES (?, ?, 1)
+                VALUES (?, ?, TRUE)
             """, (email, name or email))
 
         print(f"✓ Email añadido: {email} ({name or email})")

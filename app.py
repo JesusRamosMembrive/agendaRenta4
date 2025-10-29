@@ -84,7 +84,7 @@ def get_task_counts():
         current_period = datetime.now().strftime('%Y-%m')
 
         # Count total possible tasks (active sections * task types) for current period
-        cursor.execute("SELECT COUNT(*) as count FROM sections WHERE active = 1")
+        cursor.execute("SELECT COUNT(*) as count FROM sections WHERE active = TRUE")
         total_sections = cursor.fetchone()['count']
 
         cursor.execute("SELECT COUNT(*) as count FROM task_types")
@@ -97,7 +97,7 @@ def get_task_counts():
             SELECT COUNT(*) as count
             FROM tasks t
             INNER JOIN sections s ON t.section_id = s.id
-            WHERE s.active = 1
+            WHERE s.active = TRUE
               AND t.status = ?
               AND t.period = ?
         """, (TASK_STATUS_OK, current_period))
@@ -108,7 +108,7 @@ def get_task_counts():
             SELECT COUNT(*) as count
             FROM tasks t
             INNER JOIN sections s ON t.section_id = s.id
-            WHERE s.active = 1
+            WHERE s.active = TRUE
               AND t.status = ?
               AND t.period = ?
         """, (TASK_STATUS_PROBLEM, current_period))
@@ -122,7 +122,7 @@ def get_task_counts():
             SELECT COUNT(*) as count
             FROM tasks t
             INNER JOIN sections s ON t.section_id = s.id
-            WHERE s.active = 1
+            WHERE s.active = TRUE
               AND t.status = 'ok'
         """)
         completed_count = cursor.fetchone()['count']
@@ -131,7 +131,7 @@ def get_task_counts():
         cursor.execute("""
             SELECT COUNT(*) as count
             FROM pending_alerts
-            WHERE dismissed = 0
+            WHERE dismissed = FALSE
         """)
         alerts_count = cursor.fetchone()['count']
 
@@ -166,7 +166,7 @@ def generate_alerts(reference_date=None):
             cursor.execute("""
                 SELECT task_type_id, alert_frequency, alert_day, enabled
                 FROM alert_settings
-                WHERE enabled = 1
+                WHERE enabled = TRUE
             """)
             alert_settings = cursor.fetchall()
 
@@ -206,7 +206,7 @@ def generate_alerts(reference_date=None):
                     tt.periodicity
                 FROM pending_alerts pa
                 INNER JOIN task_types tt ON pa.task_type_id = tt.id
-                WHERE pa.due_date = ? AND pa.dismissed = 0
+                WHERE pa.due_date = ? AND pa.dismissed = FALSE
                 ORDER BY tt.display_name ASC
             """, (reference_date,))
 
@@ -326,7 +326,7 @@ def send_email_notifications(alert_list):
         # Get active email addresses
         cursor.execute("""
             SELECT email, name FROM notification_emails
-            WHERE active = 1
+            WHERE active = TRUE
             ORDER BY id ASC
         """)
 
@@ -525,7 +525,7 @@ def inicio():
         cursor.execute("""
             SELECT id, name, url
             FROM sections
-            WHERE active = 1
+            WHERE active = TRUE
             ORDER BY name ASC
         """)
         sections_raw = cursor.fetchall()
@@ -591,7 +591,7 @@ def pendientes():
 
     with db_cursor(commit=False) as cursor:
         # Get all active sections
-        cursor.execute("SELECT id, name, url FROM sections WHERE active = 1 ORDER BY name ASC")
+        cursor.execute("SELECT id, name, url FROM sections WHERE active = TRUE ORDER BY name ASC")
         sections = cursor.fetchall()
 
         # Get all task types
@@ -668,7 +668,7 @@ def problemas():
             INNER JOIN sections s ON t.section_id = s.id
             INNER JOIN task_types tt ON t.task_type_id = tt.id
             WHERE
-                s.active = 1
+                s.active = TRUE
                 AND t.status = 'problem'
                 AND t.period >= '2025-10'
                 AND t.period <= ?
@@ -715,7 +715,7 @@ def realizadas():
             INNER JOIN sections s ON t.section_id = s.id
             INNER JOIN task_types tt ON t.task_type_id = tt.id
             WHERE
-                s.active = 1
+                s.active = TRUE
                 AND t.status = 'ok'
             ORDER BY t.completed_date DESC, t.period DESC, s.name ASC
         """)
@@ -1135,14 +1135,14 @@ def dismiss_alert(alert_id):
                 return jsonify({'success': False, 'error': 'Alerta no encontrada'}), 404
 
             current_dismissed = row['dismissed']
-            new_dismissed = 0 if current_dismissed else 1
+            new_dismissed = False if current_dismissed else True
 
             # Toggle dismissed status
             if new_dismissed:
                 # Mark as dismissed
                 cursor.execute("""
                     UPDATE pending_alerts
-                    SET dismissed = 1, dismissed_at = CURRENT_TIMESTAMP
+                    SET dismissed = TRUE, dismissed_at = CURRENT_TIMESTAMP
                     WHERE id = ?
                 """, (alert_id,))
                 message = 'Alerta marcada como resuelta'
@@ -1150,7 +1150,7 @@ def dismiss_alert(alert_id):
                 # Mark as active again
                 cursor.execute("""
                     UPDATE pending_alerts
-                    SET dismissed = 0, dismissed_at = NULL
+                    SET dismissed = FALSE, dismissed_at = NULL
                     WHERE id = ?
                 """, (alert_id,))
                 message = 'Alerta reactivada'
