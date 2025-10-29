@@ -236,3 +236,46 @@ function setupSearch() {
 }
 
 document.addEventListener('DOMContentLoaded', setupSearch);
+
+// ===========================================================================
+// 6) Toggle de Tema Claro/Oscuro
+// ===========================================================================
+(function() {
+  const themeToggleBtn = document.getElementById('theme-toggle');
+  const themeIcon = document.getElementById('theme-icon');
+  const htmlElement = document.documentElement;
+
+  // Cargar tema guardado o usar tema claro por defecto
+  function loadTheme() {
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    setTheme(savedTheme);
+  }
+
+  // Aplicar tema
+  function setTheme(theme) {
+    htmlElement.setAttribute('data-theme', theme);
+
+    // Actualizar icono
+    if (themeIcon) {
+      themeIcon.textContent = theme === 'dark' ? '🌙' : '☀️';
+    }
+
+    // Guardar en localStorage
+    localStorage.setItem('theme', theme);
+  }
+
+  // Toggle entre temas
+  function toggleTheme() {
+    const currentTheme = htmlElement.getAttribute('data-theme') || 'light';
+    const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+    setTheme(newTheme);
+  }
+
+  // Event listener para el botón
+  if (themeToggleBtn) {
+    themeToggleBtn.addEventListener('click', toggleTheme);
+  }
+
+  // Cargar tema al iniciar
+  loadTheme();
+})();

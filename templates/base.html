@@ -77,6 +77,11 @@
         <!-- Búsqueda -->
         <input class="input" placeholder="Buscar…" aria-label="Buscar" />
 
+        <!-- Toggle Tema Claro/Oscuro -->
+        <button id="theme-toggle" class="btn ghost" title="Cambiar tema" style="padding: 10px; font-size: 20px; line-height: 1;">
+          <span id="theme-icon">☀️</span>
+        </button>
+
         <!-- Avatar Usuario -->
         <div class="avatar" title="{{ current_user }}">
           {{ current_user[:2] if current_user else 'JR' }}

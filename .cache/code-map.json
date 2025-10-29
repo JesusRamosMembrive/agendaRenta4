@@ -31,7 +31,7 @@
   {
     "path": "app.py",
     "relative": true,
-    "modified_at": "2025-10-29T14:47:25.689319+00:00",
+    "modified_at": "2025-10-29T14:48:05.499538+00:00",
     "symbols": [
       {
         "name": "get_db_connection",
@@ -190,77 +190,77 @@
       {
         "name": "save_alert_settings",
         "kind": "function",
-        "lineno": 993,
+        "lineno": 994,
         "parent": null,
         "docstring": "Save alert settings for all task types\nExpects JSON: [{ task_type_id, alert_frequency, alert_day, enabled }, ...]"
       },
       {
         "name": "save_notification_preferences",
         "kind": "function",
-        "lineno": 1027,
+        "lineno": 1028,
         "parent": null,
         "docstring": "Save notification preferences for current user"
       },
       {
         "name": "add_url",
         "kind": "function",
-        "lineno": 1059,
+        "lineno": 1060,
         "parent": null,
         "docstring": "Add new URL/section"
       },
       {
         "name": "edit_url",
         "kind": "function",
-        "lineno": 1090,
+        "lineno": 1091,
         "parent": null,
         "docstring": "Edit existing URL/section"
       },
       {
         "name": "toggle_url",
         "kind": "function",
-        "lineno": 1121,
+        "lineno": 1122,
         "parent": null,
         "docstring": "Toggle active status of URL/section"
       },
       {
         "name": "delete_url",
         "kind": "function",
-        "lineno": 1155,
+        "lineno": 1156,
         "parent": null,
         "docstring": "Delete URL/section (only if no associated tasks)"
       },
       {
         "name": "trigger_generate_alerts",
         "kind": "function",
-        "lineno": 1191,
+        "lineno": 1192,
         "parent": null,
         "docstring": "Manually trigger alert generation for testing.\nCan accept optional date parameter (YYYY-MM-DD format)."
       },
       {
         "name": "alertas",
         "kind": "function",
-        "lineno": 1222,
+        "lineno": 1224,
         "parent": null,
         "docstring": "Display ALL alerts (both active and dismissed)\nOne alert per task_type, not per section"
       },
       {
         "name": "dismiss_alert",
         "kind": "function",
-        "lineno": 1266,
+        "lineno": 1269,
         "parent": null,
         "docstring": "Toggle alert status (active \u2194 dismissed)"
       },
       {
         "name": "not_found",
         "kind": "function",
-        "lineno": 1320,
+        "lineno": 1323,
         "parent": null,
         "docstring": "Handle 404 errors"
       },
       {
         "name": "internal_error",
         "kind": "function",
-        "lineno": 1334,
+        "lineno": 1337,
         "parent": null,
         "docstring": "Handle 500 errors"
       }
