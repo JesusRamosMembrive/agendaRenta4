@@ -5,24 +5,19 @@ Shared functions for database, dates, and common operations
 """
 
 import os
-import sqlite3
 from contextlib import contextmanager
 from datetime import datetime
 from dotenv import load_dotenv
+import psycopg2
+import psycopg2.extras
 
 # Load environment variables
 load_dotenv()
 
-# Database configuration
-# Check for PostgreSQL DATABASE_URL (production) or use SQLite (development)
+# Database configuration - PostgreSQL only
 DATABASE_URL = os.getenv('DATABASE_URL')
-DATABASE_PATH = os.getenv('DATABASE_PATH', 'agendaRenta4.db')
-USE_POSTGRES = DATABASE_URL is not None
-
-# Import PostgreSQL driver if needed
-if USE_POSTGRES:
-    import psycopg2
-    import psycopg2.extras
+if not DATABASE_URL:
+    raise ValueError("DATABASE_URL environment variable is required")
 
 
 # ==============================================================================
@@ -31,21 +26,13 @@ if USE_POSTGRES:
 
 def get_db_connection():
     """
-    Create and return a database connection.
-    Supports both SQLite (development) and PostgreSQL (production).
+    Create and return a PostgreSQL database connection.
 
     Returns:
-        Connection: Database connection (sqlite3 or psycopg2)
+        psycopg2.Connection: Database connection
     """
-    if USE_POSTGRES:
-        # PostgreSQL connection (production)
-        conn = psycopg2.connect(DATABASE_URL)
-        return conn
-    else:
-        # SQLite connection (development)
-        conn = sqlite3.connect(DATABASE_PATH)
-        conn.row_factory = sqlite3.Row  # Return rows as dict-like objects
-        return conn
+    conn = psycopg2.connect(DATABASE_URL)
+    return conn
 
 
 @contextmanager
@@ -53,7 +40,6 @@ def db_cursor(commit=True):
     """
     Context manager for database operations.
     Automatically handles connection lifecycle, commit/rollback, and cleanup.
-    Works with both SQLite and PostgreSQL.
 
     Args:
         commit: Whether to commit changes on success (default: True)
@@ -65,15 +51,10 @@ def db_cursor(commit=True):
         # Connection automatically committed and closed
 
     Yields:
-        Cursor: Database cursor for queries
+        psycopg2.Cursor: Database cursor for queries (returns dict-like rows)
     """
     conn = get_db_connection()
-
-    # Use RealDictCursor for PostgreSQL to get dict-like rows
-    if USE_POSTGRES:
-        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    else:
-        cursor = conn.cursor()
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
     try:
         yield cursor

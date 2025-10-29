@@ -7,13 +7,17 @@ Flask application principal
 import os
 import calendar
 from datetime import datetime, date, timedelta
+from dotenv import load_dotenv
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 from flask_mail import Mail, Message
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 
+# Load environment variables
+load_dotenv()
+
 # Import shared utilities
-from utils import db_cursor, get_db_connection, format_date, format_period, generate_available_periods, load_dotenv, DATABASE_PATH
+from utils import db_cursor, get_db_connection, format_date, format_period, generate_available_periods
 
 # Import constants
 from constants import (
@@ -63,7 +67,7 @@ class User(UserMixin):
 def load_user(user_id):
     """Load user by ID for Flask-Login"""
     with db_cursor(commit=False) as cursor:
-        cursor.execute('SELECT id, username, full_name FROM users WHERE id = ?', (user_id,))
+        cursor.execute('SELECT id, username, full_name FROM users WHERE id = %s', (user_id,))
         user_data = cursor.fetchone()
 
     if user_data:
@@ -98,8 +102,8 @@ def get_task_counts():
             FROM tasks t
             INNER JOIN sections s ON t.section_id = s.id
             WHERE s.active = TRUE
-              AND t.status = ?
-              AND t.period = ?
+              AND t.status = %s
+              AND t.period = %s
         """, (TASK_STATUS_OK, current_period))
         ok_count = cursor.fetchone()['count']
 
@@ -109,8 +113,8 @@ def get_task_counts():
             FROM tasks t
             INNER JOIN sections s ON t.section_id = s.id
             WHERE s.active = TRUE
-              AND t.status = ?
-              AND t.period = ?
+              AND t.status = %s
+              AND t.period = %s
         """, (TASK_STATUS_PROBLEM, current_period))
         problems_count = cursor.fetchone()['count']
 
@@ -187,7 +191,7 @@ def generate_alerts(reference_date=None):
                     cursor.execute("""
                         INSERT OR IGNORE INTO pending_alerts
                         (task_type_id, due_date)
-                        VALUES (?, ?)
+                        VALUES (%s, %s)
                     """, (task_type_id, reference_date))
 
                     if cursor.rowcount > 0:
@@ -206,7 +210,7 @@ def generate_alerts(reference_date=None):
                     tt.periodicity
                 FROM pending_alerts pa
                 INNER JOIN task_types tt ON pa.task_type_id = tt.id
-                WHERE pa.due_date = ? AND pa.dismissed = FALSE
+                WHERE pa.due_date = %s AND pa.dismissed = FALSE
                 ORDER BY tt.display_name ASC
             """, (reference_date,))
 
@@ -313,7 +317,7 @@ def send_email_notifications(alert_list):
     with db_cursor(commit=False) as cursor:
         cursor.execute("""
             SELECT enable_email FROM notification_preferences
-            WHERE user_name = ? AND enable_email = 1
+            WHERE user_name = %s AND enable_email = 1
             LIMIT 1
         """, (current_user.full_name,))
 
@@ -467,7 +471,7 @@ def login():
         password = request.form.get('password')
 
         with db_cursor(commit=False) as cursor:
-            cursor.execute('SELECT id, username, password_hash, full_name FROM users WHERE username = ?', (username,))
+            cursor.execute('SELECT id, username, password_hash, full_name FROM users WHERE username = %s', (username,))
             user_data = cursor.fetchone()
 
         if user_data and check_password_hash(user_data['password_hash'], password):
@@ -547,7 +551,7 @@ def inicio():
             cursor.execute("""
                 SELECT id, task_type_id, status, observations, completed_date, completed_by
                 FROM tasks
-                WHERE section_id = ? AND period = ?
+                WHERE section_id = %s AND period = %s
             """, (section['id'], period))
 
             tasks = cursor.fetchall()
@@ -602,7 +606,7 @@ def pendientes():
         cursor.execute("""
             SELECT section_id, task_type_id, status
             FROM tasks
-            WHERE period = ? AND status IN ('ok', 'problem')
+            WHERE period = %s AND status IN ('ok', 'problem')
         """, (current_period,))
         completed_tasks = cursor.fetchall()
 
@@ -671,7 +675,7 @@ def problemas():
                 s.active = TRUE
                 AND t.status = 'problem'
                 AND t.period >= '2025-10'
-                AND t.period <= ?
+                AND t.period <= %s
             ORDER BY t.period DESC, s.name ASC, tt.display_order ASC
         """, (current_period,))
 
@@ -770,7 +774,7 @@ def configuracion():
         cursor.execute("""
             SELECT email, enable_email, enable_desktop, enable_in_app
             FROM notification_preferences
-            WHERE user_name = ?
+            WHERE user_name = %s
         """, (current_user.full_name,))
         notification_prefs_row = cursor.fetchone()
         notification_prefs = dict(notification_prefs_row) if notification_prefs_row else {
@@ -829,17 +833,17 @@ def update_task():
             if task_id:
                 cursor.execute("""
                     UPDATE tasks
-                    SET status = ?,
-                        completed_date = ?,
-                        completed_by = ?
-                    WHERE id = ?
+                    SET status = %s,
+                        completed_date = %s,
+                        completed_by = %s
+                    WHERE id = %s
                 """, (status, completed_date, completed_by, task_id))
                 new_task_id = task_id
             else:
                 # Create new task if it doesn't exist yet
                 cursor.execute("""
                     INSERT INTO tasks (section_id, task_type_id, period, status, completed_date, completed_by)
-                    VALUES (?, ?, ?, ?, ?, ?)
+                    VALUES (%s, %s, %s, %s, %s, %s)
                 """, (section_id, task_type_id, period, status, completed_date, completed_by))
                 new_task_id = cursor.lastrowid
 
@@ -865,8 +869,8 @@ def save_observations():
             # Update observations for all tasks of this section in this period
             cursor.execute("""
                 UPDATE tasks
-                SET observations = ?
-                WHERE section_id = ? AND period = ?
+                SET observations = %s
+                WHERE section_id = %s AND period = %s
             """, (observations, section_id, period))
 
         return jsonify({'success': True})
@@ -899,7 +903,7 @@ def save_alert_settings():
                 # Update or insert alert_settings
                 cursor.execute("""
                     INSERT OR REPLACE INTO alert_settings (task_type_id, alert_frequency, alert_day, enabled)
-                    VALUES (?, ?, ?, ?)
+                    VALUES (%s, %s, %s, %s)
                 """, (task_type_id, alert_frequency, alert_day, 1 if enabled else 0))
 
         return jsonify({'success': True, 'message': 'Configuración de alertas guardada'})
@@ -925,7 +929,7 @@ def save_notification_preferences():
             cursor.execute("""
                 INSERT OR REPLACE INTO notification_preferences
                 (id, user_name, email, enable_email, enable_desktop, enable_in_app, updated_at)
-                VALUES (1, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                VALUES (1, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
             """, (current_user.full_name, email, 1 if enable_email else 0, 1 if enable_desktop else 0, 1 if enable_in_app else 0))
 
         return jsonify({'success': True, 'message': 'Preferencias de notificación guardadas'})
@@ -950,7 +954,7 @@ def add_url():
         with db_cursor() as cursor:
             cursor.execute("""
                 INSERT INTO sections (name, url, active, created_at)
-                VALUES (?, ?, 1, CURRENT_TIMESTAMP)
+                VALUES (%s, %s, 1, CURRENT_TIMESTAMP)
             """, (name, url))
 
             new_id = cursor.lastrowid
@@ -977,8 +981,8 @@ def edit_url(url_id):
         with db_cursor() as cursor:
             cursor.execute("""
                 UPDATE sections
-                SET name = ?, url = ?
-                WHERE id = ?
+                SET name = %s, url = %s
+                WHERE id = %s
             """, (name, url, url_id))
 
         return jsonify({'success': True, 'message': 'URL actualizada correctamente'})
@@ -996,7 +1000,7 @@ def toggle_url(url_id):
     try:
         with db_cursor() as cursor:
             # Get current status
-            cursor.execute("SELECT active FROM sections WHERE id = ?", (url_id,))
+            cursor.execute("SELECT active FROM sections WHERE id = %s", (url_id,))
             row = cursor.fetchone()
 
             if not row:
@@ -1006,8 +1010,8 @@ def toggle_url(url_id):
 
             cursor.execute("""
                 UPDATE sections
-                SET active = ?
-                WHERE id = ?
+                SET active = %s
+                WHERE id = %s
             """, (new_status, url_id))
 
         return jsonify({'success': True, 'active': new_status, 'message': 'Estado actualizado'})
@@ -1025,7 +1029,7 @@ def delete_url(url_id):
     try:
         with db_cursor() as cursor:
             # Check if there are tasks associated
-            cursor.execute("SELECT COUNT(*) as count FROM tasks WHERE section_id = ?", (url_id,))
+            cursor.execute("SELECT COUNT(*) as count FROM tasks WHERE section_id = %s", (url_id,))
             count = cursor.fetchone()['count']
 
             if count > 0:
@@ -1035,7 +1039,7 @@ def delete_url(url_id):
                 }), 400
 
             # Delete section
-            cursor.execute("DELETE FROM sections WHERE id = ?", (url_id,))
+            cursor.execute("DELETE FROM sections WHERE id = %s", (url_id,))
 
         return jsonify({'success': True, 'message': 'URL eliminada correctamente'})
 
@@ -1128,7 +1132,7 @@ def dismiss_alert(alert_id):
     try:
         with db_cursor() as cursor:
             # Get current status
-            cursor.execute("SELECT dismissed FROM pending_alerts WHERE id = ?", (alert_id,))
+            cursor.execute("SELECT dismissed FROM pending_alerts WHERE id = %s", (alert_id,))
             row = cursor.fetchone()
 
             if not row:
@@ -1143,7 +1147,7 @@ def dismiss_alert(alert_id):
                 cursor.execute("""
                     UPDATE pending_alerts
                     SET dismissed = TRUE, dismissed_at = CURRENT_TIMESTAMP
-                    WHERE id = ?
+                    WHERE id = %s
                 """, (alert_id,))
                 message = 'Alerta marcada como resuelta'
             else:
@@ -1151,7 +1155,7 @@ def dismiss_alert(alert_id):
                 cursor.execute("""
                     UPDATE pending_alerts
                     SET dismissed = FALSE, dismissed_at = NULL
-                    WHERE id = ?
+                    WHERE id = %s
                 """, (alert_id,))
                 message = 'Alerta reactivada'
 
@@ -1204,12 +1208,6 @@ def internal_error(error):
 # ==============================================================================
 
 if __name__ == '__main__':
-    # Check if database exists
-    if not os.path.exists(DATABASE_PATH):
-        print(f"⚠️  Database not found: {DATABASE_PATH}")
-        print(f"   Run: python database.py")
-        print()
-
     # Run Flask development server
     port = int(os.getenv('PORT', DEFAULT_PORT))
     app.run(debug=True, host='0.0.0.0', port=port)

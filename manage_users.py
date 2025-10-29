@@ -10,8 +10,8 @@ Uso:
 
 import sys
 from werkzeug.security import generate_password_hash, check_password_hash
-from utils import db_cursor, DATABASE_PATH
-import sqlite3
+from utils import db_cursor
+import psycopg2
 
 def add_user(username, password, full_name):
     """Add a new user"""
@@ -22,7 +22,7 @@ def add_user(username, password, full_name):
 
             cursor.execute("""
                 INSERT INTO users (username, password_hash, full_name)
-                VALUES (?, ?, ?)
+                VALUES (%s, %s, %s)
             """, (username, password_hash, full_name))
 
         print(f"✓ Usuario creado exitosamente:")
@@ -31,7 +31,7 @@ def add_user(username, password, full_name):
         print(f"  Contraseña: {password}")
         return True
 
-    except sqlite3.IntegrityError:
+    except psycopg2.IntegrityError:
         print(f"✗ Error: El usuario '{username}' ya existe")
         return False
     except Exception as e:
@@ -75,7 +75,7 @@ def delete_user(username):
     try:
         with db_cursor(commit=False) as cursor:
             # Check if user exists
-            cursor.execute("SELECT id, username, full_name FROM users WHERE username = ?", (username,))
+            cursor.execute("SELECT id, username, full_name FROM users WHERE username = %s", (username,))
             user = cursor.fetchone()
 
         if not user:
@@ -93,7 +93,7 @@ def delete_user(username):
             return False
 
         with db_cursor() as cursor:
-            cursor.execute("DELETE FROM users WHERE username = ?", (username,))
+            cursor.execute("DELETE FROM users WHERE username = %s", (username,))
 
         print(f"✓ Usuario '{username}' eliminado exitosamente")
         return True
@@ -107,7 +107,7 @@ def change_password(username, new_password):
     try:
         with db_cursor(commit=False) as cursor:
             # Check if user exists
-            cursor.execute("SELECT id, full_name FROM users WHERE username = ?", (username,))
+            cursor.execute("SELECT id, full_name FROM users WHERE username = %s", (username,))
             user = cursor.fetchone()
 
         if not user:
@@ -120,8 +120,8 @@ def change_password(username, new_password):
         with db_cursor() as cursor:
             cursor.execute("""
                 UPDATE users
-                SET password_hash = ?
-                WHERE username = ?
+                SET password_hash = %s
+                WHERE username = %s
             """, (password_hash, username))
 
         print(f"✓ Contraseña cambiada exitosamente para usuario '{username}'")
