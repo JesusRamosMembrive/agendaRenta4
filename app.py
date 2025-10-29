@@ -8,6 +8,7 @@ import os
 import calendar
 from datetime import datetime, date, timedelta
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
+from flask_mail import Mail, Message
 from dotenv import load_dotenv
 import sqlite3
 
@@ -20,6 +21,19 @@ app.secret_key = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
 
 # Configuration
 DATABASE_PATH = os.getenv('DATABASE_PATH', 'agendaRenta4.db')
+
+# Email Configuration
+app.config['MAIL_SERVER'] = os.getenv('MAIL_SERVER', 'smtp.gmail.com')
+app.config['MAIL_PORT'] = int(os.getenv('MAIL_PORT', 587))
+app.config['MAIL_USE_TLS'] = os.getenv('MAIL_USE_TLS', 'True') == 'True'
+app.config['MAIL_USE_SSL'] = os.getenv('MAIL_USE_SSL', 'False') == 'True'
+app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME')
+app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD')
+app.config['MAIL_DEFAULT_SENDER'] = os.getenv('MAIL_DEFAULT_SENDER', 'Agenda Renta4 <noreply@renta4.com>')
+app.config['MAIL_DEBUG'] = os.getenv('MAIL_DEBUG', 'True') == 'True'
+
+# Initialize Flask-Mail
+mail = Mail(app)
 
 
 def get_db_connection():
@@ -142,7 +156,7 @@ def generate_alerts(reference_date=None):
         reference_date: Date to use as reference (default: today)
 
     Returns:
-        dict with stats: {'generated': count, 'skipped': count, 'errors': []}
+        dict with stats: {'generated': count, 'skipped': count, 'errors': [], 'email_stats': {...}}
     """
     if reference_date is None:
         reference_date = date.today()
@@ -150,7 +164,7 @@ def generate_alerts(reference_date=None):
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    stats = {'generated': 0, 'skipped': 0, 'errors': []}
+    stats = {'generated': 0, 'skipped': 0, 'errors': [], 'email_stats': None}
 
     try:
         # Get all active alert settings
@@ -190,6 +204,26 @@ def generate_alerts(reference_date=None):
                 stats['errors'].append(f"Error creating alert for task_type={task_type_id}: {str(e)}")
 
         conn.commit()
+
+        # If new alerts were generated, send email notifications
+        if stats['generated'] > 0:
+            # Fetch newly generated alerts for email
+            cursor.execute("""
+                SELECT
+                    tt.display_name as task_type_name,
+                    pa.due_date,
+                    tt.periodicity
+                FROM pending_alerts pa
+                INNER JOIN task_types tt ON pa.task_type_id = tt.id
+                WHERE pa.due_date = ?
+                ORDER BY tt.display_name ASC
+            """, (reference_date,))
+
+            new_alerts = cursor.fetchall()
+
+            # Send email notifications
+            email_stats = send_email_notifications(new_alerts)
+            stats['email_stats'] = email_stats
 
     except Exception as e:
         stats['errors'].append(f"Fatal error: {str(e)}")
@@ -271,6 +305,143 @@ def check_alert_day(reference_date, frequency, alert_day):
         return True
 
     return False
+
+
+def send_email_notifications(alert_list):
+    """
+    Send email notifications for newly generated alerts.
+
+    Args:
+        alert_list: List of dicts with keys: task_type_name, due_date, etc.
+
+    Returns:
+        dict with stats: {'sent': count, 'failed': count, 'errors': []}
+    """
+    stats = {'sent': 0, 'failed': 0, 'errors': []}
+
+    # Check if email notifications are enabled
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT enable_email FROM notification_preferences
+        WHERE user_name = ? AND enable_email = 1
+        LIMIT 1
+    """, ('José Ramos',))
+
+    email_enabled = cursor.fetchone()
+
+    if not email_enabled:
+        conn.close()
+        stats['errors'].append('Email notifications not enabled')
+        return stats
+
+    # Get active email addresses
+    cursor.execute("""
+        SELECT email, name FROM notification_emails
+        WHERE active = 1
+        ORDER BY id ASC
+    """)
+
+    email_recipients = cursor.fetchall()
+    conn.close()
+
+    if not email_recipients:
+        stats['errors'].append('No active email recipients configured')
+        return stats
+
+    # Check if SMTP is configured
+    if not app.config['MAIL_USERNAME'] or not app.config['MAIL_PASSWORD']:
+        stats['errors'].append('SMTP not configured. Set MAIL_USERNAME and MAIL_PASSWORD in .env')
+        return stats
+
+    # Prepare email content
+    if not alert_list:
+        return stats
+
+    try:
+        # Build email body
+        html_body = f"""
+        <html>
+        <head>
+            <style>
+                body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+                .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+                .header {{ background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+                          color: white; padding: 20px; border-radius: 8px 8px 0 0; }}
+                .content {{ background: #f9fafb; padding: 20px; }}
+                .alert-item {{ background: white; padding: 15px; margin: 10px 0;
+                               border-left: 4px solid #f59e0b; border-radius: 4px; }}
+                .alert-title {{ font-weight: bold; color: #f59e0b; font-size: 1.1em; }}
+                .alert-date {{ color: #6b7280; font-size: 0.9em; }}
+                .footer {{ background: #1f2937; color: #9ca3af; padding: 15px;
+                          border-radius: 0 0 8px 8px; text-align: center; font-size: 0.85em; }}
+                .btn {{ background: #5b8cff; color: white; padding: 10px 20px;
+                       text-decoration: none; border-radius: 6px; display: inline-block;
+                       margin-top: 10px; }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h2 style="margin: 0;">⚠️ Nuevas Alertas - Agenda Renta4</h2>
+                    <p style="margin: 5px 0 0 0; opacity: 0.9;">
+                        Se han generado {len(alert_list)} nueva(s) alerta(s) pendiente(s)
+                    </p>
+                </div>
+
+                <div class="content">
+                    <p><strong>Hola,</strong></p>
+                    <p>Se han generado las siguientes alertas que requieren tu atención:</p>
+        """
+
+        for alert in alert_list:
+            html_body += f"""
+                    <div class="alert-item">
+                        <div class="alert-title">{alert['task_type_name']}</div>
+                        <div class="alert-date">Fecha de aviso: {alert['due_date']}</div>
+                        <p style="margin: 8px 0 0 0; color: #6b7280; font-size: 0.9em;">
+                            Revisar todas las URLs para esta tarea
+                        </p>
+                    </div>
+            """
+
+        html_body += """
+                    <p style="margin-top: 20px;">
+                        <a href="http://localhost:5000/alertas" class="btn">Ver Alertas Pendientes</a>
+                    </p>
+                </div>
+
+                <div class="footer">
+                    <p style="margin: 0;">
+                        Este es un mensaje automático de Agenda Renta4. Por favor, no respondas a este email.
+                    </p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+
+        # Send email to all recipients
+        for recipient in email_recipients:
+            try:
+                msg = Message(
+                    subject=f"🔔 {len(alert_list)} Nueva(s) Alerta(s) - Agenda Renta4",
+                    recipients=[recipient['email']],
+                    html=html_body
+                )
+
+                mail.send(msg)
+                stats['sent'] += 1
+
+            except Exception as e:
+                stats['failed'] += 1
+                stats['errors'].append(f"Failed to send to {recipient['email']}: {str(e)}")
+
+    except Exception as e:
+        stats['errors'].append(f"Error building email: {str(e)}")
+
+    return stats
 
 
 # ==============================================================================

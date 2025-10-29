@@ -1,0 +1,19 @@
+{
+  "root_path": "/home/jesusramos/WorkSpace/agendaRenta4",
+  "exclude_dirs": [
+    ".git",
+    ".hg",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    "__pycache__",
+    "env",
+    "node_modules",
+    "venv"
+  ],
+  "include_docstrings": true,
+  "version": 1
+}

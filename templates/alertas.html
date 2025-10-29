@@ -224,7 +224,18 @@ function generateAlerts() {
   .then(response => response.json())
   .then(data => {
     if (data.success) {
-      alert(`Alertas generadas:\n- Generadas: ${data.stats.generated}\n- Omitidas: ${data.stats.skipped}\n- Errores: ${data.stats.errors.length}`);
+      let message = `Alertas generadas:\n- Generadas: ${data.stats.generated}\n- Omitidas: ${data.stats.skipped}\n- Errores: ${data.stats.errors.length}`;
+
+      // Add email stats if available
+      if (data.stats.email_stats) {
+        message += `\n\nNotificaciones por email:\n- Enviados: ${data.stats.email_stats.sent}\n- Fallidos: ${data.stats.email_stats.failed}`;
+
+        if (data.stats.email_stats.errors.length > 0) {
+          message += `\n- Errores email: ${data.stats.email_stats.errors.join(', ')}`;
+        }
+      }
+
+      alert(message);
 
       // Reload page to show new alerts
       if (data.stats.generated > 0) {
