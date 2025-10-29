@@ -1,0 +1,665 @@
+{% extends "base.html" %}
+
+{% block title %}Configuración - Agenda Renta4{% endblock %}
+
+{% block content %}
+<div class="h1">Configuración — Ajustes del sistema</div>
+
+<!-- ============================================================
+     SECCIÓN 1: ALERTAS DE TAREAS
+     ============================================================ -->
+<div class="panel" style="margin-bottom: 24px;">
+  <h2 style="margin: 0 0 16px; font-size: 18px; color: var(--text); font-weight: 600;">
+    ⏰ Alertas de Tareas
+  </h2>
+  <p style="color: var(--muted); margin-bottom: 20px; font-size: 14px;">
+    Configura la frecuencia de las alertas para cada tipo de tarea. Las alertas te recordarán cuándo debes revisar cada categoría.
+  </p>
+
+  <div class="panel" style="margin-bottom: 16px; background: rgba(193, 83, 99, 0.1); border-left: 3px solid var(--primary); padding: 12px;">
+    <strong style="color: var(--primary);">💡 Nota sobre días del mes:</strong>
+    <p style="margin: 6px 0 0 0; font-size: 13px; color: var(--muted);">
+      Si configuras una alerta para el día 29, 30 o 31 y el mes no tiene esos días, la alerta se generará el último día disponible del mes.
+      Por ejemplo, si configuras día 31 en febrero, la alerta se generará el 28 (o 29 en años bisiestos).
+    </p>
+  </div>
+
+  <form id="form-alerts">
+    <div class="table" style="margin-bottom: 16px;">
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 30%">Tipo de Tarea</th>
+            <th style="width: 25%">Frecuencia de Alerta</th>
+            <th style="width: 25%">Día de Aviso</th>
+            <th style="width: 15%; text-align: center;">Activada</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for task_type in task_types %}
+          <tr data-task-type-id="{{ task_type.id }}">
+            <td>
+              <strong>{{ task_type.display_name }}</strong>
+              <div style="color: var(--muted); font-size: 0.85em; margin-top: 4px;">
+                Periodicidad base: {{ task_type.periodicity }}
+              </div>
+            </td>
+            <td>
+              <select
+                class="select alert-frequency"
+                style="width: 100%; font-size: 14px;"
+                data-task-type-id="{{ task_type.id }}"
+                onchange="updateDayOptions({{ task_type.id }}, this.value)">
+                <option value="daily" {% if task_type.alert.alert_frequency == 'daily' %}selected{% endif %}>Diario</option>
+                <option value="weekly" {% if task_type.alert.alert_frequency == 'weekly' %}selected{% endif %}>Semanal</option>
+                <option value="biweekly" {% if task_type.alert.alert_frequency == 'biweekly' %}selected{% endif %}>Quincenal</option>
+                <option value="monthly" {% if task_type.alert.alert_frequency == 'monthly' %}selected{% endif %}>Mensual</option>
+                <option value="quarterly" {% if task_type.alert.alert_frequency == 'quarterly' %}selected{% endif %}>Trimestral</option>
+                <option value="semiannual" {% if task_type.alert.alert_frequency == 'semiannual' %}selected{% endif %}>Semestral</option>
+                <option value="annual" {% if task_type.alert.alert_frequency == 'annual' %}selected{% endif %}>Anual</option>
+              </select>
+            </td>
+            <td>
+              <select
+                class="select alert-day"
+                style="width: 100%; font-size: 14px;"
+                data-task-type-id="{{ task_type.id }}"
+                id="alert-day-{{ task_type.id }}">
+                <!-- Options will be populated by JavaScript -->
+              </select>
+            </td>
+            <td style="text-align: center;">
+              <label class="toggle-switch">
+                <input
+                  type="checkbox"
+                  class="alert-enabled"
+                  data-task-type-id="{{ task_type.id }}"
+                  {% if task_type.alert.enabled %}checked{% endif %}>
+                <span class="toggle-slider"></span>
+              </label>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div style="text-align: right;">
+      <button type="submit" class="btn primary">
+        💾 Guardar Configuración de Alertas
+      </button>
+    </div>
+  </form>
+</div>
+
+<!-- ============================================================
+     SECCIÓN 2: TIPO DE NOTIFICACIONES
+     ============================================================ -->
+<div class="panel" style="margin-bottom: 24px;">
+  <h2 style="margin: 0 0 16px; font-size: 18px; color: var(--text); font-weight: 600;">
+    🔔 Tipo de Notificaciones
+  </h2>
+  <p style="color: var(--muted); margin-bottom: 20px; font-size: 14px;">
+    Elige cómo quieres recibir las notificaciones cuando haya alertas pendientes.
+  </p>
+
+  <form id="form-notifications">
+    <div style="display: flex; flex-direction: column; gap: 20px;">
+      <!-- Notificación en App -->
+      <div class="notification-option">
+        <label style="display: flex; align-items: center; gap: 12px; cursor: pointer;">
+          <input
+            type="checkbox"
+            name="enable_in_app"
+            id="enable_in_app"
+            {% if notification_prefs.enable_in_app %}checked{% endif %}
+            style="width: 18px; height: 18px; cursor: pointer;">
+          <div>
+            <div style="font-weight: 600; color: var(--text);">
+              🔔 Notificación en la aplicación
+            </div>
+            <div style="color: var(--muted); font-size: 0.9em; margin-top: 4px;">
+              Verás un contador de notificaciones en la barra superior de la aplicación
+            </div>
+          </div>
+        </label>
+      </div>
+
+      <!-- Notificación de Escritorio -->
+      <div class="notification-option">
+        <label style="display: flex; align-items: center; gap: 12px; cursor: pointer;">
+          <input
+            type="checkbox"
+            name="enable_desktop"
+            id="enable_desktop"
+            {% if notification_prefs.enable_desktop %}checked{% endif %}
+            style="width: 18px; height: 18px; cursor: pointer;">
+          <div>
+            <div style="font-weight: 600; color: var(--text);">
+              🖥️ Notificación de escritorio
+            </div>
+            <div style="color: var(--muted); font-size: 0.9em; margin-top: 4px;">
+              Recibirás notificaciones del sistema operativo (requiere permiso del navegador)
+            </div>
+          </div>
+        </label>
+      </div>
+
+      <!-- Correo Electrónico -->
+      <div class="notification-option">
+        <label style="display: flex; align-items: center; gap: 12px; cursor: pointer;">
+          <input
+            type="checkbox"
+            name="enable_email"
+            id="enable_email"
+            {% if notification_prefs.enable_email %}checked{% endif %}
+            style="width: 18px; height: 18px; cursor: pointer;">
+          <div style="flex: 1;">
+            <div style="font-weight: 600; color: var(--text); margin-bottom: 8px;">
+              ✉️ Correo electrónico
+            </div>
+            <div style="color: var(--muted); font-size: 0.9em; margin-bottom: 8px;">
+              Recibirás emails con las alertas pendientes
+            </div>
+            <input
+              type="email"
+              name="email"
+              id="email"
+              class="input"
+              placeholder="tu@email.com"
+              value="{{ notification_prefs.email or '' }}"
+              style="width: 100%; max-width: 400px;">
+          </div>
+        </label>
+      </div>
+    </div>
+
+    <div style="text-align: right; margin-top: 20px;">
+      <button type="submit" class="btn primary">
+        💾 Guardar Preferencias de Notificación
+      </button>
+    </div>
+  </form>
+</div>
+
+<!-- ============================================================
+     SECCIÓN 3: GESTIÓN DE URLs
+     ============================================================ -->
+<div class="panel">
+  <h2 style="margin: 0 0 16px; font-size: 18px; color: var(--text); font-weight: 600;">
+    🌐 Gestión de URLs
+  </h2>
+  <p style="color: var(--muted); margin-bottom: 20px; font-size: 14px;">
+    Añade, edita o elimina las URLs que deseas revisar periódicamente.
+  </p>
+
+  <!-- Formulario para agregar nueva URL -->
+  <div class="panel" style="margin-bottom: 20px; background: var(--card); border: 1px solid var(--border);">
+    <h3 style="margin: 0 0 12px; font-size: 15px; font-weight: 600;">➕ Añadir Nueva URL</h3>
+    <form id="form-add-url" style="display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap;">
+      <div style="flex: 1; min-width: 200px;">
+        <label class="label">Nombre</label>
+        <input
+          type="text"
+          name="name"
+          id="new-url-name"
+          class="input"
+          placeholder="Ej: Página de inicio"
+          required
+          style="width: 100%;">
+      </div>
+      <div style="flex: 2; min-width: 300px;">
+        <label class="label">URL</label>
+        <input
+          type="url"
+          name="url"
+          id="new-url-url"
+          class="input"
+          placeholder="https://ejemplo.com/pagina"
+          required
+          style="width: 100%;">
+      </div>
+      <button type="submit" class="btn primary" style="white-space: nowrap;">
+        ➕ Añadir URL
+      </button>
+    </form>
+  </div>
+
+  <!-- Lista de URLs existentes -->
+  <div class="table">
+    <table id="urls-table">
+      <thead>
+        <tr>
+          <th style="width: 25%">Nombre</th>
+          <th style="width: 40%">URL</th>
+          <th style="width: 12%; text-align: center;">Estado</th>
+          <th style="width: 23%; text-align: right;">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for section in sections %}
+        <tr data-url-id="{{ section.id }}" class="url-row">
+          <td>
+            <span class="url-name">{{ section.name }}</span>
+            <input
+              type="text"
+              class="input url-name-edit"
+              value="{{ section.name }}"
+              style="display: none; width: 100%;">
+          </td>
+          <td>
+            <span class="url-url" style="word-break: break-all;">{{ section.url }}</span>
+            <input
+              type="url"
+              class="input url-url-edit"
+              value="{{ section.url }}"
+              style="display: none; width: 100%;">
+          </td>
+          <td style="text-align: center;">
+            <span class="badge {% if section.active %}bd-done{% else %}bd-pend{% endif %}">
+              {% if section.active %}✅ Activa{% else %}⏸️ Inactiva{% endif %}
+            </span>
+          </td>
+          <td style="text-align: right;">
+            <div class="url-actions">
+              <button class="btn ghost btn-edit" onclick="editUrl({{ section.id }})" title="Editar">
+                ✏️
+              </button>
+              <button class="btn ghost btn-toggle" onclick="toggleUrl({{ section.id }})" title="Activar/Desactivar">
+                {% if section.active %}⏸️{% else %}▶️{% endif %}
+              </button>
+              <button class="btn ghost btn-delete" onclick="deleteUrl({{ section.id }})" title="Eliminar" style="color: var(--danger);">
+                🗑️
+              </button>
+              <button class="btn primary btn-save" onclick="saveUrl({{ section.id }})" style="display: none;">
+                💾 Guardar
+              </button>
+              <button class="btn ghost btn-cancel" onclick="cancelEdit({{ section.id }})" style="display: none;">
+                ❌ Cancelar
+              </button>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="panel" style="margin-top: 14px; color: var(--muted); background: transparent; border: none; padding: 0;">
+    <strong>💡 Nota:</strong>
+    <ul style="margin: 8px 0; padding-left: 20px; font-size: 0.9em;">
+      <li>Las URLs inactivas no aparecerán en la página de Inicio ni contarán para tareas pendientes</li>
+      <li>Solo puedes eliminar URLs que no tengan tareas asociadas</li>
+      <li>Puedes desactivar temporalmente una URL sin eliminarla</li>
+    </ul>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// ============================================================
+// ALERTAS DE TAREAS
+// ============================================================
+
+// Datos iniciales de alert_day desde el backend
+const initialAlertDays = {
+  {% for task_type in task_types %}
+  {{ task_type.id }}: '{{ task_type.alert.alert_day or "1" }}',
+  {% endfor %}
+};
+
+// Datos iniciales de alert_frequency desde el backend
+const initialAlertFrequencies = {
+  {% for task_type in task_types %}
+  {{ task_type.id }}: '{{ task_type.alert.alert_frequency }}',
+  {% endfor %}
+};
+
+// Función para actualizar opciones del selector de día según frecuencia
+function updateDayOptions(taskTypeId, frequency) {
+  const daySelect = document.getElementById('alert-day-' + taskTypeId);
+  const currentValue = daySelect.value;
+
+  // Limpiar opciones actuales
+  daySelect.innerHTML = '';
+
+  if (frequency === 'daily') {
+    // Para diario, no necesita día específico
+    daySelect.disabled = true;
+    const option = document.createElement('option');
+    option.value = '';
+    option.textContent = 'Todos los días';
+    daySelect.appendChild(option);
+  } else if (frequency === 'weekly' || frequency === 'biweekly') {
+    // Para semanal/quincenal: días de la semana
+    daySelect.disabled = false;
+    const daysOfWeek = [
+      { value: 'monday', text: 'Lunes' },
+      { value: 'tuesday', text: 'Martes' },
+      { value: 'wednesday', text: 'Miércoles' },
+      { value: 'thursday', text: 'Jueves' },
+      { value: 'friday', text: 'Viernes' },
+      { value: 'saturday', text: 'Sábado' },
+      { value: 'sunday', text: 'Domingo' }
+    ];
+
+    daysOfWeek.forEach(day => {
+      const option = document.createElement('option');
+      option.value = day.value;
+      option.textContent = day.text;
+      if (currentValue === day.value) {
+        option.selected = true;
+      }
+      daySelect.appendChild(option);
+    });
+
+    // Si no hay valor seleccionado, seleccionar lunes por defecto
+    if (!currentValue || !['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].includes(currentValue)) {
+      daySelect.value = 'monday';
+    }
+  } else {
+    // Para mensual/trimestral/semestral/anual: días del mes (1-31)
+    daySelect.disabled = false;
+    for (let i = 1; i <= 31; i++) {
+      const option = document.createElement('option');
+      option.value = i.toString();
+      option.textContent = 'Día ' + i;
+      if (currentValue === i.toString()) {
+        option.selected = true;
+      }
+      daySelect.appendChild(option);
+    }
+
+    // Si no hay valor seleccionado, seleccionar día 1 por defecto
+    if (!currentValue || isNaN(parseInt(currentValue))) {
+      daySelect.value = '1';
+    }
+  }
+}
+
+// Inicializar selectores de día al cargar la página
+function initializeDaySelectors() {
+  {% for task_type in task_types %}
+  updateDayOptions({{ task_type.id }}, '{{ task_type.alert.alert_frequency }}');
+  // Restaurar el valor guardado
+  const daySelect{{ task_type.id }} = document.getElementById('alert-day-{{ task_type.id }}');
+  if (daySelect{{ task_type.id }} && !daySelect{{ task_type.id }}.disabled) {
+    daySelect{{ task_type.id }}.value = initialAlertDays[{{ task_type.id }}] || daySelect{{ task_type.id }}.value;
+  }
+  {% endfor %}
+}
+
+// Inicializar al cargar la página
+document.addEventListener('DOMContentLoaded', initializeDaySelectors);
+
+document.getElementById('form-alerts').addEventListener('submit', function(e) {
+  e.preventDefault();
+
+  const alertsData = [];
+  const rows = document.querySelectorAll('#form-alerts tbody tr');
+
+  rows.forEach(row => {
+    const taskTypeId = row.dataset.taskTypeId;
+    const frequency = row.querySelector('.alert-frequency').value;
+    const daySelect = document.getElementById('alert-day-' + taskTypeId);
+    const day = daySelect.disabled ? null : daySelect.value;
+    const enabled = row.querySelector('.alert-enabled').checked;
+
+    alertsData.push({
+      task_type_id: parseInt(taskTypeId),
+      alert_frequency: frequency,
+      alert_day: day,
+      enabled: enabled
+    });
+  });
+
+  fetch('{{ url_for("save_alert_settings") }}', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(alertsData)
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      alert('✅ ' + data.message);
+    } else {
+      alert('❌ Error: ' + data.error);
+    }
+  })
+  .catch(error => {
+    console.error('Error:', error);
+    alert('❌ Error al guardar la configuración');
+  });
+});
+
+// ============================================================
+// NOTIFICACIONES
+// ============================================================
+document.getElementById('form-notifications').addEventListener('submit', function(e) {
+  e.preventDefault();
+
+  const formData = new FormData();
+  formData.append('email', document.getElementById('email').value);
+  formData.append('enable_email', document.getElementById('enable_email').checked);
+  formData.append('enable_desktop', document.getElementById('enable_desktop').checked);
+  formData.append('enable_in_app', document.getElementById('enable_in_app').checked);
+
+  fetch('{{ url_for("save_notification_preferences") }}', {
+    method: 'POST',
+    body: formData
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      alert('✅ ' + data.message);
+
+      // Si se habilitó notificaciones de escritorio, pedir permiso
+      if (document.getElementById('enable_desktop').checked) {
+        if ('Notification' in window && Notification.permission !== 'granted') {
+          Notification.requestPermission();
+        }
+      }
+    } else {
+      alert('❌ Error: ' + data.error);
+    }
+  })
+  .catch(error => {
+    console.error('Error:', error);
+    alert('❌ Error al guardar las preferencias');
+  });
+});
+
+// ============================================================
+// CRUD DE URLs
+// ============================================================
+
+// Añadir nueva URL
+document.getElementById('form-add-url').addEventListener('submit', function(e) {
+  e.preventDefault();
+
+  const formData = new FormData(this);
+
+  fetch('{{ url_for("add_url") }}', {
+    method: 'POST',
+    body: formData
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      alert('✅ ' + data.message);
+      location.reload(); // Recargar para mostrar la nueva URL
+    } else {
+      alert('❌ Error: ' + data.error);
+    }
+  })
+  .catch(error => {
+    console.error('Error:', error);
+    alert('❌ Error al añadir la URL');
+  });
+});
+
+// Editar URL
+function editUrl(urlId) {
+  const row = document.querySelector(`tr[data-url-id="${urlId}"]`);
+
+  // Ocultar spans y mostrar inputs
+  row.querySelector('.url-name').style.display = 'none';
+  row.querySelector('.url-name-edit').style.display = 'block';
+  row.querySelector('.url-url').style.display = 'none';
+  row.querySelector('.url-url-edit').style.display = 'block';
+
+  // Ocultar botones normales y mostrar botones de guardar/cancelar
+  row.querySelector('.btn-edit').style.display = 'none';
+  row.querySelector('.btn-toggle').style.display = 'none';
+  row.querySelector('.btn-delete').style.display = 'none';
+  row.querySelector('.btn-save').style.display = 'inline-block';
+  row.querySelector('.btn-cancel').style.display = 'inline-block';
+}
+
+// Guardar edición
+function saveUrl(urlId) {
+  const row = document.querySelector(`tr[data-url-id="${urlId}"]`);
+  const name = row.querySelector('.url-name-edit').value;
+  const url = row.querySelector('.url-url-edit').value;
+
+  const formData = new FormData();
+  formData.append('name', name);
+  formData.append('url', url);
+
+  fetch(`/configuracion/url/edit/${urlId}`, {
+    method: 'POST',
+    body: formData
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      alert('✅ ' + data.message);
+      location.reload();
+    } else {
+      alert('❌ Error: ' + data.error);
+    }
+  })
+  .catch(error => {
+    console.error('Error:', error);
+    alert('❌ Error al guardar los cambios');
+  });
+}
+
+// Cancelar edición
+function cancelEdit(urlId) {
+  location.reload();
+}
+
+// Activar/Desactivar URL
+function toggleUrl(urlId) {
+  if (!confirm('¿Seguro que quieres cambiar el estado de esta URL?')) {
+    return;
+  }
+
+  fetch(`/configuracion/url/toggle/${urlId}`, {
+    method: 'POST'
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      alert('✅ ' + data.message);
+      location.reload();
+    } else {
+      alert('❌ Error: ' + data.error);
+    }
+  })
+  .catch(error => {
+    console.error('Error:', error);
+    alert('❌ Error al cambiar el estado');
+  });
+}
+
+// Eliminar URL
+function deleteUrl(urlId) {
+  if (!confirm('¿Seguro que quieres eliminar esta URL? Esta acción no se puede deshacer.')) {
+    return;
+  }
+
+  fetch(`/configuracion/url/delete/${urlId}`, {
+    method: 'POST'
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      alert('✅ ' + data.message);
+      location.reload();
+    } else {
+      alert('❌ Error: ' + data.error);
+    }
+  })
+  .catch(error => {
+    console.error('Error:', error);
+    alert('❌ Error al eliminar la URL');
+  });
+}
+</script>
+
+<style>
+/* Toggle Switch */
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 48px;
+  height: 24px;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--muted);
+  transition: 0.3s;
+  border-radius: 24px;
+}
+
+.toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: var(--bg);
+  transition: 0.3s;
+  border-radius: 50%;
+}
+
+input:checked + .toggle-slider {
+  background-color: var(--primary);
+}
+
+input:checked + .toggle-slider:before {
+  transform: translateX(24px);
+}
+
+.notification-option {
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card);
+  transition: all 0.2s ease;
+}
+
+.notification-option:hover {
+  border-color: var(--primary);
+  background: rgba(193, 83, 99, 0.05);
+}
+</style>
+{% endblock %}

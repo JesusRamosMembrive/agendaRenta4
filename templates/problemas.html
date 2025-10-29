@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+
+{% block title %}Problemas - Agenda Renta4{% endblock %}
+
+{% block content %}
+<div class="h1">Problemas — Tareas con incidencias</div>
+
+{% if problem_tasks %}
+  <div class="panel" style="margin-bottom: 20px; background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%); border-left: 4px solid #ef4444;">
+    <strong>⚠ Total de tareas con problemas:</strong> {{ problem_tasks|length }}
+    <p style="margin: 8px 0 0 0; color: #991b1b; font-size: 0.9em;">
+      Mostrando tareas con incidencias desde octubre 2025 hasta {{ period|format_period }}
+    </p>
+  </div>
+
+  <div class="table" role="table" aria-label="Listado de tareas con problemas">
+    <table>
+      <thead>
+        <tr>
+          <th class="sticky" style="width:12%">Período</th>
+          <th class="sticky" style="width:25%">URL / Sección</th>
+          <th class="sticky" style="width:18%">Tipo de Tarea</th>
+          <th class="sticky">Observaciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for task in problem_tasks %}
+          <tr>
+            <!-- Período -->
+            <td>
+              <strong>{{ task.period|format_period }}</strong>
+            </td>
+
+            <!-- URL / Sección (clickeable) -->
+            <td>
+              <a href="{{ task.section_url }}" target="_blank" rel="noopener noreferrer" style="color: #2563eb; text-decoration: none; font-weight: 500;">
+                {{ task.section_name }}
+              </a>
+            </td>
+
+            <!-- Tipo de Tarea -->
+            <td>
+              {{ task.task_type_name }}
+              {% if task.periodicity %}
+                <span style="color: #6b7280; font-size: 0.85em;">({{ task.periodicity }})</span>
+              {% endif %}
+            </td>
+
+            <!-- Observaciones -->
+            <td>
+              {% if task.observations %}
+                <div style="color: #374151; font-size: 0.9em;">
+                  {{ task.observations }}
+                </div>
+              {% else %}
+                <span style="color: #9ca3af; font-style: italic;">Sin observaciones</span>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="panel" style="margin-top: 14px; color: #6b7280;">
+    <strong>💡 Nota:</strong>
+    <ul style="margin: 8px 0; padding-left: 20px; font-size: 0.9em;">
+      <li>Estas tareas han sido revisadas y se detectaron incidencias</li>
+      <li>Revisa las observaciones para conocer los detalles de cada problema</li>
+      <li>Haz clic en el nombre de la URL para acceder directamente a la sección</li>
+    </ul>
+  </div>
+
+{% else %}
+  <div class="panel" style="text-align: center; padding: 40px; background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); border-left: 4px solid #10b981;">
+    <div style="font-size: 48px; margin-bottom: 16px;">✅</div>
+    <h3 style="color: #065f46; margin: 0 0 8px 0;">¡Sin problemas detectados!</h3>
+    <p style="color: #047857; margin: 0;">
+      No hay tareas con incidencias en este momento.
+    </p>
+  </div>
+{% endif %}
+{% endblock %}

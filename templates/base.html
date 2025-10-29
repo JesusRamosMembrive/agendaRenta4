@@ -5,6 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{% block title %}Agenda Renta4{% endblock %}</title>
 
+  <!-- Cargar tema ANTES de renderizar para evitar flash -->
+  <script>
+    (function() {
+      const savedTheme = localStorage.getItem('theme') || 'light';
+      document.documentElement.setAttribute('data-theme', savedTheme);
+    })();
+  </script>
+
   <!-- CSS -->
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
 
@@ -29,9 +37,21 @@
         </a>
         <a href="{{ url_for('pendientes') }}" class="{% if request.endpoint == 'pendientes' %}active{% endif %}">
           Pendientes
+          <span class="nav-counter">{{ task_counts.pending }}</span>
+        </a>
+        <a href="{{ url_for('alertas') }}" class="{% if request.endpoint == 'alertas' %}active{% endif %}">
+          Alertas
+          {% if task_counts.alerts > 0 %}
+            <span class="nav-counter alert-counter">{{ task_counts.alerts }}</span>
+          {% endif %}
+        </a>
+        <a href="{{ url_for('problemas') }}" class="{% if request.endpoint == 'problemas' %}active{% endif %}">
+          Problemas
+          <span class="nav-counter">{{ task_counts.problems }}</span>
         </a>
         <a href="{{ url_for('realizadas') }}" class="{% if request.endpoint == 'realizadas' %}active{% endif %}">
           Realizadas
+          <span class="nav-counter">{{ task_counts.completed }}</span>
         </a>
         <a href="{{ url_for('configuracion') }}" class="{% if request.endpoint == 'configuracion' %}active{% endif %}">
           Configuración
@@ -64,6 +84,11 @@
 
         <!-- Búsqueda -->
         <input class="input" placeholder="Buscar…" aria-label="Buscar" />
+
+        <!-- Toggle Tema Claro/Oscuro -->
+        <button id="theme-toggle" class="btn ghost" title="Cambiar tema" style="padding: 10px; font-size: 20px; line-height: 1;">
+          <span id="theme-icon">☀️</span>
+        </button>
 
         <!-- Avatar Usuario -->
         <div class="avatar" title="{{ current_user }}">

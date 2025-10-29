@@ -5,8 +5,12 @@ Flask application principal
 """
 
 import os
-from datetime import datetime
+import calendar
+from datetime import datetime, date, timedelta
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
+from flask_mail import Mail, Message
+from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
+from werkzeug.security import generate_password_hash, check_password_hash
 from dotenv import load_dotenv
 import sqlite3
 
@@ -20,6 +24,25 @@ app.secret_key = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
 # Configuration
 DATABASE_PATH = os.getenv('DATABASE_PATH', 'agendaRenta4.db')
 
+# Email Configuration
+app.config['MAIL_SERVER'] = os.getenv('MAIL_SERVER', 'smtp.gmail.com')
+app.config['MAIL_PORT'] = int(os.getenv('MAIL_PORT', 587))
+app.config['MAIL_USE_TLS'] = os.getenv('MAIL_USE_TLS', 'True') == 'True'
+app.config['MAIL_USE_SSL'] = os.getenv('MAIL_USE_SSL', 'False') == 'True'
+app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME')
+app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD')
+app.config['MAIL_DEFAULT_SENDER'] = os.getenv('MAIL_DEFAULT_SENDER', 'Agenda Renta4 <noreply@renta4.com>')
+app.config['MAIL_DEBUG'] = os.getenv('MAIL_DEBUG', 'True') == 'True'
+
+# Initialize Flask-Mail
+mail = Mail(app)
+
+# Initialize Flask-Login
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
+login_manager.login_message = 'Por favor inicia sesión para acceder a esta página.'
+
 
 def get_db_connection():
     """
@@ -28,6 +51,31 @@ def get_db_connection():
     conn = sqlite3.connect(DATABASE_PATH)
     conn.row_factory = sqlite3.Row  # Return rows as dict-like objects
     return conn
+
+
+# ==============================================================================
+# USER AUTHENTICATION
+# ==============================================================================
+
+class User(UserMixin):
+    """User class for Flask-Login"""
+    def __init__(self, id, username, full_name):
+        self.id = id
+        self.username = username
+        self.full_name = full_name
+
+@login_manager.user_loader
+def load_user(user_id):
+    """Load user by ID for Flask-Login"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT id, username, full_name FROM users WHERE id = ?', (user_id,))
+    user_data = cursor.fetchone()
+    conn.close()
+
+    if user_data:
+        return User(id=user_data['id'], username=user_data['username'], full_name=user_data['full_name'])
+    return None
 
 
 # ==============================================================================
@@ -58,6 +106,386 @@ def generate_available_periods():
         periods.append(future_date.strftime('%Y-%m'))
 
     return periods
+
+
+def get_task_counts():
+    """
+    Get counts of pending, problem, completed tasks, and pending alerts.
+    Returns dict with 'pending', 'problems', 'completed', 'alerts' counts.
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    current_period = datetime.now().strftime('%Y-%m')
+
+    # Count total possible tasks (active sections * task types) for current period
+    cursor.execute("SELECT COUNT(*) as count FROM sections WHERE active = 1")
+    total_sections = cursor.fetchone()['count']
+
+    cursor.execute("SELECT COUNT(*) as count FROM task_types")
+    total_task_types = cursor.fetchone()['count']
+
+    total_possible_tasks = total_sections * total_task_types
+
+    # Count completed tasks (status='ok') for current period
+    cursor.execute("""
+        SELECT COUNT(*) as count
+        FROM tasks t
+        INNER JOIN sections s ON t.section_id = s.id
+        WHERE s.active = 1
+          AND t.status = 'ok'
+          AND t.period = ?
+    """, (current_period,))
+    ok_count = cursor.fetchone()['count']
+
+    # Count problem tasks for current period
+    cursor.execute("""
+        SELECT COUNT(*) as count
+        FROM tasks t
+        INNER JOIN sections s ON t.section_id = s.id
+        WHERE s.active = 1
+          AND t.status = 'problem'
+          AND t.period = ?
+    """, (current_period,))
+    problems_count = cursor.fetchone()['count']
+
+    # Pending = Total possible - OK - Problems
+    pending_count = total_possible_tasks - ok_count - problems_count
+
+    # Count completed tasks (all history) for "Realizadas" page
+    cursor.execute("""
+        SELECT COUNT(*) as count
+        FROM tasks t
+        INNER JOIN sections s ON t.section_id = s.id
+        WHERE s.active = 1
+          AND t.status = 'ok'
+    """)
+    completed_count = cursor.fetchone()['count']
+
+    # Count pending alerts (not dismissed)
+    cursor.execute("""
+        SELECT COUNT(*) as count
+        FROM pending_alerts
+        WHERE dismissed = 0
+    """)
+    alerts_count = cursor.fetchone()['count']
+
+    conn.close()
+
+    return {
+        'pending': pending_count,
+        'problems': problems_count,
+        'completed': completed_count,
+        'alerts': alerts_count
+    }
+
+
+def generate_alerts(reference_date=None):
+    """
+    Generate pending alerts based on alert_settings configuration.
+    Creates one alert per task_type (not per section).
+    This function should be run periodically (daily) to create alerts.
+
+    Args:
+        reference_date: Date to use as reference (default: today)
+
+    Returns:
+        dict with stats: {'generated': count, 'skipped': count, 'errors': [], 'email_stats': {...}}
+    """
+    if reference_date is None:
+        reference_date = date.today()
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    stats = {'generated': 0, 'skipped': 0, 'errors': [], 'email_stats': None}
+
+    try:
+        # Get all active alert settings
+        cursor.execute("""
+            SELECT task_type_id, alert_frequency, alert_day, enabled
+            FROM alert_settings
+            WHERE enabled = 1
+        """)
+        alert_settings = cursor.fetchall()
+
+        for alert_setting in alert_settings:
+            task_type_id = alert_setting['task_type_id']
+            frequency = alert_setting['alert_frequency']
+            alert_day = alert_setting['alert_day']
+
+            # Check if today matches the alert criteria
+            should_alert = check_alert_day(reference_date, frequency, alert_day)
+
+            if not should_alert:
+                stats['skipped'] += 1
+                continue
+
+            try:
+                # Create one alert per task_type (not per section)
+                cursor.execute("""
+                    INSERT OR IGNORE INTO pending_alerts
+                    (task_type_id, due_date)
+                    VALUES (?, ?)
+                """, (task_type_id, reference_date))
+
+                if cursor.rowcount > 0:
+                    stats['generated'] += 1
+                else:
+                    stats['skipped'] += 1
+
+            except Exception as e:
+                stats['errors'].append(f"Error creating alert for task_type={task_type_id}: {str(e)}")
+
+        conn.commit()
+
+        # Fetch alerts for this day (both new and existing) to send email notifications
+        cursor.execute("""
+            SELECT
+                tt.display_name as task_type_name,
+                pa.due_date,
+                tt.periodicity
+            FROM pending_alerts pa
+            INNER JOIN task_types tt ON pa.task_type_id = tt.id
+            WHERE pa.due_date = ? AND pa.dismissed = 0
+            ORDER BY tt.display_name ASC
+        """, (reference_date,))
+
+        alerts_for_email = cursor.fetchall()
+
+        # Send email notifications if there are alerts (new or existing)
+        if alerts_for_email:
+            email_stats = send_email_notifications(alerts_for_email)
+            stats['email_stats'] = email_stats
+
+    except Exception as e:
+        stats['errors'].append(f"Fatal error: {str(e)}")
+    finally:
+        conn.close()
+
+    return stats
+
+
+def check_alert_day(reference_date, frequency, alert_day):
+    """
+    Check if the reference_date matches the alert configuration.
+
+    Args:
+        reference_date: date object to check
+        frequency: alert frequency (daily, weekly, biweekly, monthly, quarterly, semiannual, annual)
+        alert_day: specific day configuration (day of week or day of month)
+
+    Returns:
+        bool: True if alert should be generated for this date
+    """
+    if frequency == 'daily':
+        return True
+
+    if frequency in ['weekly', 'biweekly']:
+        # Map weekday names to numbers (monday=0, sunday=6)
+        weekday_map = {
+            'monday': 0, 'tuesday': 1, 'wednesday': 2, 'thursday': 3,
+            'friday': 4, 'saturday': 5, 'sunday': 6
+        }
+        target_weekday = weekday_map.get(alert_day)
+
+        if target_weekday is None:
+            return False
+
+        # Check if today is the configured weekday
+        if reference_date.weekday() != target_weekday:
+            return False
+
+        # For biweekly, also check if it's an even/odd week
+        # Simple implementation: alert on weeks where week_number % 2 == 0
+        if frequency == 'biweekly':
+            week_number = reference_date.isocalendar()[1]
+            return week_number % 2 == 0
+
+        return True
+
+    if frequency in ['monthly', 'quarterly', 'semiannual', 'annual']:
+        # Get target day (handle edge case for months with fewer days)
+        try:
+            target_day = int(alert_day)
+        except (ValueError, TypeError):
+            return False
+
+        # Get last day of current month
+        last_day = calendar.monthrange(reference_date.year, reference_date.month)[1]
+
+        # Adjust target day if month doesn't have enough days
+        effective_day = min(target_day, last_day)
+
+        # Check if today is the target day
+        if reference_date.day != effective_day:
+            return False
+
+        # Additional checks for quarterly/semiannual/annual
+        if frequency == 'quarterly':
+            # Alert only in Jan, Apr, Jul, Oct
+            return reference_date.month in [1, 4, 7, 10]
+
+        if frequency == 'semiannual':
+            # Alert only in Jan and Jul
+            return reference_date.month in [1, 7]
+
+        if frequency == 'annual':
+            # Alert only in January
+            return reference_date.month == 1
+
+        # Monthly: always true if day matches
+        return True
+
+    return False
+
+
+def send_email_notifications(alert_list):
+    """
+    Send email notifications for newly generated alerts.
+
+    Args:
+        alert_list: List of dicts with keys: task_type_name, due_date, etc.
+
+    Returns:
+        dict with stats: {'sent': count, 'failed': count, 'errors': []}
+    """
+    stats = {'sent': 0, 'failed': 0, 'errors': []}
+
+    # Check if email notifications are enabled
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT enable_email FROM notification_preferences
+        WHERE user_name = ? AND enable_email = 1
+        LIMIT 1
+    """, ('José Ramos',))
+
+    email_enabled = cursor.fetchone()
+
+    if not email_enabled:
+        conn.close()
+        stats['errors'].append('Email notifications not enabled')
+        return stats
+
+    # Get active email addresses
+    cursor.execute("""
+        SELECT email, name FROM notification_emails
+        WHERE active = 1
+        ORDER BY id ASC
+    """)
+
+    email_recipients = cursor.fetchall()
+    conn.close()
+
+    if not email_recipients:
+        stats['errors'].append('No active email recipients configured')
+        return stats
+
+    # Check if SMTP is configured
+    if not app.config['MAIL_USERNAME'] or not app.config['MAIL_PASSWORD']:
+        stats['errors'].append('SMTP not configured. Set MAIL_USERNAME and MAIL_PASSWORD in .env')
+        return stats
+
+    # Prepare email content
+    if not alert_list:
+        return stats
+
+    try:
+        # Build email body
+        html_body = f"""
+        <html>
+        <head>
+            <style>
+                body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+                .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+                .header {{ background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+                          color: white; padding: 20px; border-radius: 8px 8px 0 0; }}
+                .content {{ background: #f9fafb; padding: 20px; }}
+                .alert-item {{ background: white; padding: 15px; margin: 10px 0;
+                               border-left: 4px solid #f59e0b; border-radius: 4px; }}
+                .alert-title {{ font-weight: bold; color: #f59e0b; font-size: 1.1em; }}
+                .alert-date {{ color: #6b7280; font-size: 0.9em; }}
+                .footer {{ background: #1f2937; color: #9ca3af; padding: 15px;
+                          border-radius: 0 0 8px 8px; text-align: center; font-size: 0.85em; }}
+                .btn {{ background: #5b8cff; color: white; padding: 10px 20px;
+                       text-decoration: none; border-radius: 6px; display: inline-block;
+                       margin-top: 10px; }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h2 style="margin: 0;">⚠️ Nuevas Alertas - Agenda Renta4</h2>
+                    <p style="margin: 5px 0 0 0; opacity: 0.9;">
+                        Se han generado {len(alert_list)} nueva(s) alerta(s) pendiente(s)
+                    </p>
+                </div>
+
+                <div class="content">
+                    <p><strong>Hola,</strong></p>
+                    <p>Se han generado las siguientes alertas que requieren tu atención:</p>
+        """
+
+        for alert in alert_list:
+            html_body += f"""
+                    <div class="alert-item">
+                        <div class="alert-title">{alert['task_type_name']}</div>
+                        <div class="alert-date">Fecha de aviso: {alert['due_date']}</div>
+                        <p style="margin: 8px 0 0 0; color: #6b7280; font-size: 0.9em;">
+                            Revisar todas las URLs para esta tarea
+                        </p>
+                    </div>
+            """
+
+        html_body += """
+                    <p style="margin-top: 20px;">
+                        <a href="http://localhost:5000/alertas" class="btn">Ver Alertas Pendientes</a>
+                    </p>
+                </div>
+
+                <div class="footer">
+                    <p style="margin: 0;">
+                        Este es un mensaje automático de Agenda Renta4. Por favor, no respondas a este email.
+                    </p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+
+        # Send email to all recipients
+        for recipient in email_recipients:
+            try:
+                msg = Message(
+                    subject=f"🔔 {len(alert_list)} Nueva(s) Alerta(s) - Agenda Renta4",
+                    recipients=[recipient['email']],
+                    html=html_body
+                )
+
+                mail.send(msg)
+                stats['sent'] += 1
+
+            except Exception as e:
+                stats['failed'] += 1
+                stats['errors'].append(f"Failed to send to {recipient['email']}: {str(e)}")
+
+    except Exception as e:
+        stats['errors'].append(f"Error building email: {str(e)}")
+
+    return stats
+
+
+# ==============================================================================
+# CONTEXT PROCESSORS
+# ==============================================================================
+
+@app.context_processor
+def inject_task_counts():
+    """
+    Make task counts available to all templates
+    """
+    return {'task_counts': get_task_counts()}
 
 
 # ==============================================================================
@@ -95,10 +523,55 @@ def format_period(period_str):
 
 
 # ==============================================================================
-# ROUTES
+# AUTHENTICATION ROUTES
+# ==============================================================================
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    """Login page and authentication"""
+    # If user is already logged in, redirect to inicio
+    if current_user.is_authenticated:
+        return redirect(url_for('inicio'))
+
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('SELECT id, username, password_hash, full_name FROM users WHERE username = ?', (username,))
+        user_data = cursor.fetchone()
+        conn.close()
+
+        if user_data and check_password_hash(user_data['password_hash'], password):
+            # Create user object and log in
+            user = User(id=user_data['id'], username=user_data['username'], full_name=user_data['full_name'])
+            login_user(user, remember=True, duration=timedelta(days=30))
+            flash(f'¡Bienvenido/a, {user_data["full_name"]}!', 'success')
+
+            # Redirect to next page or inicio
+            next_page = request.args.get('next')
+            return redirect(next_page) if next_page else redirect(url_for('inicio'))
+        else:
+            flash('Usuario o contraseña incorrectos', 'error')
+
+    return render_template('login.html')
+
+@app.route('/logout')
+@login_required
+def logout():
+    """Logout current user"""
+    logout_user()
+    flash('Has cerrado sesión correctamente', 'success')
+    return redirect(url_for('login'))
+
+
+# ==============================================================================
+# APPLICATION ROUTES
 # ==============================================================================
 
 @app.route('/')
+@login_required
 def index():
     """
     Redirect to inicio page (main dashboard)
@@ -107,6 +580,7 @@ def index():
 
 
 @app.route('/inicio')
+@login_required
 def inicio():
     """
     Main dashboard - Table with all URLs and their 8 task types
@@ -186,37 +660,249 @@ def inicio():
 
 
 @app.route('/pendientes')
+@login_required
 def pendientes():
     """
-    List of pending tasks (status='pending')
+    List of ALL pending tasks (not marked as OK or Problem)
+    Generates all possible combinations and excludes completed/problem tasks
     """
     period = session.get('current_period', datetime.now().strftime('%Y-%m'))
+    current_period = datetime.now().strftime('%Y-%m')
 
-    # TODO: Query pending tasks from database
-    return render_template('pendientes.html', period=period, pending_tasks=[])
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # Get all active sections
+    cursor.execute("SELECT id, name, url FROM sections WHERE active = 1 ORDER BY name ASC")
+    sections = cursor.fetchall()
+
+    # Get all task types
+    cursor.execute("SELECT id, display_name, periodicity, display_order FROM task_types ORDER BY display_order ASC")
+    task_types = cursor.fetchall()
+
+    # Get all tasks that are OK or Problem for current period
+    cursor.execute("""
+        SELECT section_id, task_type_id, status
+        FROM tasks
+        WHERE period = ? AND status IN ('ok', 'problem')
+    """, (current_period,))
+    completed_tasks = cursor.fetchall()
+
+    # Create a set of (section_id, task_type_id) tuples that are already done
+    completed_set = {(task['section_id'], task['task_type_id']) for task in completed_tasks}
+
+    # Generate all pending tasks (combinations not in completed_set)
+    pending_tasks = []
+    for section in sections:
+        for task_type in task_types:
+            task_key = (section['id'], task_type['id'])
+            if task_key not in completed_set:
+                pending_tasks.append({
+                    'id': None,
+                    'period': current_period,
+                    'status': 'pending',
+                    'section_name': section['name'],
+                    'section_url': section['url'],
+                    'task_type_name': task_type['display_name'],
+                    'periodicity': task_type['periodicity'],
+                    'observations': None,
+                    'completed_date': None,
+                    'completed_by': None
+                })
+
+    conn.close()
+
+    # Generate available periods
+    available_periods = generate_available_periods()
+    current_user = 'José Ramos'
+
+    return render_template(
+        'pendientes.html',
+        period=period,
+        pending_tasks=pending_tasks,
+        available_periods=available_periods,
+        current_user=current_user
+    )
+
+
+@app.route('/problemas')
+@login_required
+def problemas():
+    """
+    List of tasks with problems (status='problem')
+    Shows tasks from 2025-10 onwards that have issues
+    """
+    period = session.get('current_period', datetime.now().strftime('%Y-%m'))
+    current_period = datetime.now().strftime('%Y-%m')
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # Query problem tasks from 2025-10 to current month
+    cursor.execute("""
+        SELECT
+            t.id,
+            t.period,
+            t.status,
+            t.observations,
+            t.completed_date,
+            t.completed_by,
+            s.name as section_name,
+            s.url as section_url,
+            tt.display_name as task_type_name,
+            tt.periodicity
+        FROM tasks t
+        INNER JOIN sections s ON t.section_id = s.id
+        INNER JOIN task_types tt ON t.task_type_id = tt.id
+        WHERE
+            s.active = 1
+            AND t.status = 'problem'
+            AND t.period >= '2025-10'
+            AND t.period <= ?
+        ORDER BY t.period DESC, s.name ASC, tt.display_order ASC
+    """, (current_period,))
+
+    tasks_raw = cursor.fetchall()
+    problem_tasks = [dict(row) for row in tasks_raw]
+
+    conn.close()
+
+    # Generate available periods
+    available_periods = generate_available_periods()
+    current_user = 'José Ramos'
+
+    return render_template(
+        'problemas.html',
+        period=period,
+        problem_tasks=problem_tasks,
+        available_periods=available_periods,
+        current_user=current_user
+    )
 
 
 @app.route('/realizadas')
+@login_required
 def realizadas():
     """
-    List of completed tasks (status='ok' or 'problem')
+    List of completed tasks (status='ok')
+    Shows complete history of all tasks marked as OK
     """
     period = session.get('current_period', datetime.now().strftime('%Y-%m'))
 
-    # TODO: Query completed tasks from database
-    return render_template('realizadas.html', period=period, completed_tasks=[])
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # Query all completed tasks (status='ok') from complete history
+    cursor.execute("""
+        SELECT
+            t.id,
+            t.period,
+            t.completed_date,
+            t.completed_by,
+            s.name as section_name,
+            s.url as section_url,
+            tt.display_name as task_type_name,
+            tt.periodicity
+        FROM tasks t
+        INNER JOIN sections s ON t.section_id = s.id
+        INNER JOIN task_types tt ON t.task_type_id = tt.id
+        WHERE
+            s.active = 1
+            AND t.status = 'ok'
+        ORDER BY t.completed_date DESC, t.period DESC, s.name ASC
+    """)
+
+    tasks_raw = cursor.fetchall()
+    completed_tasks = [dict(row) for row in tasks_raw]
+
+    conn.close()
+
+    # Generate available periods
+    available_periods = generate_available_periods()
+    current_user = 'José Ramos'
+
+    return render_template(
+        'realizadas.html',
+        period=period,
+        completed_tasks=completed_tasks,
+        available_periods=available_periods,
+        current_user=current_user
+    )
 
 
 @app.route('/configuracion')
+@login_required
 def configuracion():
     """
-    Configuration page - CRUD for URLs and task type periodicities
+    Configuration page - CRUD for URLs, Alerts and Notification preferences
     """
-    # TODO: Query sections and task_types from database
-    return render_template('configuracion.html', sections=[], task_types=[])
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    current_user = 'José Ramos'
+
+    # Get all task types
+    cursor.execute("""
+        SELECT id, name, display_name, periodicity, display_order
+        FROM task_types
+        ORDER BY display_order ASC
+    """)
+    task_types = [dict(row) for row in cursor.fetchall()]
+
+    # Get alert settings for each task type
+    cursor.execute("""
+        SELECT task_type_id, alert_frequency, alert_day, enabled
+        FROM alert_settings
+    """)
+    alert_settings_raw = cursor.fetchall()
+    alert_settings = {row['task_type_id']: dict(row) for row in alert_settings_raw}
+
+    # Merge task_types with their alert settings
+    for task_type in task_types:
+        task_type['alert'] = alert_settings.get(task_type['id'], {
+            'alert_frequency': task_type['periodicity'],
+            'alert_day': '1',  # default day
+            'enabled': True
+        })
+
+    # Get notification preferences for current user
+    cursor.execute("""
+        SELECT email, enable_email, enable_desktop, enable_in_app
+        FROM notification_preferences
+        WHERE user_name = ?
+    """, (current_user,))
+    notification_prefs_row = cursor.fetchone()
+    notification_prefs = dict(notification_prefs_row) if notification_prefs_row else {
+        'email': '',
+        'enable_email': False,
+        'enable_desktop': False,
+        'enable_in_app': True
+    }
+
+    # Get all sections (URLs)
+    cursor.execute("""
+        SELECT id, name, url, active, created_at
+        FROM sections
+        ORDER BY name ASC
+    """)
+    sections = [dict(row) for row in cursor.fetchall()]
+
+    conn.close()
+
+    # Generate available periods
+    available_periods = generate_available_periods()
+
+    return render_template(
+        'configuracion.html',
+        task_types=task_types,
+        notification_prefs=notification_prefs,
+        sections=sections,
+        available_periods=available_periods,
+        current_user=current_user
+    )
 
 
 @app.route('/tasks/update', methods=['POST'])
+@login_required
 def update_task():
     """
     Update task status (ok/problem) via AJAX
@@ -232,6 +918,15 @@ def update_task():
         conn = get_db_connection()
         cursor = conn.cursor()
 
+        # Determine completed_date and completed_by based on status
+        if status in ('ok', 'problem'):
+            completed_date = datetime.now().strftime('%Y-%m-%d')
+            completed_by = 'José Ramos'
+        else:
+            # status='pending' means not completed yet
+            completed_date = None
+            completed_by = None
+
         # If task_id exists, update existing task
         if task_id:
             cursor.execute("""
@@ -240,24 +935,27 @@ def update_task():
                     completed_date = ?,
                     completed_by = ?
                 WHERE id = ?
-            """, (status, datetime.now().strftime('%Y-%m-%d'), 'José Ramos', task_id))
+            """, (status, completed_date, completed_by, task_id))
+            new_task_id = task_id
         else:
-            # Create new task if doesn't exist (shouldn't happen but just in case)
+            # Create new task if it doesn't exist yet
             cursor.execute("""
                 INSERT INTO tasks (section_id, task_type_id, period, status, completed_date, completed_by)
                 VALUES (?, ?, ?, ?, ?, ?)
-            """, (section_id, task_type_id, period, status, datetime.now().strftime('%Y-%m-%d'), 'José Ramos'))
+            """, (section_id, task_type_id, period, status, completed_date, completed_by))
+            new_task_id = cursor.lastrowid
 
         conn.commit()
         conn.close()
 
-        return jsonify({'success': True})
+        return jsonify({'success': True, 'task_id': new_task_id})
 
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/save_observations', methods=['POST'])
+@login_required
 def save_observations():
     """
     Save observations for all tasks of a section (when there are problems)
@@ -282,6 +980,336 @@ def save_observations():
         conn.close()
 
         return jsonify({'success': True})
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ==============================================================================
+# CONFIGURATION ROUTES
+# ==============================================================================
+
+@app.route('/configuracion/alertas', methods=['POST'])
+@login_required
+def save_alert_settings():
+    """
+    Save alert settings for all task types
+    Expects JSON: [{ task_type_id, alert_frequency, alert_day, enabled }, ...]
+    """
+    try:
+        alerts_data = request.get_json()
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        for alert in alerts_data:
+            task_type_id = alert.get('task_type_id')
+            alert_frequency = alert.get('alert_frequency')
+            alert_day = alert.get('alert_day')
+            enabled = alert.get('enabled', True)
+
+            # Update or insert alert_settings
+            cursor.execute("""
+                INSERT OR REPLACE INTO alert_settings (task_type_id, alert_frequency, alert_day, enabled)
+                VALUES (?, ?, ?, ?)
+            """, (task_type_id, alert_frequency, alert_day, 1 if enabled else 0))
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({'success': True, 'message': 'Configuración de alertas guardada'})
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/configuracion/notificaciones', methods=['POST'])
+@login_required
+def save_notification_preferences():
+    """
+    Save notification preferences for current user
+    """
+    try:
+        email = request.form.get('email', '')
+        enable_email = request.form.get('enable_email') == 'true'
+        enable_desktop = request.form.get('enable_desktop') == 'true'
+        enable_in_app = request.form.get('enable_in_app') == 'true'
+        current_user = 'José Ramos'
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Update or insert notification preferences
+        cursor.execute("""
+            INSERT OR REPLACE INTO notification_preferences
+            (id, user_name, email, enable_email, enable_desktop, enable_in_app, updated_at)
+            VALUES (1, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        """, (current_user, email, 1 if enable_email else 0, 1 if enable_desktop else 0, 1 if enable_in_app else 0))
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({'success': True, 'message': 'Preferencias de notificación guardadas'})
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/configuracion/url/add', methods=['POST'])
+@login_required
+def add_url():
+    """
+    Add new URL/section
+    """
+    try:
+        name = request.form.get('name', '').strip()
+        url = request.form.get('url', '').strip()
+
+        if not name or not url:
+            return jsonify({'success': False, 'error': 'Nombre y URL son obligatorios'}), 400
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            INSERT INTO sections (name, url, active, created_at)
+            VALUES (?, ?, 1, CURRENT_TIMESTAMP)
+        """, (name, url))
+
+        new_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+
+        return jsonify({'success': True, 'id': new_id, 'message': 'URL agregada correctamente'})
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/configuracion/url/edit/<int:url_id>', methods=['POST'])
+@login_required
+def edit_url(url_id):
+    """
+    Edit existing URL/section
+    """
+    try:
+        name = request.form.get('name', '').strip()
+        url = request.form.get('url', '').strip()
+
+        if not name or not url:
+            return jsonify({'success': False, 'error': 'Nombre y URL son obligatorios'}), 400
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            UPDATE sections
+            SET name = ?, url = ?
+            WHERE id = ?
+        """, (name, url, url_id))
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({'success': True, 'message': 'URL actualizada correctamente'})
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/configuracion/url/toggle/<int:url_id>', methods=['POST'])
+@login_required
+def toggle_url(url_id):
+    """
+    Toggle active status of URL/section
+    """
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Get current status
+        cursor.execute("SELECT active FROM sections WHERE id = ?", (url_id,))
+        row = cursor.fetchone()
+
+        if not row:
+            return jsonify({'success': False, 'error': 'URL no encontrada'}), 404
+
+        new_status = 0 if row['active'] else 1
+
+        cursor.execute("""
+            UPDATE sections
+            SET active = ?
+            WHERE id = ?
+        """, (new_status, url_id))
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({'success': True, 'active': new_status, 'message': 'Estado actualizado'})
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/configuracion/url/delete/<int:url_id>', methods=['POST'])
+@login_required
+def delete_url(url_id):
+    """
+    Delete URL/section (only if no associated tasks)
+    """
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Check if there are tasks associated
+        cursor.execute("SELECT COUNT(*) as count FROM tasks WHERE section_id = ?", (url_id,))
+        count = cursor.fetchone()['count']
+
+        if count > 0:
+            return jsonify({
+                'success': False,
+                'error': f'No se puede eliminar. Hay {count} tareas asociadas a esta URL.'
+            }), 400
+
+        # Delete section
+        cursor.execute("DELETE FROM sections WHERE id = ?", (url_id,))
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({'success': True, 'message': 'URL eliminada correctamente'})
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ==============================================================================
+# ALERTS ROUTES
+# ==============================================================================
+
+@app.route('/admin/generate-alerts', methods=['POST'])
+@login_required
+def trigger_generate_alerts():
+    """
+    Manually trigger alert generation for testing.
+    Can accept optional date parameter (YYYY-MM-DD format).
+    """
+    try:
+        # Get optional date from request
+        date_str = request.form.get('date') or request.args.get('date')
+
+        if date_str:
+            try:
+                reference_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+            except ValueError:
+                return jsonify({'success': False, 'error': 'Invalid date format. Use YYYY-MM-DD'}), 400
+        else:
+            reference_date = None  # Will use today by default
+
+        # Generate alerts
+        stats = generate_alerts(reference_date)
+
+        return jsonify({
+            'success': True,
+            'message': 'Alertas generadas correctamente',
+            'stats': stats
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/alertas')
+@login_required
+def alertas():
+    """
+    Display ALL alerts (both active and dismissed)
+    One alert per task_type, not per section
+    """
+    period = session.get('current_period', datetime.now().strftime('%Y-%m'))
+    current_user = 'José Ramos'
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # Get ALL alerts with task type info (both active and dismissed)
+    cursor.execute("""
+        SELECT
+            pa.id,
+            pa.due_date,
+            pa.generated_at,
+            pa.dismissed,
+            pa.dismissed_at,
+            tt.display_name as task_type_name,
+            tt.periodicity
+        FROM pending_alerts pa
+        INNER JOIN task_types tt ON pa.task_type_id = tt.id
+        ORDER BY pa.dismissed ASC, pa.due_date ASC, tt.display_order ASC
+    """)
+
+    alerts_raw = cursor.fetchall()
+    all_alerts = [dict(row) for row in alerts_raw]
+
+    conn.close()
+
+    # Generate available periods
+    available_periods = generate_available_periods()
+
+    return render_template(
+        'alertas.html',
+        period=period,
+        pending_alerts=all_alerts,
+        available_periods=available_periods,
+        current_user=current_user
+    )
+
+
+@app.route('/alertas/dismiss/<int:alert_id>', methods=['POST'])
+@login_required
+def dismiss_alert(alert_id):
+    """
+    Toggle alert status (active ↔ dismissed)
+    """
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Get current status
+        cursor.execute("SELECT dismissed FROM pending_alerts WHERE id = ?", (alert_id,))
+        row = cursor.fetchone()
+
+        if not row:
+            return jsonify({'success': False, 'error': 'Alerta no encontrada'}), 404
+
+        current_dismissed = row['dismissed']
+        new_dismissed = 0 if current_dismissed else 1
+
+        # Toggle dismissed status
+        if new_dismissed:
+            # Mark as dismissed
+            cursor.execute("""
+                UPDATE pending_alerts
+                SET dismissed = 1, dismissed_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            """, (alert_id,))
+            message = 'Alerta marcada como resuelta'
+        else:
+            # Mark as active again
+            cursor.execute("""
+                UPDATE pending_alerts
+                SET dismissed = 0, dismissed_at = NULL
+                WHERE id = ?
+            """, (alert_id,))
+            message = 'Alerta reactivada'
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({
+            'success': True,
+            'message': message,
+            'dismissed': new_dismissed
+        })
 
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500

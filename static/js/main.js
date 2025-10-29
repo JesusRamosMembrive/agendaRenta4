@@ -236,3 +236,43 @@ function setupSearch() {
 }
 
 document.addEventListener('DOMContentLoaded', setupSearch);
+
+// ===========================================================================
+// 6) Toggle de Tema Claro/Oscuro
+// ===========================================================================
+(function() {
+  const themeToggleBtn = document.getElementById('theme-toggle');
+  const themeIcon = document.getElementById('theme-icon');
+  const htmlElement = document.documentElement;
+
+  // Actualizar solo el icono según el tema actual
+  function updateIcon() {
+    const currentTheme = htmlElement.getAttribute('data-theme') || 'light';
+    if (themeIcon) {
+      themeIcon.textContent = currentTheme === 'dark' ? '🌙' : '☀️';
+    }
+  }
+
+  // Toggle entre temas
+  function toggleTheme() {
+    const currentTheme = htmlElement.getAttribute('data-theme') || 'light';
+    const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+
+    // Aplicar tema
+    htmlElement.setAttribute('data-theme', newTheme);
+
+    // Guardar en localStorage
+    localStorage.setItem('theme', newTheme);
+
+    // Actualizar icono
+    updateIcon();
+  }
+
+  // Event listener para el botón
+  if (themeToggleBtn) {
+    themeToggleBtn.addEventListener('click', toggleTheme);
+  }
+
+  // Actualizar icono al cargar (el tema ya está aplicado por el script inline)
+  updateIcon();
+})();

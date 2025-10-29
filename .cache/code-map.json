@@ -1,0 +1,486 @@
+[
+  {
+    "path": "add_notification_email.py",
+    "relative": true,
+    "modified_at": "2025-10-29T11:35:15.627080+00:00",
+    "symbols": [
+      {
+        "name": "add_email",
+        "kind": "function",
+        "lineno": 10,
+        "parent": null,
+        "docstring": "A\u00f1adir un email de notificaci\u00f3n a la base de datos"
+      },
+      {
+        "name": "list_emails",
+        "kind": "function",
+        "lineno": 31,
+        "parent": null,
+        "docstring": "Listar todos los emails de notificaci\u00f3n"
+      },
+      {
+        "name": "main",
+        "kind": "function",
+        "lineno": 55,
+        "parent": null,
+        "docstring": null
+      }
+    ],
+    "errors": []
+  },
+  {
+    "path": "app.py",
+    "relative": true,
+    "modified_at": "2025-10-29T14:48:05.499538+00:00",
+    "symbols": [
+      {
+        "name": "get_db_connection",
+        "kind": "function",
+        "lineno": 47,
+        "parent": null,
+        "docstring": "Create and return a database connection."
+      },
+      {
+        "name": "User",
+        "kind": "class",
+        "lineno": 60,
+        "parent": null,
+        "docstring": "User class for Flask-Login"
+      },
+      {
+        "name": "__init__",
+        "kind": "method",
+        "lineno": 62,
+        "parent": "User",
+        "docstring": null
+      },
+      {
+        "name": "load_user",
+        "kind": "function",
+        "lineno": 68,
+        "parent": null,
+        "docstring": "Load user by ID for Flask-Login"
+      },
+      {
+        "name": "generate_available_periods",
+        "kind": "function",
+        "lineno": 85,
+        "parent": null,
+        "docstring": "Generate list of available periods (last 6 months + next 6 months).\nReturns list of strings in format 'YYYY-MM'."
+      },
+      {
+        "name": "get_task_counts",
+        "kind": "function",
+        "lineno": 111,
+        "parent": null,
+        "docstring": "Get counts of pending, problem, completed tasks, and pending alerts.\nReturns dict with 'pending', 'problems', 'completed', 'alerts' counts."
+      },
+      {
+        "name": "generate_alerts",
+        "kind": "function",
+        "lineno": 182,
+        "parent": null,
+        "docstring": "Generate pending alerts based on alert_settings configuration.\nCreates one alert per task_type (not per section).\nThis function should be run periodically (daily) to create alerts.\n\nArgs:\n    reference_date: Date to use as reference (default: today)\n\nReturns:\n    dict with stats: {'generated': count, 'skipped': count, 'errors': [], 'email_stats': {...}}"
+      },
+      {
+        "name": "check_alert_day",
+        "kind": "function",
+        "lineno": 268,
+        "parent": null,
+        "docstring": "Check if the reference_date matches the alert configuration.\n\nArgs:\n    reference_date: date object to check\n    frequency: alert frequency (daily, weekly, biweekly, monthly, quarterly, semiannual, annual)\n    alert_day: specific day configuration (day of week or day of month)\n\nReturns:\n    bool: True if alert should be generated for this date"
+      },
+      {
+        "name": "send_email_notifications",
+        "kind": "function",
+        "lineno": 342,
+        "parent": null,
+        "docstring": "Send email notifications for newly generated alerts.\n\nArgs:\n    alert_list: List of dicts with keys: task_type_name, due_date, etc.\n\nReturns:\n    dict with stats: {'sent': count, 'failed': count, 'errors': []}"
+      },
+      {
+        "name": "inject_task_counts",
+        "kind": "function",
+        "lineno": 484,
+        "parent": null,
+        "docstring": "Make task counts available to all templates"
+      },
+      {
+        "name": "format_date",
+        "kind": "function",
+        "lineno": 496,
+        "parent": null,
+        "docstring": "Format date string to Spanish format: dd/mm/yyyy"
+      },
+      {
+        "name": "format_period",
+        "kind": "function",
+        "lineno": 510,
+        "parent": null,
+        "docstring": "Format period string from '2025-11' to 'Noviembre 2025'"
+      },
+      {
+        "name": "login",
+        "kind": "function",
+        "lineno": 530,
+        "parent": null,
+        "docstring": "Login page and authentication"
+      },
+      {
+        "name": "logout",
+        "kind": "function",
+        "lineno": 562,
+        "parent": null,
+        "docstring": "Logout current user"
+      },
+      {
+        "name": "index",
+        "kind": "function",
+        "lineno": 575,
+        "parent": null,
+        "docstring": "Redirect to inicio page (main dashboard)"
+      },
+      {
+        "name": "inicio",
+        "kind": "function",
+        "lineno": 584,
+        "parent": null,
+        "docstring": "Main dashboard - Table with all URLs and their 8 task types"
+      },
+      {
+        "name": "pendientes",
+        "kind": "function",
+        "lineno": 664,
+        "parent": null,
+        "docstring": "List of ALL pending tasks (not marked as OK or Problem)\nGenerates all possible combinations and excludes completed/problem tasks"
+      },
+      {
+        "name": "problemas",
+        "kind": "function",
+        "lineno": 730,
+        "parent": null,
+        "docstring": "List of tasks with problems (status='problem')\nShows tasks from 2025-10 onwards that have issues"
+      },
+      {
+        "name": "realizadas",
+        "kind": "function",
+        "lineno": 785,
+        "parent": null,
+        "docstring": "List of completed tasks (status='ok')\nShows complete history of all tasks marked as OK"
+      },
+      {
+        "name": "configuracion",
+        "kind": "function",
+        "lineno": 835,
+        "parent": null,
+        "docstring": "Configuration page - CRUD for URLs, Alerts and Notification preferences"
+      },
+      {
+        "name": "update_task",
+        "kind": "function",
+        "lineno": 906,
+        "parent": null,
+        "docstring": "Update task status (ok/problem) via AJAX\nReturns JSON response"
+      },
+      {
+        "name": "save_observations",
+        "kind": "function",
+        "lineno": 959,
+        "parent": null,
+        "docstring": "Save observations for all tasks of a section (when there are problems)\nReturns JSON response"
+      },
+      {
+        "name": "save_alert_settings",
+        "kind": "function",
+        "lineno": 994,
+        "parent": null,
+        "docstring": "Save alert settings for all task types\nExpects JSON: [{ task_type_id, alert_frequency, alert_day, enabled }, ...]"
+      },
+      {
+        "name": "save_notification_preferences",
+        "kind": "function",
+        "lineno": 1028,
+        "parent": null,
+        "docstring": "Save notification preferences for current user"
+      },
+      {
+        "name": "add_url",
+        "kind": "function",
+        "lineno": 1060,
+        "parent": null,
+        "docstring": "Add new URL/section"
+      },
+      {
+        "name": "edit_url",
+        "kind": "function",
+        "lineno": 1091,
+        "parent": null,
+        "docstring": "Edit existing URL/section"
+      },
+      {
+        "name": "toggle_url",
+        "kind": "function",
+        "lineno": 1122,
+        "parent": null,
+        "docstring": "Toggle active status of URL/section"
+      },
+      {
+        "name": "delete_url",
+        "kind": "function",
+        "lineno": 1156,
+        "parent": null,
+        "docstring": "Delete URL/section (only if no associated tasks)"
+      },
+      {
+        "name": "trigger_generate_alerts",
+        "kind": "function",
+        "lineno": 1192,
+        "parent": null,
+        "docstring": "Manually trigger alert generation for testing.\nCan accept optional date parameter (YYYY-MM-DD format)."
+      },
+      {
+        "name": "alertas",
+        "kind": "function",
+        "lineno": 1224,
+        "parent": null,
+        "docstring": "Display ALL alerts (both active and dismissed)\nOne alert per task_type, not per section"
+      },
+      {
+        "name": "dismiss_alert",
+        "kind": "function",
+        "lineno": 1269,
+        "parent": null,
+        "docstring": "Toggle alert status (active \u2194 dismissed)"
+      },
+      {
+        "name": "not_found",
+        "kind": "function",
+        "lineno": 1323,
+        "parent": null,
+        "docstring": "Handle 404 errors"
+      },
+      {
+        "name": "internal_error",
+        "kind": "function",
+        "lineno": 1337,
+        "parent": null,
+        "docstring": "Handle 500 errors"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "path": "create_tasks_for_period.py",
+    "relative": true,
+    "modified_at": "2025-10-28T14:38:23.357858+00:00",
+    "symbols": [
+      {
+        "name": "should_create_task_for_period",
+        "kind": "function",
+        "lineno": 18,
+        "parent": null,
+        "docstring": "Determina si se debe crear una tarea para un periodo dado seg\u00fan su periodicidad.\n\nArgs:\n    period: Periodo en formato \"YYYY-MM\" (ej: \"2025-11\")\n    periodicity: Tipo de periodicidad (\"weekly\", \"monthly\", \"quarterly\", \"biannual\", \"yearly\")\n\nReturns:\n    True si se debe crear la tarea, False si no"
+      },
+      {
+        "name": "create_tasks_for_period",
+        "kind": "function",
+        "lineno": 59,
+        "parent": null,
+        "docstring": "Crea tareas para un periodo espec\u00edfico seg\u00fan las periodicidades configuradas.\n\nArgs:\n    period: Periodo en formato \"YYYY-MM\" (ej: \"2025-11\")\n    db_path: Ruta a la base de datos SQLite\n    verbose: Si True, muestra mensajes de progreso"
+      },
+      {
+        "name": "get_db_task_stats",
+        "kind": "function",
+        "lineno": 173,
+        "parent": null,
+        "docstring": "Muestra estad\u00edsticas de tareas en la BD."
+      },
+      {
+        "name": "main",
+        "kind": "function",
+        "lineno": 216,
+        "parent": null,
+        "docstring": "Script principal con argumentos CLI."
+      }
+    ],
+    "errors": []
+  },
+  {
+    "path": "database.py",
+    "relative": true,
+    "modified_at": "2025-10-28T14:26:48.815377+00:00",
+    "symbols": [
+      {
+        "name": "init_db",
+        "kind": "function",
+        "lineno": 15,
+        "parent": null,
+        "docstring": "Crea las tablas de la base de datos si no existen."
+      },
+      {
+        "name": "seed_task_types",
+        "kind": "function",
+        "lineno": 95,
+        "parent": null,
+        "docstring": "Inserta los 8 tipos de tareas con sus periodicidades iniciales."
+      },
+      {
+        "name": "drop_all_tables",
+        "kind": "function",
+        "lineno": 132,
+        "parent": null,
+        "docstring": "\u26a0\ufe0f PELIGRO: Elimina todas las tablas (usar solo en desarrollo)"
+      },
+      {
+        "name": "get_db_stats",
+        "kind": "function",
+        "lineno": 159,
+        "parent": null,
+        "docstring": "Muestra estad\u00edsticas de la base de datos (n\u00famero de registros por tabla)."
+      },
+      {
+        "name": "main",
+        "kind": "function",
+        "lineno": 179,
+        "parent": null,
+        "docstring": "Script principal - Inicializa la BD y pobla tipos de tareas."
+      }
+    ],
+    "errors": []
+  },
+  {
+    "path": "explore_excel.py",
+    "relative": true,
+    "modified_at": "2025-10-28T09:10:18.532930+00:00",
+    "symbols": [
+      {
+        "name": "explore_excel",
+        "kind": "function",
+        "lineno": 19,
+        "parent": null,
+        "docstring": "Explora estructura del archivo Excel y muestra informaci\u00f3n detallada."
+      },
+      {
+        "name": "main",
+        "kind": "function",
+        "lineno": 109,
+        "parent": null,
+        "docstring": null
+      }
+    ],
+    "errors": []
+  },
+  {
+    "path": "load_sections.py",
+    "relative": true,
+    "modified_at": "2025-10-28T14:35:24.571819+00:00",
+    "symbols": [
+      {
+        "name": "generate_section_name",
+        "kind": "function",
+        "lineno": 24,
+        "parent": null,
+        "docstring": "Genera un nombre descriptivo para la secci\u00f3n a partir de la URL.\n\nArgs:\n    url: URL completa (ej: \"https://www.r4.com/planes-de-pensiones/categorias\")\n    hierarchy_levels: Lista de niveles de jerarqu\u00eda (Col 2-6)\n\nReturns:\n    Nombre descriptivo (ej: \"Planes de Pensiones - Categor\u00edas\")"
+      },
+      {
+        "name": "load_sections_from_excel",
+        "kind": "function",
+        "lineno": 70,
+        "parent": null,
+        "docstring": "Lee el Excel y carga las secciones (URLs) en la base de datos.\n\nArgs:\n    excel_path: Ruta al archivo Excel\n    db_path: Ruta a la base de datos SQLite"
+      },
+      {
+        "name": "main",
+        "kind": "function",
+        "lineno": 174,
+        "parent": null,
+        "docstring": "Script principal."
+      }
+    ],
+    "errors": []
+  },
+  {
+    "path": "manage_users.py",
+    "relative": true,
+    "modified_at": "2025-10-29T14:49:15.078920+00:00",
+    "symbols": [
+      {
+        "name": "get_db_connection",
+        "kind": "function",
+        "lineno": 17,
+        "parent": null,
+        "docstring": "Get database connection"
+      },
+      {
+        "name": "add_user",
+        "kind": "function",
+        "lineno": 23,
+        "parent": null,
+        "docstring": "Add a new user"
+      },
+      {
+        "name": "list_users",
+        "kind": "function",
+        "lineno": 53,
+        "parent": null,
+        "docstring": "List all users"
+      },
+      {
+        "name": "delete_user",
+        "kind": "function",
+        "lineno": 88,
+        "parent": null,
+        "docstring": "Delete a user"
+      },
+      {
+        "name": "change_password",
+        "kind": "function",
+        "lineno": 125,
+        "parent": null,
+        "docstring": "Change user password"
+      },
+      {
+        "name": "show_help",
+        "kind": "function",
+        "lineno": 160,
+        "parent": null,
+        "docstring": "Show usage help"
+      },
+      {
+        "name": "main",
+        "kind": "function",
+        "lineno": 196,
+        "parent": null,
+        "docstring": null
+      }
+    ],
+    "errors": []
+  },
+  {
+    "path": "seed_users.py",
+    "relative": true,
+    "modified_at": "2025-10-28T14:43:00.950510+00:00",
+    "symbols": [
+      {
+        "name": "seed_users",
+        "kind": "function",
+        "lineno": 16,
+        "parent": null,
+        "docstring": "Inserta usuarios de prueba en la tabla 'users'."
+      },
+      {
+        "name": "list_users",
+        "kind": "function",
+        "lineno": 64,
+        "parent": null,
+        "docstring": "Lista todos los usuarios en la BD."
+      },
+      {
+        "name": "main",
+        "kind": "function",
+        "lineno": 97,
+        "parent": null,
+        "docstring": "Script principal."
+      }
+    ],
+    "errors": []
+  }
+]
