@@ -6,14 +6,20 @@ Flask application principal
 
 import os
 import calendar
-from contextlib import contextmanager
 from datetime import datetime, date, timedelta
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 from flask_mail import Mail, Message
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
-from dotenv import load_dotenv
-import sqlite3
+
+# Import shared utilities
+from utils import db_cursor, get_db_connection, format_date, format_period, generate_available_periods, load_dotenv, DATABASE_PATH
+
+# Import constants
+from constants import (
+    TASK_STATUS_PENDING, TASK_STATUS_OK, TASK_STATUS_PROBLEM,
+    PERIODICITIES, DEFAULT_PORT
+)
 
 # Load environment variables
 load_dotenv()
@@ -21,9 +27,6 @@ load_dotenv()
 # Initialize Flask app
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
-
-# Configuration
-DATABASE_PATH = os.getenv('DATABASE_PATH', 'agendaRenta4.db')
 
 # Email Configuration
 app.config['MAIL_SERVER'] = os.getenv('MAIL_SERVER', 'smtp.gmail.com')
@@ -43,43 +46,6 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 login_manager.login_message = 'Por favor inicia sesión para acceder a esta página.'
-
-
-def get_db_connection():
-    """
-    Create and return a database connection.
-    """
-    conn = sqlite3.connect(DATABASE_PATH)
-    conn.row_factory = sqlite3.Row  # Return rows as dict-like objects
-    return conn
-
-
-@contextmanager
-def db_cursor(commit=True):
-    """
-    Context manager for database operations.
-    Automatically handles connection lifecycle, commit/rollback, and cleanup.
-
-    Args:
-        commit: Whether to commit changes on success (default: True)
-
-    Usage:
-        with db_cursor() as cursor:
-            cursor.execute("SELECT * FROM users")
-            results = cursor.fetchall()
-        # Connection automatically committed and closed
-    """
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    try:
-        yield cursor
-        if commit:
-            conn.commit()
-    except Exception:
-        conn.rollback()
-        raise
-    finally:
-        conn.close()
 
 
 # ==============================================================================
@@ -109,32 +75,6 @@ def load_user(user_id):
 # HELPER FUNCTIONS
 # ==============================================================================
 
-def generate_available_periods():
-    """
-    Generate list of available periods (last 6 months + next 6 months).
-    Returns list of strings in format 'YYYY-MM'.
-    """
-    from dateutil.relativedelta import relativedelta
-
-    current_date = datetime.now()
-    periods = []
-
-    # Last 6 months
-    for i in range(6, 0, -1):
-        past_date = current_date - relativedelta(months=i)
-        periods.append(past_date.strftime('%Y-%m'))
-
-    # Current month
-    periods.append(current_date.strftime('%Y-%m'))
-
-    # Next 6 months
-    for i in range(1, 7):
-        future_date = current_date + relativedelta(months=i)
-        periods.append(future_date.strftime('%Y-%m'))
-
-    return periods
-
-
 def get_task_counts():
     """
     Get counts of pending, problem, completed tasks, and pending alerts.
@@ -158,9 +98,9 @@ def get_task_counts():
             FROM tasks t
             INNER JOIN sections s ON t.section_id = s.id
             WHERE s.active = 1
-              AND t.status = 'ok'
+              AND t.status = ?
               AND t.period = ?
-        """, (current_period,))
+        """, (TASK_STATUS_OK, current_period))
         ok_count = cursor.fetchone()['count']
 
         # Count problem tasks for current period
@@ -169,9 +109,9 @@ def get_task_counts():
             FROM tasks t
             INNER JOIN sections s ON t.section_id = s.id
             WHERE s.active = 1
-              AND t.status = 'problem'
+              AND t.status = ?
               AND t.period = ?
-        """, (current_period,))
+        """, (TASK_STATUS_PROBLEM, current_period))
         problems_count = cursor.fetchone()['count']
 
         # Pending = Total possible - OK - Problems
@@ -506,34 +446,9 @@ def inject_task_counts():
 # TEMPLATE FILTERS
 # ==============================================================================
 
-@app.template_filter('format_date')
-def format_date(date_str):
-    """
-    Format date string to Spanish format: dd/mm/yyyy
-    """
-    if not date_str:
-        return ''
-    try:
-        date_obj = datetime.strptime(str(date_str), '%Y-%m-%d')
-        return date_obj.strftime('%d/%m/%Y')
-    except:
-        return date_str
-
-
-@app.template_filter('format_period')
-def format_period(period_str):
-    """
-    Format period string from '2025-11' to 'Noviembre 2025'
-    """
-    if not period_str:
-        return ''
-    try:
-        year, month = period_str.split('-')
-        months_es = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-                     'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
-        return f"{months_es[int(month)]} {year}"
-    except:
-        return period_str
+# Register utility functions as template filters
+app.template_filter('format_date')(format_date)
+app.template_filter('format_period')(format_period)
 
 
 # ==============================================================================
@@ -1296,5 +1211,5 @@ if __name__ == '__main__':
         print()
 
     # Run Flask development server
-    port = int(os.getenv('PORT', 5000))
+    port = int(os.getenv('PORT', DEFAULT_PORT))
     app.run(debug=True, host='0.0.0.0', port=port)

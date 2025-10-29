@@ -8,6 +8,7 @@ import sys
 import os
 from pathlib import Path
 import sqlite3
+from utils import DATABASE_PATH
 
 try:
     import openpyxl
@@ -17,7 +18,6 @@ except ImportError:
     sys.exit(1)
 
 
-DATABASE_PATH = os.getenv('DATABASE_PATH', 'agendaRenta4.db')
 EXCEL_PATH = Path(__file__).parent / "original-data" / "251028_Árbol web - control calidad.xlsx"
 
 
