@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>{% block title %}Agenda Renta4{% endblock %}</title>
+  <title>{% block title %}Task Web Manager Renta4{% endblock %}</title>
 
   <!-- Cargar tema ANTES de renderizar para evitar flash -->
   <script>
@@ -91,8 +91,8 @@
         </button>
 
         <!-- Avatar Usuario -->
-        <div class="avatar" title="{{ current_user }}">
-          {{ current_user[:2] if current_user else 'JR' }}
+        <div class="avatar" title="{{ current_user.full_name if current_user and current_user.is_authenticated else 'Usuario' }}">
+          {{ current_user.full_name[:2].upper() if current_user and current_user.is_authenticated else 'JR' }}
         </div>
       </div>
 

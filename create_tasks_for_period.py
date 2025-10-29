@@ -10,9 +10,7 @@ from pathlib import Path
 import sqlite3
 from datetime import datetime
 import argparse
-
-
-DATABASE_PATH = os.getenv('DATABASE_PATH', 'agendaRenta4.db')
+from utils import DATABASE_PATH
 
 
 def should_create_task_for_period(period, periodicity):

@@ -8,34 +8,22 @@ Uso:
     python3 manage_users.py change-password <username> <nueva_contraseña>
 """
 
-import sqlite3
 import sys
 from werkzeug.security import generate_password_hash, check_password_hash
-
-DATABASE_PATH = 'agendaRenta4.db'
-
-def get_db_connection():
-    """Get database connection"""
-    conn = sqlite3.connect(DATABASE_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
+from utils import db_cursor, DATABASE_PATH
+import sqlite3
 
 def add_user(username, password, full_name):
     """Add a new user"""
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
+        with db_cursor() as cursor:
+            # Hash the password
+            password_hash = generate_password_hash(password)
 
-        # Hash the password
-        password_hash = generate_password_hash(password)
-
-        cursor.execute("""
-            INSERT INTO users (username, password_hash, full_name)
-            VALUES (?, ?, ?)
-        """, (username, password_hash, full_name))
-
-        conn.commit()
-        conn.close()
+            cursor.execute("""
+                INSERT INTO users (username, password_hash, full_name)
+                VALUES (?, ?, ?)
+            """, (username, password_hash, full_name))
 
         print(f"✓ Usuario creado exitosamente:")
         print(f"  Usuario: {username}")
@@ -53,17 +41,14 @@ def add_user(username, password, full_name):
 def list_users():
     """List all users"""
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
+        with db_cursor(commit=False) as cursor:
+            cursor.execute("""
+                SELECT id, username, full_name, created_at
+                FROM users
+                ORDER BY created_at DESC
+            """)
 
-        cursor.execute("""
-            SELECT id, username, full_name, created_at
-            FROM users
-            ORDER BY created_at DESC
-        """)
-
-        users = cursor.fetchall()
-        conn.close()
+            users = cursor.fetchall()
 
         if not users:
             print("No hay usuarios registrados")
@@ -88,16 +73,13 @@ def list_users():
 def delete_user(username):
     """Delete a user"""
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-
-        # Check if user exists
-        cursor.execute("SELECT id, username, full_name FROM users WHERE username = ?", (username,))
-        user = cursor.fetchone()
+        with db_cursor(commit=False) as cursor:
+            # Check if user exists
+            cursor.execute("SELECT id, username, full_name FROM users WHERE username = ?", (username,))
+            user = cursor.fetchone()
 
         if not user:
             print(f"✗ Error: El usuario '{username}' no existe")
-            conn.close()
             return False
 
         # Confirm deletion
@@ -108,12 +90,10 @@ def delete_user(username):
 
         if confirmation.upper() != 'SI':
             print("Operación cancelada")
-            conn.close()
             return False
 
-        cursor.execute("DELETE FROM users WHERE username = ?", (username,))
-        conn.commit()
-        conn.close()
+        with db_cursor() as cursor:
+            cursor.execute("DELETE FROM users WHERE username = ?", (username,))
 
         print(f"✓ Usuario '{username}' eliminado exitosamente")
         return True
@@ -125,29 +105,24 @@ def delete_user(username):
 def change_password(username, new_password):
     """Change user password"""
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-
-        # Check if user exists
-        cursor.execute("SELECT id, full_name FROM users WHERE username = ?", (username,))
-        user = cursor.fetchone()
+        with db_cursor(commit=False) as cursor:
+            # Check if user exists
+            cursor.execute("SELECT id, full_name FROM users WHERE username = ?", (username,))
+            user = cursor.fetchone()
 
         if not user:
             print(f"✗ Error: El usuario '{username}' no existe")
-            conn.close()
             return False
 
         # Hash new password
         password_hash = generate_password_hash(new_password)
 
-        cursor.execute("""
-            UPDATE users
-            SET password_hash = ?
-            WHERE username = ?
-        """, (password_hash, username))
-
-        conn.commit()
-        conn.close()
+        with db_cursor() as cursor:
+            cursor.execute("""
+                UPDATE users
+                SET password_hash = ?
+                WHERE username = ?
+            """, (password_hash, username))
 
         print(f"✓ Contraseña cambiada exitosamente para usuario '{username}'")
         print(f"  Nueva contraseña: {new_password}")
