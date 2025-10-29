@@ -100,8 +100,8 @@ a {
 .nav a.active,
 .nav a:hover {
   color: var(--text);
-  background: linear-gradient(180deg, #171a26, #121522);
-  border-color: var(--border);
+  background: linear-gradient(180deg, rgba(193, 83, 99, 0.1), rgba(193, 83, 99, 0.15));
+  border-color: var(--primary);
 }
 
 .nav-counter {
@@ -147,7 +147,7 @@ a {
   position: sticky;
   top: 0;
   z-index: 5;
-  background: rgba(13, 16, 24, .75);
+  background: rgba(255, 255, 255, .95);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--border);
 }
@@ -159,7 +159,7 @@ a {
 .select,
 .input,
 .textarea {
-  background: #0f121b;
+  background: #ffffff;
   border: 1px solid var(--border);
   color: var(--text);
   border-radius: 12px;
@@ -212,7 +212,7 @@ a {
 
 .card {
   grid-column: span 3;
-  background: linear-gradient(180deg, #141827, #111421);
+  background: #ffffff;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 18px;
@@ -254,9 +254,9 @@ a {
 }
 
 .table th {
-  background: #0f1320;
+  background: var(--panel);
   text-align: left;
-  color: #a7afc5;
+  color: var(--muted);
   font-weight: 600;
 }
 
@@ -280,7 +280,7 @@ a {
 /* URL detail row (observaciones) */
 .url-detail {
   display: none;
-  background: #0f1320;
+  background: var(--panel);
 }
 
 .url-detail.open {
@@ -448,7 +448,7 @@ a {
    =================================================================== */
 .obs {
   width: 100%;
-  background: #0f121b;
+  background: #ffffff;
   border: 1px solid var(--border);
   color: var(--text);
   border-radius: 10px;
@@ -499,7 +499,7 @@ a {
 
 .progress {
   height: 8px;
-  background: #0f1320;
+  background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 999px;
   overflow: hidden;
@@ -537,8 +537,8 @@ a {
   padding: 10px 12px;
   border-radius: 10px;
   border: 1px solid var(--border);
-  background: #0f1320;
-  color: #e7e9ee;
+  background: #ffffff;
+  color: var(--text);
   cursor: pointer;
   font-family: inherit;
   font-size: 14px;
@@ -546,17 +546,17 @@ a {
 }
 
 .btn:hover {
-  background: #151823;
+  background: var(--panel);
 }
 
 .btn.primary {
-  background: linear-gradient(180deg, #5b8cff, #4a7cf0);
-  border-color: #3d69d6;
+  background: linear-gradient(180deg, #C15363, #a04452);
+  border-color: #a04452;
   color: white;
 }
 
 .btn.primary:hover {
-  background: linear-gradient(180deg, #4a7cf0, #3d69d6);
+  background: linear-gradient(180deg, #a04452, #8d3a47);
 }
 
 .btn.ghost {
@@ -578,14 +578,14 @@ a {
 }
 
 .row-actions a:hover {
-  background: #0f1320;
+  background: var(--panel);
 }
 
 /* ===================================================================
    Panels
    =================================================================== */
 .panel {
-  background: linear-gradient(180deg, #141827, #111421);
+  background: #ffffff;
   border: 1px solid var(--border);
   border-radius: 14px;
   padding: 16px;
