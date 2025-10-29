@@ -375,7 +375,7 @@ def send_email_notifications(alert_list):
             SELECT enable_email FROM notification_preferences
             WHERE user_name = ? AND enable_email = 1
             LIMIT 1
-        """, ('José Ramos',))
+        """, (current_user.full_name,))
 
         email_enabled = cursor.fetchone()
 
@@ -654,9 +654,6 @@ def inicio():
     # Generate available periods (last 6 months + next 6 months)
     available_periods = generate_available_periods()
 
-    # Current user (hardcoded for now, in future get from session)
-    current_user = 'José Ramos'
-
     return render_template(
         'inicio.html',
         period=period,
@@ -718,7 +715,6 @@ def pendientes():
 
     # Generate available periods
     available_periods = generate_available_periods()
-    current_user = 'José Ramos'
 
     return render_template(
         'pendientes.html',
@@ -769,7 +765,6 @@ def problemas():
 
     # Generate available periods
     available_periods = generate_available_periods()
-    current_user = 'José Ramos'
 
     return render_template(
         'problemas.html',
@@ -815,7 +810,6 @@ def realizadas():
 
     # Generate available periods
     available_periods = generate_available_periods()
-    current_user = 'José Ramos'
 
     return render_template(
         'realizadas.html',
@@ -832,8 +826,6 @@ def configuracion():
     """
     Configuration page - CRUD for URLs, Alerts and Notification preferences
     """
-    current_user = 'José Ramos'
-
     with db_cursor(commit=False) as cursor:
         # Get all task types
         cursor.execute("""
@@ -864,7 +856,7 @@ def configuracion():
             SELECT email, enable_email, enable_desktop, enable_in_app
             FROM notification_preferences
             WHERE user_name = ?
-        """, (current_user,))
+        """, (current_user.full_name,))
         notification_prefs_row = cursor.fetchone()
         notification_prefs = dict(notification_prefs_row) if notification_prefs_row else {
             'email': '',
@@ -911,7 +903,7 @@ def update_task():
         # Determine completed_date and completed_by based on status
         if status in ('ok', 'problem'):
             completed_date = datetime.now().strftime('%Y-%m-%d')
-            completed_by = 'José Ramos'
+            completed_by = current_user.full_name
         else:
             # status='pending' means not completed yet
             completed_date = None
@@ -1012,7 +1004,6 @@ def save_notification_preferences():
         enable_email = request.form.get('enable_email') == 'true'
         enable_desktop = request.form.get('enable_desktop') == 'true'
         enable_in_app = request.form.get('enable_in_app') == 'true'
-        current_user = 'José Ramos'
 
         with db_cursor() as cursor:
             # Update or insert notification preferences
@@ -1020,7 +1011,7 @@ def save_notification_preferences():
                 INSERT OR REPLACE INTO notification_preferences
                 (id, user_name, email, enable_email, enable_desktop, enable_in_app, updated_at)
                 VALUES (1, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-            """, (current_user, email, 1 if enable_email else 0, 1 if enable_desktop else 0, 1 if enable_in_app else 0))
+            """, (current_user.full_name, email, 1 if enable_email else 0, 1 if enable_desktop else 0, 1 if enable_in_app else 0))
 
         return jsonify({'success': True, 'message': 'Preferencias de notificación guardadas'})
 
@@ -1181,7 +1172,6 @@ def alertas():
     One alert per task_type, not per section
     """
     period = session.get('current_period', datetime.now().strftime('%Y-%m'))
-    current_user = 'José Ramos'
 
     with db_cursor(commit=False) as cursor:
         # Get ALL alerts with task type info (both active and dismissed)
@@ -1270,11 +1260,12 @@ def not_found(error):
     Handle 404 errors
     """
     # Provide minimal context for base template
+    # current_user is available from Flask-Login (AnonymousUserMixin if not logged in)
     return render_template(
         'errors/404.html',
         period=None,
         available_periods=[],
-        current_user='José Ramos'
+        current_user=current_user
     ), 404
 
 
@@ -1284,11 +1275,12 @@ def internal_error(error):
     Handle 500 errors
     """
     # Provide minimal context for base template
+    # current_user is available from Flask-Login (AnonymousUserMixin if not logged in)
     return render_template(
         'errors/500.html',
         period=None,
         available_periods=[],
-        current_user='José Ramos'
+        current_user=current_user
     ), 500
 
 
