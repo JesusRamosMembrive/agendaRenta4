@@ -7,7 +7,7 @@
 
 {% if completed_tasks %}
   <div class="panel" style="margin-bottom: 20px; background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); border-left: 4px solid #10b981;">
-    <strong>✅ Total de tareas realizadas:</strong> {{ completed_tasks|length }}
+    <strong style="color: #065f46;">✅ Total de tareas realizadas:</strong> <span style="color: #065f46; font-weight: 600;">{{ completed_tasks|length }}</span>
     <p style="margin: 8px 0 0 0; color: #065f46; font-size: 0.9em;">
       Mostrando todo el historial de tareas completadas con éxito
     </p>

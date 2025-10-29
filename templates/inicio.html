@@ -147,6 +147,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
       // Save to server
       saveTaskStatus(container, newStatus);
+
+      // Update status dot for this row
+      const row = this.closest('.url-row');
+      updateRowStatus(row);
     });
   });
 
@@ -218,6 +222,48 @@ document.addEventListener('DOMContentLoaded', function() {
       }, 1000); // Auto-save después de 1 segundo de inactividad
     });
   });
+
+  // Initialize status dots on page load
+  document.querySelectorAll('.url-row').forEach(row => {
+    updateRowStatus(row);
+  });
 });
+
+// Function to update status dot based on task buttons
+function updateRowStatus(row) {
+  const taskButtons = row.querySelectorAll('.task-buttons');
+  const statusDot = row.querySelector('.status-dot');
+
+  if (!statusDot) return;
+
+  let oks = 0;
+  let problems = 0;
+  const totalTasks = taskButtons.length;
+
+  // Count active OK and Problem buttons
+  taskButtons.forEach(container => {
+    const okBtn = container.querySelector('.task-btn-ok.active');
+    const problemBtn = container.querySelector('.task-btn-problem.active');
+
+    if (okBtn) oks++;
+    if (problemBtn) problems++;
+  });
+
+  // Update status dot class based on rules
+  statusDot.className = 'status-dot sd-neutral';
+
+  if (problems === 0 && oks === totalTasks) {
+    // All OK - green
+    statusDot.className = 'status-dot sd-green';
+  } else if (problems > 4) {
+    // More than 4 problems - red
+    statusDot.className = 'status-dot sd-red';
+  } else if (problems > 0) {
+    // 1-4 problems - orange
+    statusDot.className = 'status-dot sd-orange';
+  }
+
+  console.log('Row status updated:', { oks, problems, totalTasks, class: statusDot.className });
+}
 </script>
 {% endblock %}

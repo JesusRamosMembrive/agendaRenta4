@@ -1,13 +1,30 @@
 # Estado Actual
 
-**Fecha**: 2025-10-28
+**Fecha**: 2025-10-29
 **Etapa**: 1 (Prototipado)
-**Sesión**: Continuación - Mejoras de UX e implementación de sección Problemas
+**Sesión**: Corrección de bug - Status dot no cambiaba de color
 
 ## Objetivo de hoy
-✅ COMPLETADO: Mejoras de interfaz, nueva sección Problemas, y contadores en sidebar
+✅ COMPLETADO: Implementación de lógica JavaScript para actualizar el color del status-dot
 
-## Progreso
+---
+
+## Sesión Anterior (2025-10-28)
+**Objetivo**: Mejoras de interfaz, nueva sección Problemas, y contadores en sidebar
+
+## Progreso de hoy
+- [x] Implementar función JavaScript `updateRowStatus()` para calcular color del status-dot
+- [x] Integrar llamada automática después de cada cambio de estado
+- [x] Inicializar status-dots al cargar la página
+- [x] Corregir página /pendientes para mostrar TODAS las tareas pendientes (no solo las de BD)
+- [x] Implementar página de Configuración completa:
+  - [x] Sección de Alertas de Tareas (8 tipos con periodicidad y toggle)
+  - [x] Sección de Tipo de Notificaciones (email, escritorio, in-app)
+  - [x] Sección de Gestión de URLs (CRUD completo)
+- [x] Crear 3 nuevas tablas en BD: alert_settings, notification_preferences, notifications
+- [x] Implementar 6 nuevas rutas POST para guardar configuraciones
+
+## Progreso sesión anterior (2025-10-28)
 - [x] Cambiar botones a solo iconos (✓ y ⚠)
 - [x] Separar Pendientes (no revisadas) de Problemas (con incidencias)
 - [x] Crear nueva ruta /problemas
@@ -18,7 +35,85 @@
 
 ## Implementación
 
-### Archivos Modificados
+### Archivos Modificados (Sesión actual 2025-10-29)
+
+**templates/inicio.html** (líneas 115-269)
+- Nueva función JavaScript `updateRowStatus(row)` (líneas 233-267)
+- Calcula el color del status-dot basándose en botones activos:
+  * Verde (sd-green): Todos los botones OK marcados (0 problemas, OK = total)
+  * Rojo (sd-red): Más de 4 problemas
+  * Naranja (sd-orange): Entre 1 y 4 problemas
+  * Neutral (sd-neutral): Cualquier otro caso
+- Llamada automática después de cada click en botones (línea 153)
+- Inicialización al cargar página (líneas 227-229)
+- Logs en consola para debugging
+
+**app.py** - Ruta /pendientes (líneas 262-324)
+- Cambiado de consulta SQL a generación de combinaciones
+- Obtiene todas las secciones activas y tipos de tareas
+- Genera todas las combinaciones posibles (173 secciones × 8 tipos = 1384)
+- Excluye las que ya están marcadas como OK o Problema
+- Muestra las restantes como pendientes (1376 en el ejemplo)
+- Solución simple y directa siguiendo Stage 1
+
+**agendaRenta4.db** - Nuevas tablas
+- `alert_settings` - Configuración de alertas por tipo de tarea
+  * task_type_id, alert_frequency (daily/weekly/biweekly/monthly/quarterly/semiannual/annual), enabled
+- `notification_preferences` - Preferencias de notificación del usuario
+  * user_name, email, enable_email, enable_desktop, enable_in_app
+- `notifications` - Notificaciones en app (para futuro)
+  * user_name, task_type_id, message, created_at, read
+
+**app.py** - Ruta GET /configuracion (líneas 430-496)
+- Carga todos los task_types con sus alert_settings
+- Carga notification_preferences del usuario actual
+- Carga todas las sections (URLs)
+- Renderiza template con todos los datos
+
+**app.py** - Nuevas rutas POST (líneas 585-770)
+- `/configuracion/alertas` - Guardar config de alertas (JSON batch update)
+- `/configuracion/notificaciones` - Guardar preferencias de notificación
+- `/configuracion/url/add` - Añadir nueva URL/sección
+- `/configuracion/url/edit/<id>` - Editar URL existente
+- `/configuracion/url/toggle/<id>` - Activar/desactivar URL
+- `/configuracion/url/delete/<id>` - Eliminar URL (solo si no tiene tareas)
+
+**templates/configuracion.html** (NUEVO - 622 líneas)
+- Sección 1: Alertas de Tareas
+  * Tabla con 8 task_types
+  * Select de periodicidad (7 opciones)
+  * Toggle switch para activar/desactivar
+  * Botón guardar (envía JSON a backend)
+- Sección 2: Tipo de Notificaciones
+  * Checkbox: Notificación en app (badge en topbar)
+  * Checkbox: Notificación de escritorio (requiere permiso browser)
+  * Checkbox: Email + input de correo
+  * Explicación de cada opción
+- Sección 3: Gestión de URLs
+  * Formulario para añadir nueva URL (nombre + url)
+  * Tabla con 173 URLs existentes
+  * Botones: Editar, Activar/Desactivar, Eliminar
+  * Modo edición inline (sin modal)
+  * Validación de eliminación (no permite si hay tareas asociadas)
+- JavaScript incluido para todas las interacciones
+- Estilos CSS para toggle switches y notification-options
+
+### Problemas resueltos
+
+**Bug #1: Status-dot no cambiaba de color**
+- **Síntoma**: El círculo de status no cambiaba de color al marcar tareas como OK o Problema
+- **Causa**: Faltaba la lógica JavaScript para actualizar dinámicamente la clase CSS del status-dot
+- **Solución**: Implementación de función que cuenta botones activos y aplica reglas de color según estado
+
+**Bug #2: Página Pendientes solo mostraba 2 tareas**
+- **Síntoma**: Contador mostraba 1376 pendientes pero la página solo listaba 2 tareas
+- **Causa**: La consulta SQL solo buscaba registros con status='pending' en BD, ignorando tareas sin marcar
+- **Solución**: Generar todas las combinaciones (sección × tipo) y excluir las marcadas como OK/Problema
+- **Resultado**: Ahora muestra las 1376 tareas pendientes correctamente
+
+---
+
+### Archivos Modificados (Sesión anterior 2025-10-28)
 
 **app.py** (líneas 63-122)
 - Función `get_task_counts()` refactorizada completamente
@@ -87,12 +182,6 @@
 
 ## Qué NO hicimos (aplazado)
 
-### Página /pendientes completa
-- Actualmente solo muestra tareas con registro en BD status='pending'
-- Para mostrar TODAS las pendientes (173) necesitaría generar combinaciones de (sección, tipo, periodo)
-- Se decidió dejar así por simplicidad en Stage 1
-- El contador sí refleja el total correcto (173)
-
 ### Filtros por periodo en Pendientes/Problemas
 - Rango fijo: octubre 2025 hasta periodo actual
 - Podría añadirse selector de periodo como en Inicio
@@ -111,22 +200,30 @@
 - ✅ Navegación entre Inicio, Pendientes, Problemas, Realizadas
 - ✅ Selector de periodo en Inicio
 - ✅ Hiperlinks en nombres de URL/sección
+- ✅ Status-dot cambia de color según estado de tareas (verde/naranja/rojo)
+- ✅ Página Pendientes muestra TODAS las tareas sin marcar (no solo las de BD)
+- ✅ Página Configuración completa con 3 secciones funcionales
+- ✅ CRUD de URLs (añadir, editar, activar/desactivar, eliminar)
+- ✅ Configuración de alertas por tipo de tarea
+- ✅ Configuración de preferencias de notificación
 
 **Pendiente/No implementado:**
-- ⏸️ Página Configuración (CRUD de secciones y tipos)
 - ⏸️ Búsqueda funcional
 - ⏸️ Autenticación de usuarios (hardcoded 'José Ramos')
 - ⏸️ Filtros avanzados por fecha/tipo
 - ⏸️ Exportación de reportes
+- ⏸️ Sistema de envío real de notificaciones (email/desktop) - Por ahora solo configuración
+- ⏸️ Programación de alertas automáticas basadas en periodicidad
+- ⏸️ Contador de notificaciones en topbar
 
 ## Próxima sesión
 
 **Prioridades sugeridas:**
 
-1. **Página Configuración** (CRUD básico)
-   - Añadir/editar/desactivar URLs (sections)
-   - Configurar periodicidad de task_types
-   - Crucial para gestionar el sistema sin SQL manual
+1. ✅ **Página Configuración** - COMPLETADO
+   - Implementación completa de CRUD de URLs
+   - Configuración de alertas y notificaciones
+   - Todo funcional y siguiendo Stage 1
 
 2. **Mejorar página Pendientes** (si es necesario)
    - Generar todas las combinaciones pendientes sin registro en BD
@@ -141,7 +238,16 @@
    - Feedback visual cuando falla guardado
 
 **Siguiente objetivo realista para Stage 1:**
-Completar página de Configuración para poder gestionar secciones y tipos de tareas sin tocar la BD directamente.
+✅ COMPLETADO - Página de Configuración implementada
+
+**Nuevos objetivos sugeridos:**
+- Implementar sistema básico de alertas automáticas
+- Agregar contador de notificaciones en topbar
+- Mejorar búsqueda y filtros
+
+## Bugs conocidos
+- ✅ (RESUELTO) Status-dot no cambiaba de color (implementado 2025-10-29)
+- ✅ (RESUELTO) Página Pendientes solo mostraba 2 tareas en vez de 1376 (implementado 2025-10-29)
 
 ## Notas técnicas
 

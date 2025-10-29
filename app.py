@@ -262,8 +262,8 @@ def inicio():
 @app.route('/pendientes')
 def pendientes():
     """
-    List of pending tasks (status='pending' only - not yet reviewed)
-    Shows tasks from 2025-10 onwards that have not been reviewed
+    List of ALL pending tasks (not marked as OK or Problem)
+    Generates all possible combinations and excludes completed/problem tasks
     """
     period = session.get('current_period', datetime.now().strftime('%Y-%m'))
     current_period = datetime.now().strftime('%Y-%m')
@@ -271,32 +271,43 @@ def pendientes():
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # Query only pending tasks (not reviewed) from 2025-10 to current month
-    cursor.execute("""
-        SELECT
-            t.id,
-            t.period,
-            t.status,
-            t.observations,
-            t.completed_date,
-            t.completed_by,
-            s.name as section_name,
-            s.url as section_url,
-            tt.display_name as task_type_name,
-            tt.periodicity
-        FROM tasks t
-        INNER JOIN sections s ON t.section_id = s.id
-        INNER JOIN task_types tt ON t.task_type_id = tt.id
-        WHERE
-            s.active = 1
-            AND t.status = 'pending'
-            AND t.period >= '2025-10'
-            AND t.period <= ?
-        ORDER BY t.period DESC, s.name ASC, tt.display_order ASC
-    """, (current_period,))
+    # Get all active sections
+    cursor.execute("SELECT id, name, url FROM sections WHERE active = 1 ORDER BY name ASC")
+    sections = cursor.fetchall()
 
-    tasks_raw = cursor.fetchall()
-    pending_tasks = [dict(row) for row in tasks_raw]
+    # Get all task types
+    cursor.execute("SELECT id, display_name, periodicity, display_order FROM task_types ORDER BY display_order ASC")
+    task_types = cursor.fetchall()
+
+    # Get all tasks that are OK or Problem for current period
+    cursor.execute("""
+        SELECT section_id, task_type_id, status
+        FROM tasks
+        WHERE period = ? AND status IN ('ok', 'problem')
+    """, (current_period,))
+    completed_tasks = cursor.fetchall()
+
+    # Create a set of (section_id, task_type_id) tuples that are already done
+    completed_set = {(task['section_id'], task['task_type_id']) for task in completed_tasks}
+
+    # Generate all pending tasks (combinations not in completed_set)
+    pending_tasks = []
+    for section in sections:
+        for task_type in task_types:
+            task_key = (section['id'], task_type['id'])
+            if task_key not in completed_set:
+                pending_tasks.append({
+                    'id': None,
+                    'period': current_period,
+                    'status': 'pending',
+                    'section_name': section['name'],
+                    'section_url': section['url'],
+                    'task_type_name': task_type['display_name'],
+                    'periodicity': task_type['periodicity'],
+                    'observations': None,
+                    'completed_date': None,
+                    'completed_by': None
+                })
 
     conn.close()
 
@@ -419,10 +430,70 @@ def realizadas():
 @app.route('/configuracion')
 def configuracion():
     """
-    Configuration page - CRUD for URLs and task type periodicities
+    Configuration page - CRUD for URLs, Alerts and Notification preferences
     """
-    # TODO: Query sections and task_types from database
-    return render_template('configuracion.html', sections=[], task_types=[])
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    current_user = 'José Ramos'
+
+    # Get all task types
+    cursor.execute("""
+        SELECT id, name, display_name, periodicity, display_order
+        FROM task_types
+        ORDER BY display_order ASC
+    """)
+    task_types = [dict(row) for row in cursor.fetchall()]
+
+    # Get alert settings for each task type
+    cursor.execute("""
+        SELECT task_type_id, alert_frequency, enabled
+        FROM alert_settings
+    """)
+    alert_settings_raw = cursor.fetchall()
+    alert_settings = {row['task_type_id']: dict(row) for row in alert_settings_raw}
+
+    # Merge task_types with their alert settings
+    for task_type in task_types:
+        task_type['alert'] = alert_settings.get(task_type['id'], {
+            'alert_frequency': task_type['periodicity'],
+            'enabled': True
+        })
+
+    # Get notification preferences for current user
+    cursor.execute("""
+        SELECT email, enable_email, enable_desktop, enable_in_app
+        FROM notification_preferences
+        WHERE user_name = ?
+    """, (current_user,))
+    notification_prefs_row = cursor.fetchone()
+    notification_prefs = dict(notification_prefs_row) if notification_prefs_row else {
+        'email': '',
+        'enable_email': False,
+        'enable_desktop': False,
+        'enable_in_app': True
+    }
+
+    # Get all sections (URLs)
+    cursor.execute("""
+        SELECT id, name, url, active, created_at
+        FROM sections
+        ORDER BY name ASC
+    """)
+    sections = [dict(row) for row in cursor.fetchall()]
+
+    conn.close()
+
+    # Generate available periods
+    available_periods = generate_available_periods()
+
+    return render_template(
+        'configuracion.html',
+        task_types=task_types,
+        notification_prefs=notification_prefs,
+        sections=sections,
+        available_periods=available_periods,
+        current_user=current_user
+    )
 
 
 @app.route('/tasks/update', methods=['POST'])
@@ -502,6 +573,197 @@ def save_observations():
         conn.close()
 
         return jsonify({'success': True})
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ==============================================================================
+# CONFIGURATION ROUTES
+# ==============================================================================
+
+@app.route('/configuracion/alertas', methods=['POST'])
+def save_alert_settings():
+    """
+    Save alert settings for all task types
+    Expects JSON: [{ task_type_id, alert_frequency, enabled }, ...]
+    """
+    try:
+        alerts_data = request.get_json()
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        for alert in alerts_data:
+            task_type_id = alert.get('task_type_id')
+            alert_frequency = alert.get('alert_frequency')
+            enabled = alert.get('enabled', True)
+
+            # Update or insert alert_settings
+            cursor.execute("""
+                INSERT OR REPLACE INTO alert_settings (task_type_id, alert_frequency, enabled)
+                VALUES (?, ?, ?)
+            """, (task_type_id, alert_frequency, 1 if enabled else 0))
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({'success': True, 'message': 'Configuración de alertas guardada'})
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/configuracion/notificaciones', methods=['POST'])
+def save_notification_preferences():
+    """
+    Save notification preferences for current user
+    """
+    try:
+        email = request.form.get('email', '')
+        enable_email = request.form.get('enable_email') == 'true'
+        enable_desktop = request.form.get('enable_desktop') == 'true'
+        enable_in_app = request.form.get('enable_in_app') == 'true'
+        current_user = 'José Ramos'
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Update or insert notification preferences
+        cursor.execute("""
+            INSERT OR REPLACE INTO notification_preferences
+            (id, user_name, email, enable_email, enable_desktop, enable_in_app, updated_at)
+            VALUES (1, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        """, (current_user, email, 1 if enable_email else 0, 1 if enable_desktop else 0, 1 if enable_in_app else 0))
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({'success': True, 'message': 'Preferencias de notificación guardadas'})
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/configuracion/url/add', methods=['POST'])
+def add_url():
+    """
+    Add new URL/section
+    """
+    try:
+        name = request.form.get('name', '').strip()
+        url = request.form.get('url', '').strip()
+
+        if not name or not url:
+            return jsonify({'success': False, 'error': 'Nombre y URL son obligatorios'}), 400
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            INSERT INTO sections (name, url, active, created_at)
+            VALUES (?, ?, 1, CURRENT_TIMESTAMP)
+        """, (name, url))
+
+        new_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+
+        return jsonify({'success': True, 'id': new_id, 'message': 'URL agregada correctamente'})
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/configuracion/url/edit/<int:url_id>', methods=['POST'])
+def edit_url(url_id):
+    """
+    Edit existing URL/section
+    """
+    try:
+        name = request.form.get('name', '').strip()
+        url = request.form.get('url', '').strip()
+
+        if not name or not url:
+            return jsonify({'success': False, 'error': 'Nombre y URL son obligatorios'}), 400
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            UPDATE sections
+            SET name = ?, url = ?
+            WHERE id = ?
+        """, (name, url, url_id))
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({'success': True, 'message': 'URL actualizada correctamente'})
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/configuracion/url/toggle/<int:url_id>', methods=['POST'])
+def toggle_url(url_id):
+    """
+    Toggle active status of URL/section
+    """
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Get current status
+        cursor.execute("SELECT active FROM sections WHERE id = ?", (url_id,))
+        row = cursor.fetchone()
+
+        if not row:
+            return jsonify({'success': False, 'error': 'URL no encontrada'}), 404
+
+        new_status = 0 if row['active'] else 1
+
+        cursor.execute("""
+            UPDATE sections
+            SET active = ?
+            WHERE id = ?
+        """, (new_status, url_id))
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({'success': True, 'active': new_status, 'message': 'Estado actualizado'})
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/configuracion/url/delete/<int:url_id>', methods=['POST'])
+def delete_url(url_id):
+    """
+    Delete URL/section (only if no associated tasks)
+    """
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Check if there are tasks associated
+        cursor.execute("SELECT COUNT(*) as count FROM tasks WHERE section_id = ?", (url_id,))
+        count = cursor.fetchone()['count']
+
+        if count > 0:
+            return jsonify({
+                'success': False,
+                'error': f'No se puede eliminar. Hay {count} tareas asociadas a esta URL.'
+            }), 400
+
+        # Delete section
+        cursor.execute("DELETE FROM sections WHERE id = ?", (url_id,))
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({'success': True, 'message': 'URL eliminada correctamente'})
 
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
