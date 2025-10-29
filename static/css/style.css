@@ -183,7 +183,7 @@ a {
 .select,
 .input,
 .textarea {
-  background: #ffffff;
+  background: var(--card);
   border: 1px solid var(--border);
   color: var(--text);
   border-radius: 12px;
@@ -236,7 +236,7 @@ a {
 
 .card {
   grid-column: span 3;
-  background: #ffffff;
+  background: var(--card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 18px;
@@ -472,7 +472,7 @@ a {
    =================================================================== */
 .obs {
   width: 100%;
-  background: #ffffff;
+  background: var(--card);
   border: 1px solid var(--border);
   color: var(--text);
   border-radius: 10px;
@@ -561,7 +561,7 @@ a {
   padding: 10px 12px;
   border-radius: 10px;
   border: 1px solid var(--border);
-  background: #ffffff;
+  background: var(--card);
   color: var(--text);
   cursor: pointer;
   font-family: inherit;
@@ -609,7 +609,7 @@ a {
    Panels
    =================================================================== */
 .panel {
-  background: #ffffff;
+  background: var(--card);
   border: 1px solid var(--border);
   border-radius: 14px;
   padding: 16px;
