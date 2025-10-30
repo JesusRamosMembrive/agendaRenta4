@@ -506,3 +506,102 @@ La aplicación está funcionando en producción. Todos los objetivos de Stage 1 
 **Para producción (pendiente):**
 - Configurar cron job o systemd timer para ejecutar generate_alerts() diariamente
 - Ejemplo cron: `0 9 * * * cd /path/to/app && python3 -c "from app import generate_alerts; generate_alerts()"`
+
+---
+
+## 🎯 PREPARANDO STAGE 2 - Web Crawler Automático
+
+**Fecha**: 2025-10-30
+**Estado**: Stage 1 completado y en producción, bugs críticos corregidos, documentando Stage 2
+
+### Sesión de Planning y Bug Fixes (2025-10-30)
+
+#### ✅ Bugs Críticos Corregidos (4/4)
+
+**Bug #1: INSERT OR IGNORE incompatible con PostgreSQL**
+- **Archivo**: app.py:192-195
+- **Problema**: Sintaxis SQLite `INSERT OR IGNORE` no funciona en PostgreSQL
+- **Solución**: Cambiado a `INSERT ... ON CONFLICT (task_type_id, due_date) DO NOTHING`
+- **Estado**: ✅ Corregido
+
+**Bug #2: Helper scripts usando SQLite**
+- **Archivos**: create_tasks_for_period.py, load_sections.py, seed_users.py
+- **Problema**:
+  - Importaban `sqlite3` y `DATABASE_PATH` (inexistentes tras migración)
+  - Usaban placeholders `?` en lugar de `%s`
+  - Capturaban `sqlite3.IntegrityError` en lugar de `psycopg2.IntegrityError`
+  - Accedían a rows con índices en lugar de dict keys
+- **Solución**: Migrados completamente a PostgreSQL con `db_cursor()` y psycopg2
+- **Estado**: ✅ Corregido (3 scripts)
+
+**Bug #3: add_notification_email.py mezclando sintaxis**
+- **Archivo**: add_notification_email.py:9-44
+- **Problema**: Mezclaba imports sqlite3, placeholders `?`, y acceso por índice
+- **Solución**: Migrado a psycopg2 con placeholders `%s` y dict access
+- **Estado**: ✅ Corregido
+
+**Bug #4: send_email_notifications() depende de current_user**
+- **Archivo**: app.py:305-323
+- **Problema**: Función usaba `current_user.full_name`, fallará en cron jobs sin contexto Flask
+- **Solución**: Añadido parámetro `user_name=None` con fallback graceful
+- **Estado**: ✅ Corregido
+
+#### ⏸️ Refactors Descartados (por ahora)
+
+**Análisis de app.py realizado:**
+- **Tamaño actual**: 1,222 líneas (manejable)
+- **Organización**: Clara, fácil de navegar
+- **Complejidad**: Aceptable para Stage 1
+- **Veredicto**: 8/10 - No necesita refactoring urgente
+
+**Refactors propuestos pero NO ejecutados:**
+1. ❌ Break app.py into blueprints → Añade complejidad sin beneficio actual
+2. ❌ Centralize database access patterns → Queries directos funcionan bien
+3. ❌ Replace HTML string concatenation → Solo 1 caso (email template)
+4. ❌ Consolidate configuration loading → load_dotenv() es suficiente
+
+**Razón**: Evitar "spaghetti" y complejidad innecesaria. Stage 1 funciona bien.
+
+**Cuándo reconsiderar**:
+- app.py > 1,500 líneas
+- Stage 2 añade mucho código
+- 2+ desarrolladores en paralelo
+
+#### 🚀 Stage 2 Confirmado: Web Crawler Automático
+
+**Decisiones de diseño (sesión planning):**
+
+**1. Objetivo Principal**
+- Reemplazar lista hardcodeada de URLs (Excel + load_sections.py)
+- Sistema de descubrimiento automático desde URL raíz
+- **Opción elegida**: Crawler de descubrimiento (no solo validación)
+
+**2. Tipo de Scraper**
+- ✅ Crear árbol de páginas navegable
+- ✅ Investigar enlaces rotos (404, 500, timeouts)
+- ✅ Detectar enlaces incorrectos (malformados, loops, redirects)
+- ❌ Comparación de contenido (Stage 3)
+- ❌ Performance monitoring (Stage 3)
+
+**3. Criterio de Éxito Mínimo Stage 2**
+- Sistema end-to-end totalmente automatizado
+- Crawler + alertas + emails sin intervención manual
+- Reemplaza completamente el flujo manual del Excel
+
+**4. Fuera de Scope Stage 2**
+- ❌ Machine Learning / IA
+- ❌ Scraping con JavaScript (Playwright/Selenium)
+- ❌ Sistema de usuarios avanzado
+- ⚠️ Refactorizar app.py → Solo si es necesario
+
+**5. Arquitectura Propuesta**
+- **Stack**: Requests + BeautifulSoup (simple y rápido)
+- **Estructura**: Módulo `crawler/` separado
+- **Tablas nuevas**: discovered_urls, crawl_runs, url_changes
+- **Integración**: Nuevas rutas en app.py (<10 rutas)
+
+**Próximos pasos:**
+1. Crear `.claude/02-stage2-rules.md` con arquitectura completa
+2. Crear `STAGE2_IMPLEMENTATION_PLAN.md` con fases de implementación
+3. Actualizar `.claude/00-project-brief.md` con alcance Stage 2
+4. Comenzar Fase 2.1: Crawler MVP (50 URLs de prueba)

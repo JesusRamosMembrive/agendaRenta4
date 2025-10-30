@@ -7,10 +7,10 @@ Genera tareas manualmente para un periodo dado (mes) según las periodicidades c
 import sys
 import os
 from pathlib import Path
-import sqlite3
 from datetime import datetime
 import argparse
-from utils import DATABASE_PATH
+from utils import db_cursor
+import psycopg2
 
 
 def should_create_task_for_period(period, periodicity):
@@ -54,161 +54,151 @@ def should_create_task_for_period(period, periodicity):
     return False
 
 
-def create_tasks_for_period(period, db_path, verbose=True):
+def create_tasks_for_period(period, verbose=True):
     """
     Crea tareas para un periodo específico según las periodicidades configuradas.
 
     Args:
         period: Periodo en formato "YYYY-MM" (ej: "2025-11")
-        db_path: Ruta a la base de datos SQLite
         verbose: Si True, muestra mensajes de progreso
     """
     if verbose:
         print(f"\n📅 Creando tareas para el periodo: {period}\n")
 
-    # Conectar a BD
-    conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
+    with db_cursor() as cursor:
 
-    # Obtener todas las secciones activas
-    cursor.execute("SELECT id, name FROM sections WHERE active = TRUE")
-    sections = cursor.fetchall()
+        # Obtener todas las secciones activas
+        cursor.execute("SELECT id, name FROM sections WHERE active = TRUE")
+        sections = cursor.fetchall()
 
-    if not sections:
-        print("❌ No hay secciones activas en la BD")
-        print("   Ejecuta primero: python load_sections.py")
-        conn.close()
-        return
-
-    if verbose:
-        print(f"📊 Secciones activas: {len(sections)}")
-
-    # Obtener todos los tipos de tareas con sus periodicidades
-    cursor.execute("""
-        SELECT id, name, display_name, periodicity
-        FROM task_types
-        ORDER BY display_order
-    """)
-    task_types = cursor.fetchall()
-
-    if not task_types:
-        print("❌ No hay tipos de tareas en la BD")
-        print("   Ejecuta primero: python database.py seed")
-        conn.close()
-        return
-
-    if verbose:
-        print(f"📋 Tipos de tareas: {len(task_types)}\n")
-
-    # Estadísticas
-    total_created = 0
-    total_skipped = 0
-    total_errors = 0
-
-    # Para cada tipo de tarea
-    for task_type in task_types:
-        task_type_id = task_type['id']
-        task_name = task_type['display_name']
-        periodicity = task_type['periodicity']
-
-        # Verificar si este tipo aplica a este periodo
-        if not should_create_task_for_period(period, periodicity):
-            if verbose:
-                print(f"   ⏩ {task_name} ({periodicity}) - No aplica a este periodo")
-            continue
+        if not sections:
+            print("❌ No hay secciones activas en la BD")
+            print("   Ejecuta primero: python load_sections.py")
+            return
 
         if verbose:
-            print(f"   🔄 {task_name} ({periodicity}) - Creando tareas...")
+            print(f"📊 Secciones activas: {len(sections)}")
 
-        created_for_type = 0
-        skipped_for_type = 0
+        # Obtener todos los tipos de tareas con sus periodicidades
+        cursor.execute("""
+            SELECT id, name, display_name, periodicity
+            FROM task_types
+            ORDER BY display_order
+        """)
+        task_types = cursor.fetchall()
 
-        # Crear una tarea para cada sección
-        for section in sections:
-            section_id = section['id']
+        if not task_types:
+            print("❌ No hay tipos de tareas en la BD")
+            print("   Ejecuta primero: python database.py seed")
+            return
 
-            try:
-                cursor.execute("""
-                    INSERT INTO tasks (section_id, task_type_id, period, status)
-                    VALUES (?, ?, ?, 'pending')
-                """, (section_id, task_type_id, period))
-                created_for_type += 1
-            except sqlite3.IntegrityError:
-                # Ya existe una tarea para esta combinación (section + type + period)
-                skipped_for_type += 1
-            except Exception as e:
-                total_errors += 1
+        if verbose:
+            print(f"📋 Tipos de tareas: {len(task_types)}\n")
+
+        # Estadísticas
+        total_created = 0
+        total_skipped = 0
+        total_errors = 0
+
+        # Para cada tipo de tarea
+        for task_type in task_types:
+            task_type_id = task_type['id']
+            task_name = task_type['display_name']
+            periodicity = task_type['periodicity']
+
+            # Verificar si este tipo aplica a este periodo
+            if not should_create_task_for_period(period, periodicity):
                 if verbose:
-                    print(f"      ✗ Error creando tarea para sección {section_id}: {e}")
+                    print(f"   ⏩ {task_name} ({periodicity}) - No aplica a este periodo")
+                continue
 
-        total_created += created_for_type
-        total_skipped += skipped_for_type
+            if verbose:
+                print(f"   🔄 {task_name} ({periodicity}) - Creando tareas...")
 
+            created_for_type = 0
+            skipped_for_type = 0
+
+            # Crear una tarea para cada sección
+            for section in sections:
+                section_id = section['id']
+
+                try:
+                    cursor.execute("""
+                        INSERT INTO tasks (section_id, task_type_id, period, status)
+                        VALUES (%s, %s, %s, 'pending')
+                    """, (section_id, task_type_id, period))
+                    created_for_type += 1
+                except psycopg2.IntegrityError:
+                    # Ya existe una tarea para esta combinación (section + type + period)
+                    skipped_for_type += 1
+                except Exception as e:
+                    total_errors += 1
+                    if verbose:
+                        print(f"      ✗ Error creando tarea para sección {section_id}: {e}")
+
+            total_created += created_for_type
+            total_skipped += skipped_for_type
+
+            if verbose:
+                print(f"      ✓ Creadas: {created_for_type}, Omitidas: {skipped_for_type}")
+
+        # Resumen
         if verbose:
-            print(f"      ✓ Creadas: {created_for_type}, Omitidas: {skipped_for_type}")
+            print("\n" + "=" * 80)
+            print(f"📊 RESUMEN:")
+            print(f"   - Tareas creadas: {total_created}")
+            print(f"   - Tareas omitidas (ya existían): {total_skipped}")
+            print(f"   - Errores: {total_errors}")
+            print("=" * 80 + "\n")
 
-    conn.commit()
-    conn.close()
+            if total_created > 0:
+                print(f"✅ {total_created} tareas creadas correctamente para {period}\n")
+            else:
+                print(f"⚠️  No se crearon tareas nuevas (ya existían o no aplican a este periodo)\n")
 
-    # Resumen
-    if verbose:
-        print("\n" + "=" * 80)
-        print(f"📊 RESUMEN:")
-        print(f"   - Tareas creadas: {total_created}")
-        print(f"   - Tareas omitidas (ya existían): {total_skipped}")
-        print(f"   - Errores: {total_errors}")
-        print("=" * 80 + "\n")
-
-        if total_created > 0:
-            print(f"✅ {total_created} tareas creadas correctamente para {period}\n")
-        else:
-            print(f"⚠️  No se crearon tareas nuevas (ya existían o no aplican a este periodo)\n")
-
-    return total_created, total_skipped, total_errors
+        return total_created, total_skipped, total_errors
 
 
-def get_db_task_stats(db_path):
+def get_db_task_stats():
     """
     Muestra estadísticas de tareas en la BD.
     """
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
+    with db_cursor() as cursor:
+        print(f"\n📊 Estadísticas de tareas en la BD:\n")
 
-    print(f"\n📊 Estadísticas de tareas en la BD:\n")
+        # Total de tareas
+        cursor.execute("SELECT COUNT(*) FROM tasks")
+        total = cursor.fetchone()['count']
+        print(f"   Total de tareas: {total}")
 
-    # Total de tareas
-    cursor.execute("SELECT COUNT(*) FROM tasks")
-    total = cursor.fetchone()[0]
-    print(f"   Total de tareas: {total}")
+        # Por status
+        cursor.execute("""
+            SELECT status, COUNT(*) as count
+            FROM tasks
+            GROUP BY status
+            ORDER BY count DESC
+        """)
+        print("\n   Por estado:")
+        for row in cursor.fetchall():
+            status = row['status']
+            count = row['count']
+            print(f"      {status:12s}: {count:5d} tareas")
 
-    # Por status
-    cursor.execute("""
-        SELECT status, COUNT(*) as count
-        FROM tasks
-        GROUP BY status
-        ORDER BY count DESC
-    """)
-    print("\n   Por estado:")
-    for row in cursor.fetchall():
-        status, count = row
-        print(f"      {status:12s}: {count:5d} tareas")
+        # Por periodo
+        cursor.execute("""
+            SELECT period, COUNT(*) as count
+            FROM tasks
+            GROUP BY period
+            ORDER BY period DESC
+            LIMIT 10
+        """)
+        print("\n   Por periodo (últimos 10):")
+        for row in cursor.fetchall():
+            period = row['period']
+            count = row['count']
+            print(f"      {period:12s}: {count:5d} tareas")
 
-    # Por periodo
-    cursor.execute("""
-        SELECT period, COUNT(*) as count
-        FROM tasks
-        GROUP BY period
-        ORDER BY period DESC
-        LIMIT 10
-    """)
-    print("\n   Por periodo (últimos 10):")
-    for row in cursor.fetchall():
-        period, count = row
-        print(f"      {period:12s}: {count:5d} tareas")
-
-    conn.close()
-    print()
+        print()
 
 
 def main():
@@ -253,15 +243,9 @@ Ejemplos:
 
     args = parser.parse_args()
 
-    # Verificar que la BD existe
-    if not Path(DATABASE_PATH).exists():
-        print(f"❌ ERROR: Base de datos no encontrada: {DATABASE_PATH}")
-        print(f"   Ejecuta primero: python database.py")
-        sys.exit(1)
-
     # Modo stats
     if args.stats:
-        get_db_task_stats(DATABASE_PATH)
+        get_db_task_stats()
         return
 
     # Determinar periodo(s) a crear
@@ -291,11 +275,11 @@ Ejemplos:
     verbose = not args.quiet
 
     for period in periods_to_create:
-        create_tasks_for_period(period, DATABASE_PATH, verbose=verbose)
+        create_tasks_for_period(period, verbose=verbose)
 
     # Mostrar estadísticas finales
     if verbose:
-        get_db_task_stats(DATABASE_PATH)
+        get_db_task_stats()
 
 
 if __name__ == '__main__':

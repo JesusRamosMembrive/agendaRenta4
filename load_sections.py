@@ -7,8 +7,8 @@ Importa las URLs desde el archivo Excel original a la tabla 'sections'
 import sys
 import os
 from pathlib import Path
-import sqlite3
-from utils import DATABASE_PATH
+from utils import db_cursor
+import psycopg2
 
 try:
     import openpyxl
@@ -67,13 +67,12 @@ def generate_section_name(url, hierarchy_levels):
     return url
 
 
-def load_sections_from_excel(excel_path, db_path):
+def load_sections_from_excel(excel_path):
     """
     Lee el Excel y carga las secciones (URLs) en la base de datos.
 
     Args:
         excel_path: Ruta al archivo Excel
-        db_path: Ruta a la base de datos SQLite
     """
     print(f"📊 Cargando secciones desde: {excel_path}\n")
 
@@ -97,10 +96,6 @@ def load_sections_from_excel(excel_path, db_path):
 
     sheet = wb["Actualización y calidad"]
 
-    # Conectar a BD
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-
     # Estadísticas
     total_rows = 0
     inserted = 0
@@ -112,49 +107,47 @@ def load_sections_from_excel(excel_path, db_path):
     # Limitar a primeras 200 filas (suficiente para capturar todas las URLs reales)
     MAX_ROWS = 200
 
-    # Iterar sobre filas (saltando header)
-    for row_idx, row in enumerate(sheet.iter_rows(min_row=2, max_row=MAX_ROWS, values_only=True), start=2):
-        total_rows += 1
+    with db_cursor() as cursor:
+        # Iterar sobre filas (saltando header)
+        for row_idx, row in enumerate(sheet.iter_rows(min_row=2, max_row=MAX_ROWS, values_only=True), start=2):
+            total_rows += 1
 
-        # Columna 7 (index 6) = URL
-        url = row[6] if len(row) > 6 else None
+            # Columna 7 (index 6) = URL
+            url = row[6] if len(row) > 6 else None
 
-        # Filtrar URLs vacías o inválidas
-        if not url or not isinstance(url, str) or not url.strip():
-            skipped += 1
-            continue
+            # Filtrar URLs vacías o inválidas
+            if not url or not isinstance(url, str) or not url.strip():
+                skipped += 1
+                continue
 
-        # Filtrar si no es URL válida (debe contener r4.com o empezar con /)
-        if 'r4.com' not in url and not url.startswith('/'):
-            skipped += 1
-            continue
+            # Filtrar si no es URL válida (debe contener r4.com o empezar con /)
+            if 'r4.com' not in url and not url.startswith('/'):
+                skipped += 1
+                continue
 
-        # Obtener jerarquía (Cols 2-6, index 1-5)
-        hierarchy = [row[i] if len(row) > i else None for i in range(1, 6)]
+            # Obtener jerarquía (Cols 2-6, index 1-5)
+            hierarchy = [row[i] if len(row) > i else None for i in range(1, 6)]
 
-        # Generar nombre descriptivo
-        name = generate_section_name(url, hierarchy)
-        if not name:
-            name = url  # Fallback
+            # Generar nombre descriptivo
+            name = generate_section_name(url, hierarchy)
+            if not name:
+                name = url  # Fallback
 
-        # Insertar en BD
-        try:
-            cursor.execute("""
-                INSERT INTO sections (name, url, active)
-                VALUES (?, ?, TRUE)
-            """, (name, url))
-            inserted += 1
-            print(f"   ✓ {name}")
-            print(f"     {url}")
-        except sqlite3.IntegrityError:
-            # URL duplicada (ya existe)
-            skipped += 1
-        except Exception as e:
-            errors += 1
-            print(f"   ✗ Error en fila {row_idx}: {e}")
-
-    conn.commit()
-    conn.close()
+            # Insertar en BD
+            try:
+                cursor.execute("""
+                    INSERT INTO sections (name, url, active)
+                    VALUES (%s, %s, TRUE)
+                """, (name, url))
+                inserted += 1
+                print(f"   ✓ {name}")
+                print(f"     {url}")
+            except psycopg2.IntegrityError:
+                # URL duplicada (ya existe)
+                skipped += 1
+            except Exception as e:
+                errors += 1
+                print(f"   ✗ Error en fila {row_idx}: {e}")
 
     # Resumen
     print("\n" + "=" * 80)
@@ -175,23 +168,14 @@ def main():
     """
     Script principal.
     """
-    # Verificar que la BD existe
-    if not Path(DATABASE_PATH).exists():
-        print(f"❌ ERROR: Base de datos no encontrada: {DATABASE_PATH}")
-        print(f"   Ejecuta primero: python database.py")
-        sys.exit(1)
-
     # Cargar secciones
-    load_sections_from_excel(EXCEL_PATH, DATABASE_PATH)
+    load_sections_from_excel(EXCEL_PATH)
 
     # Mostrar estadísticas finales
-    conn = sqlite3.connect(DATABASE_PATH)
-    cursor = conn.cursor()
-    cursor.execute("SELECT COUNT(*) FROM sections WHERE active = TRUE")
-    count = cursor.fetchone()[0]
-    conn.close()
-
-    print(f"📊 Total de secciones activas en BD: {count}\n")
+    with db_cursor() as cursor:
+        cursor.execute("SELECT COUNT(*) FROM sections WHERE active = TRUE")
+        count = cursor.fetchone()['count']
+        print(f"📊 Total de secciones activas en BD: {count}\n")
 
 
 if __name__ == '__main__':

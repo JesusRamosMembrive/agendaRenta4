@@ -6,7 +6,7 @@ Uso: python3 add_notification_email.py correo@ejemplo.com "Nombre Opcional"
 
 import sys
 from utils import db_cursor
-import sqlite3
+import psycopg2
 
 def add_email(email, name=None):
     """Añadir un email de notificación a la base de datos"""
@@ -14,12 +14,12 @@ def add_email(email, name=None):
         with db_cursor() as cursor:
             cursor.execute("""
                 INSERT INTO notification_emails (email, name, active)
-                VALUES (?, ?, TRUE)
+                VALUES (%s, %s, TRUE)
             """, (email, name or email))
 
         print(f"✓ Email añadido: {email} ({name or email})")
 
-    except sqlite3.IntegrityError:
+    except psycopg2.IntegrityError:
         print(f"✗ El email {email} ya existe en la base de datos")
     except Exception as e:
         print(f"✗ Error: {e}")
@@ -41,8 +41,8 @@ def list_emails():
         print(f"\nEmails de notificación ({len(rows)}):")
         print("-" * 70)
         for row in rows:
-            status = "✓ Activo" if row[3] else "✗ Inactivo"
-            print(f"[{row[0]}] {row[1]:<30} {row[2]:<20} {status}")
+            status = "✓ Activo" if row['active'] else "✗ Inactivo"
+            print(f"[{row['id']}] {row['email']:<30} {row['name']:<20} {status}")
 
 def main():
     if len(sys.argv) < 2:

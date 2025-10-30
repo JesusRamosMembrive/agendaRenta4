@@ -189,9 +189,10 @@ def generate_alerts(reference_date=None):
                 try:
                     # Create one alert per task_type (not per section)
                     cursor.execute("""
-                        INSERT OR IGNORE INTO pending_alerts
+                        INSERT INTO pending_alerts
                         (task_type_id, due_date)
                         VALUES (%s, %s)
+                        ON CONFLICT (task_type_id, due_date) DO NOTHING
                     """, (task_type_id, reference_date))
 
                     if cursor.rowcount > 0:
@@ -301,17 +302,26 @@ def check_alert_day(reference_date, frequency, alert_day):
     return False
 
 
-def send_email_notifications(alert_list):
+def send_email_notifications(alert_list, user_name=None):
     """
     Send email notifications for newly generated alerts.
 
     Args:
         alert_list: List of dicts with keys: task_type_name, due_date, etc.
+        user_name: User name to check preferences for. If None, uses current_user (requires Flask request context).
 
     Returns:
         dict with stats: {'sent': count, 'failed': count, 'errors': []}
     """
     stats = {'sent': 0, 'failed': 0, 'errors': []}
+
+    # Determine user name to use
+    if user_name is None:
+        try:
+            user_name = current_user.full_name
+        except (AttributeError, RuntimeError):
+            stats['errors'].append('No user context available and user_name not provided')
+            return stats
 
     # Check if email notifications are enabled
     with db_cursor(commit=False) as cursor:
@@ -319,7 +329,7 @@ def send_email_notifications(alert_list):
             SELECT enable_email FROM notification_preferences
             WHERE user_name = %s AND enable_email = 1
             LIMIT 1
-        """, (current_user.full_name,))
+        """, (user_name,))
 
         email_enabled = cursor.fetchone()
 
