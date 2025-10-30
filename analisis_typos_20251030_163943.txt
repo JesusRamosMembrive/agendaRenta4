@@ -1,0 +1,279 @@
+ANÁLISIS DE ERRORES TIPOGRÁFICOS
+====================================================================================================
+
+RESUMEN:
+  - URLs faltantes totales: 65
+  - Errores tipográficos: 39
+  - URLs no encontradas: 26
+
+====================================================================================================
+CORRECCIONES SUGERIDAS
+====================================================================================================
+
+-- SQL para corregir errores tipográficos:
+
+-- Planes De Pensiones - Categorias
+UPDATE sections SET url = 'https://www.r4.com/planes-de-pensiones/planes/EP1' WHERE id = 1;
+-- Antes: https://www.r4.com/planes-de-pensiones/categorias
+
+-- Academiar4 - Formulario Cursos
+UPDATE sections SET url = 'https://www.r4.com/academiar4/formulario-cursos?id=4369' WHERE id = 2;
+-- Antes: https://www.r4.com/academiar4/formulario-cursos
+
+-- Clientes
+UPDATE sections SET url = 'https://www.r4.com/hazte-cliente' WHERE id = 4;
+-- Antes: https://www.r4.com/clientes
+
+-- R4 - HOME 
+UPDATE sections SET url = 'http://www.r4.com' WHERE id = 5;
+-- Antes: https://www.r4.com/
+
+-- Normativa - Dnie
+UPDATE sections SET url = 'https://www.r4.com/normativa' WHERE id = 6;
+-- Antes: https://www.r4.com/normativa/dnie
+
+-- Fondos De Inversion - Seleccion50
+UPDATE sections SET url = 'http://www.r4.com/fondos-de-inversion/seleccion50' WHERE id = 8;
+-- Antes: https://www.r4.com/fondos-de-inversion/seleccion50
+
+-- Fondos Planes
+UPDATE sections SET url = 'https://www.r4.com/go/fondos-planes' WHERE id = 13;
+-- Antes: https://www.r4.com/fondos-planes
+
+-- Broker Online
+UPDATE sections SET url = 'http://www.r4.com/broker-online' WHERE id = 16;
+-- Antes: https://www.r4.com/broker-online
+
+-- Productos De Inversion - Etfs
+UPDATE sections SET url = 'http://www.r4.com/broker-online/productos-de-inversion/etfs' WHERE id = 20;
+-- Antes: https://www.r4.com/broker-online/productos-de-inversion/etfs
+
+-- Productos De Inversion - Bolsa
+UPDATE sections SET url = 'http://www.r4.com/broker-online/productos-de-inversion/bolsa' WHERE id = 26;
+-- Antes: https://www.r4.com/broker-online/productos-de-inversion/bolsa
+
+-- Carteras Gestionadas - Carteras De Fondos
+UPDATE sections SET url = 'http://www.r4.com/carteras-gestionadas/carteras-de-fondos' WHERE id = 32;
+-- Antes: https://www.r4.com/carteras-gestionadas/carteras-de-fondos
+
+-- Productos De Inversion - Cripto
+UPDATE sections SET url = 'https://www.r4.com/broker-online/productos-de-inversion' WHERE id = 36;
+-- Antes: https://www.r4.com/broker-online/productos-de-inversion/cripto
+
+-- Carteras De Fondos - Conservadora
+UPDATE sections SET url = 'http://www.r4.com/carteras-gestionadas/carteras-de-fondos' WHERE id = 45;
+-- Antes: https://www.r4.com/carteras-gestionadas/carteras-de-fondos/conservadora
+
+-- Carteras De Fondos - Tolerante
+UPDATE sections SET url = 'http://www.r4.com/carteras-gestionadas/carteras-de-fondos' WHERE id = 46;
+-- Antes: https://www.r4.com/carteras-gestionadas/carteras-de-fondos/tolerante
+
+-- Carteras De Fondos - Rendimiento
+UPDATE sections SET url = 'http://www.r4.com/carteras-gestionadas/carteras-de-fondos' WHERE id = 47;
+-- Antes: https://www.r4.com/carteras-gestionadas/carteras-de-fondos/rendimiento
+
+-- Carteras De Fondos - Moderada
+UPDATE sections SET url = 'http://www.r4.com/carteras-gestionadas/carteras-de-fondos' WHERE id = 48;
+-- Antes: https://www.r4.com/carteras-gestionadas/carteras-de-fondos/moderada
+
+-- Carteras De Fondos - Dinamica
+UPDATE sections SET url = 'http://www.r4.com/carteras-gestionadas/carteras-de-fondos' WHERE id = 50;
+-- Antes: https://www.r4.com/carteras-gestionadas/carteras-de-fondos/dinamica
+
+-- Carteras Gestionadas - Carteras Acciones
+UPDATE sections SET url = 'http://www.r4.com/carteras-gestionadas/carteras-de-fondos' WHERE id = 52;
+-- Antes: https://www.r4.com/carteras-gestionadas/carteras-acciones
+
+-- Categorias - Fondos De Inversion Mixtos
+UPDATE sections SET url = 'https://www.r4.com/fondos-de-inversion/cursos-fondo-de-inversion' WHERE id = 55;
+-- Antes: https://www.r4.com/fondos-de-inversion/categorias/fondos-de-inversion-mixtos
+
+-- Planes De Pensiones
+UPDATE sections SET url = 'http://r4.com/planes-de-pensiones' WHERE id = 57;
+-- Antes: https://www.r4.com/planes-de-pensiones
+
+-- Carteras Gestionadas - Gestion Personalizada
+UPDATE sections SET url = 'http://www.r4.com/carteras-gestionadas/gestion-personalizada' WHERE id = 69;
+-- Antes: https://www.r4.com/carteras-gestionadas/gestion-personalizada
+
+-- Productos De Inversion - Derivados
+UPDATE sections SET url = 'https://www.r4.com/broker-online/productos-de-inversion/futuros' WHERE id = 77;
+-- Antes: https://www.r4.com/broker-online/productos-de-inversion/derivados
+
+-- Productos De Inversion - Cfds
+UPDATE sections SET url = 'http://www.r4.com/broker-online/productos-de-inversion/etfs' WHERE id = 80;
+-- Antes: https://www.r4.com/broker-online/productos-de-inversion/cfds
+
+-- Productos De Inversion - Warrants
+UPDATE sections SET url = 'http://www.r4.com/broker-online/productos-de-inversion/etfs' WHERE id = 84;
+-- Antes: https://www.r4.com/broker-online/productos-de-inversion/warrants
+
+-- Planes De Pensiones - Plan De Pensiones Autonomos
+UPDATE sections SET url = 'http://r4.com/planes-de-pensiones/plan-de-pensiones-autonomos' WHERE id = 100;
+-- Antes: https://www.r4.com/planes-de-pensiones/plan-de-pensiones-autonomos
+
+-- Bolsa - Cursos Bolsa
+UPDATE sections SET url = 'https://www.r4.com/broker-online/productos-de-inversion/bolsa/que-es-la-bolsa' WHERE id = 102;
+-- Antes: https://www.r4.com/broker-online/productos-de-inversion/bolsa/cursos-bolsa
+
+-- Fondos De Inversion - Sicav
+UPDATE sections SET url = 'https://www.r4.com/fondos-de-inversion' WHERE id = 128;
+-- Antes: https://www.r4.com/fondos-de-inversion/sicav
+
+-- Autor
+UPDATE sections SET url = 'https://www.r4.com/autor/%20' WHERE id = 136;
+-- Antes: https://www.r4.com/autor
+
+-- Que Necesitas - Quieres Mas
+UPDATE sections SET url = 'https://www.r4.com/que-necesitas/red-oficinas' WHERE id = 141;
+-- Antes: https://www.r4.com/que-necesitas/quieres-mas
+
+-- Quieres Mas - Specialista Todos
+UPDATE sections SET url = 'https://www.r4.com/que-necesitas/quieres-mas/inversion-para-todos' WHERE id = 145;
+-- Antes: https://www.r4.com/que-necesitas/quieres-mas/specialista-todos
+
+-- Quieres Mas - Nversion Para Todos
+UPDATE sections SET url = 'https://www.r4.com/que-necesitas/quieres-mas/inversion-para-todos' WHERE id = 146;
+-- Antes: https://www.r4.com/que-necesitas/quieres-mas/nversion-para-todos
+
+-- Planes De Pensiones - Tipos Planes De Pensiones
+UPDATE sections SET url = 'https://www.r4.com/planes-de-pensiones/tipos-planes-de-pensiones' WHERE id = 149;
+-- Antes: https://www.r4.com/planes-de-pensiones/tipos-planes-de-pensiones/
+
+-- Futuros - Garantias Futuros
+UPDATE sections SET url = 'https://www.r4.com/broker-online/productos-de-inversion/futuros/que-son-futuros' WHERE id = 154;
+-- Antes: https://www.r4.com/broker-online/productos-de-inversion/futuros/garantias-futuros
+
+-- Erviciosr4 - Carteras Easy
+UPDATE sections SET url = 'https://www.r4.com/serviciosr4/letras-easy' WHERE id = 158;
+-- Antes: https://www.r4.com/erviciosr4/carteras-easy
+
+-- Serviciosr4
+UPDATE sections SET url = 'https://www.r4.com/seguros' WHERE id = 160;
+-- Antes: https://www.r4.com/serviciosr4
+
+-- Soluciones Easy - Oletin Warrants
+UPDATE sections SET url = 'https://www.r4.com/soluciones-easy/plan-easy' WHERE id = 162;
+-- Antes: https://www.r4.com/soluciones-easy/oletin-warrants
+
+-- Soluciones Easy - Cbermonday
+UPDATE sections SET url = 'https://www.r4.com/soluciones-easy/fondos-easy' WHERE id = 167;
+-- Antes: https://www.r4.com/soluciones-easy/cbermonday
+
+-- Soluciones Easy - Escarga Gratis Guia Que Son Etfs
+UPDATE sections SET url = 'https://www.r4.com/serviciosr4/descarga-gratis-guia-que-son-etfs' WHERE id = 168;
+-- Antes: https://www.r4.com/soluciones-easy/escarga-gratis-guia-que-son-etfs
+
+-- Soluciones Easy - ...
+UPDATE sections SET url = 'https://www.r4.com/soluciones-easy' WHERE id = 169;
+-- Antes: https://www.r4.com/soluciones-easy/...
+
+
+====================================================================================================
+URLs NO ENCONTRADAS (revisar manualmente)
+====================================================================================================
+
+ID: 7
+Nombre: Carteras Gestionadas
+URL: https://www.r4.com/carteras-gestionadas
+
+ID: 28
+Nombre: Carteras Acciones - 5 Grandes
+URL: https://www.r4.com/carteras-gestionadas/carteras-acciones/5-grandes
+
+ID: 34
+Nombre: Carteras Acciones - Cardiv
+URL: https://www.r4.com/carteras-gestionadas/carteras-acciones/cardiv
+
+ID: 42
+Nombre: Carteras Acciones - Versatil
+URL: https://www.r4.com/carteras-gestionadas/carteras-acciones/versatil
+
+ID: 51
+Nombre: Columnas De Autores - El Blog De Jsq
+URL: https://www.r4.com/columnas-de-autores/el-blog-de-jsq
+
+ID: 3
+Nombre: Conferencias
+URL: https://www.r4.com/conferencias
+
+ID: 12
+Nombre: Errores - Error 404
+URL: https://www.r4.com/errores/error-404
+
+ID: 157
+Nombre: Erviciosr4
+URL: https://www.r4.com/erviciosr4
+
+ID: 159
+Nombre: Erviciosr4 - S50
+URL: https://www.r4.com/erviciosr4/s50
+
+ID: 44
+Nombre: Categorias - Fondos De Inversion Criptomonedas
+URL: https://www.r4.com/fondos-de-inversion/categorias/fondos-de-inversion-criptomonedas
+
+ID: 43
+Nombre: Categorias - Fondos De Inversion Monetarios
+URL: https://www.r4.com/fondos-de-inversion/categorias/fondos-de-inversion-monetarios
+
+ID: 25
+Nombre: Categorias - Fondos De Inversion Renta Fija
+URL: https://www.r4.com/fondos-de-inversion/categorias/fondos-de-inversion-renta-fija
+
+ID: 29
+Nombre: Categorias - Fondos De Inversion Renta Variable
+URL: https://www.r4.com/fondos-de-inversion/categorias/fondos-de-inversion-renta-variable
+
+ID: 56
+Nombre: Categorias - Fondos De Inversion Retorno Absoluto
+URL: https://www.r4.com/fondos-de-inversion/categorias/fondos-de-inversion-retorno-absoluto
+
+ID: 66
+Nombre: Categorias - Fondos De Inversion Tematicos
+URL: https://www.r4.com/fondos-de-inversion/categorias/fondos-de-inversion-tematicos
+
+ID: 75
+Nombre: Categorias - Fondos Perfilados
+URL: https://www.r4.com/fondos-de-inversion/categorias/fondos-perfilados
+
+ID: 135
+Nombre: Inversiones Alternativas
+URL: https://www.r4.com/inversiones-alternativas
+
+ID: 143
+Nombre: Quieres Mas - Cercano Digital
+URL: https://www.r4.com/que-necesitas/quieres-mas/cercano-digital
+
+ID: 144
+Nombre: Quieres Mas - Entable Sostenible
+URL: https://www.r4.com/que-necesitas/quieres-mas/entable-sostenible
+
+ID: 142
+Nombre: Quieres Mas - Mas Digital
+URL: https://www.r4.com/que-necesitas/quieres-mas/mas-digital
+
+ID: 173
+Nombre: Que Necesitas - Soluciones Digitales
+URL: https://www.r4.com/que-necesitas/soluciones-digitales
+
+ID: 165
+Nombre: Soluciones Easy - Broker Online Para Invertir Cob Ventaja
+URL: https://www.r4.com/soluciones-easy/broker-online-para-invertir-cob-ventaja
+
+ID: 161
+Nombre: Soluciones Easy - Oletin Analisis Tecnico
+URL: https://www.r4.com/soluciones-easy/oletin-analisis-tecnico
+
+ID: 164
+Nombre: Soluciones Easy - Roker Online Compra Acciones
+URL: https://www.r4.com/soluciones-easy/roker-online-compra-acciones
+
+ID: 163
+Nombre: Soluciones Easy - Roker Online Las Mejores Tarifas
+URL: https://www.r4.com/soluciones-easy/roker-online-las-mejores-tarifas
+
+ID: 166
+Nombre: Soluciones Easy - Ursos Finanzas Gratis
+URL: https://www.r4.com/soluciones-easy/ursos-finanzas-gratis
+

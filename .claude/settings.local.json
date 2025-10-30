@@ -11,7 +11,11 @@
       "Bash(git commit:*)",
       "Bash(chmod:*)",
       "Read(///**)",
-      "Bash(sort:*)"
+      "Bash(sort:*)",
+      "Bash(source .env)",
+      "Bash(psql:*)",
+      "Bash(python validate_urls.py:*)",
+      "Bash(python:*)"
     ],
     "deny": [],
     "ask": []

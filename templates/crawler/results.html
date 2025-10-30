@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+
+{% block title %}Crawler - URLs Descubiertas{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>📋 URLs Descubiertas</h1>
+
+    {% if crawl_run %}
+    <!-- Crawl Run Info -->
+    <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
+        <h3>Crawl Run #{{ crawl_run.id }}</h3>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+            <div>
+                <strong>Estado:</strong>
+                {% if crawl_run.status == 'completed' %}
+                    <span style="color: #10b981;">✓ Completado</span>
+                {% elif crawl_run.status == 'running' %}
+                    <span style="color: #f59e0b;">⏳ En progreso</span>
+                {% elif crawl_run.status == 'failed' %}
+                    <span style="color: #ef4444;">✗ Fallido</span>
+                {% endif %}
+            </div>
+            <div><strong>Iniciado:</strong> {{ crawl_run.started_at.strftime('%d/%m/%Y %H:%M') if crawl_run.started_at else '-' }}</div>
+            <div><strong>Finalizado:</strong> {{ crawl_run.finished_at.strftime('%d/%m/%Y %H:%M') if crawl_run.finished_at else '-' }}</div>
+            <div><strong>URLs:</strong> {{ crawl_run.urls_discovered or 0 }}</div>
+            <div><strong>Rotas:</strong> {{ crawl_run.urls_broken or 0 }}</div>
+        </div>
+    </div>
+    {% else %}
+    <!-- Summary Info -->
+    <div style="margin-bottom: 20px;">
+        <p>Total: <strong>{{ total }}</strong> URLs descubiertas</p>
+        <a href="{{ url_for('crawler_dashboard') }}" class="btn">← Volver al Dashboard</a>
+    </div>
+    {% endif %}
+
+    <!-- URLs Table -->
+    {% if urls %}
+    <table>
+        <thead>
+            <tr>
+                <th>URL</th>
+                <th>Profundidad</th>
+                <th>Descubierta</th>
+                <th>Estado</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for url in urls %}
+            <tr {% if url.is_broken %}style="background: #fee2e2;"{% endif %}>
+                <td>
+                    <a href="{{ url.url }}" target="_blank" style="word-break: break-all;">
+                        {{ url.url }}
+                    </a>
+                </td>
+                <td>
+                    <span style="display: inline-block; padding: 2px 8px; background: #dbeafe; border-radius: 4px;">
+                        Nivel {{ url.depth }}
+                    </span>
+                </td>
+                <td>{{ url.discovered_at.strftime('%d/%m/%Y %H:%M') if url.discovered_at else '-' }}</td>
+                <td>
+                    {% if url.status_code %}
+                        {% if url.status_code == 200 %}
+                            <span style="color: #10b981;">✓ {{ url.status_code }}</span>
+                        {% elif url.status_code >= 400 %}
+                            <span style="color: #ef4444;">✗ {{ url.status_code }}</span>
+                        {% else %}
+                            {{ url.status_code }}
+                        {% endif %}
+                    {% else %}
+                        <span style="color: #9ca3af;">- Pendiente</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- Pagination (if not crawl_run specific) -->
+    {% if not crawl_run and total_pages > 1 %}
+    <div style="margin-top: 30px; text-align: center;">
+        {% if page > 1 %}
+            <a href="{{ url_for('crawler_results', page=page-1) }}" class="btn">← Anterior</a>
+        {% endif %}
+
+        <span style="margin: 0 20px;">
+            Página {{ page }} de {{ total_pages }}
+        </span>
+
+        {% if page < total_pages %}
+            <a href="{{ url_for('crawler_results', page=page+1) }}" class="btn">Siguiente →</a>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div style="padding: 40px; text-align: center; background: #f3f4f6; border-radius: 8px;">
+        <p>No hay URLs descubiertas todavía.</p>
+        <p><a href="{{ url_for('crawler_dashboard') }}">Iniciar un crawl</a> para comenzar.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
