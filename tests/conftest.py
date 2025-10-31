@@ -3,10 +3,14 @@ Pytest configuration and shared fixtures
 """
 
 import os
+import sys
 import pytest
 from datetime import datetime
 from unittest.mock import MagicMock
 from dotenv import load_dotenv
+
+# Add project root to path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 # Load environment variables
 load_dotenv()

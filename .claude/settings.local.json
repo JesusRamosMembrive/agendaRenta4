@@ -25,7 +25,10 @@
       "Bash(flake8:*)",
       "Bash(git checkout:*)",
       "Bash(ruff check:*)",
-      "Bash(ruff format:*)"
+      "Bash(ruff format:*)",
+      "Bash(pip freeze:*)",
+      "Bash(pytest:*)",
+      "Bash(PGPASSWORD=dev-password psql:*)"
     ],
     "deny": [],
     "ask": []

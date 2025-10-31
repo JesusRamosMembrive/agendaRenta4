@@ -85,6 +85,9 @@
         <a href="{{ url_for('crawler.scheduler') }}" class="{% if request.endpoint == 'crawler.scheduler' %}active{% endif %}">
           ⚙️ Scheduler
         </a>
+        <a href="{{ url_for('crawler.quality') }}" class="{% if request.endpoint == 'crawler.quality' %}active{% endif %}">
+          🖼️ Calidad de Imágenes
+        </a>
       </nav>
     </aside>
 

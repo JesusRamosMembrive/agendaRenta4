@@ -359,4 +359,52 @@ class Crawler:
         self.update_crawl_run(status='completed')
 
         logger.info(f"Crawl completed: {self.stats}")
+
+        # Run post-crawl quality checks if configured
+        self._run_post_crawl_checks(created_by)
+
         return self.stats
+
+    def _run_post_crawl_checks(self, created_by='system'):
+        """
+        Run automated quality checks after crawl completion.
+
+        Args:
+            created_by: User who initiated the crawl
+        """
+        try:
+            # Get user ID from created_by
+            with db_cursor(commit=False) as cursor:
+                cursor.execute("SELECT id FROM users WHERE username = %s OR full_name = %s LIMIT 1", (created_by, created_by))
+                user = cursor.fetchone()
+
+            if not user:
+                logger.warning(f"Cannot run post-crawl checks: user '{created_by}' not found")
+                return
+
+            user_id = user['id']
+
+            # Check if user has any automatic checks configured
+            from calidad.post_crawl_runner import PostCrawlQualityRunner
+
+            runner = PostCrawlQualityRunner(self.crawl_run_id)
+            configured_checks = runner.get_configured_checks(user_id)
+
+            if not configured_checks:
+                logger.info(f"No automatic quality checks configured for user {user_id}")
+                return
+
+            logger.info(f"Running {len(configured_checks)} automatic checks: {configured_checks}")
+
+            # Execute checks
+            results = runner.run_configured_checks(user_id)
+
+            if results['executed']:
+                logger.info(f"Post-crawl checks completed for crawl run {self.crawl_run_id}")
+                for check in results['checks']:
+                    logger.info(f"  - {check['check_type']}: {check['status']} - {check.get('message', '')}")
+            else:
+                logger.info(f"No checks executed: {results.get('reason', 'Unknown')}")
+
+        except Exception as e:
+            logger.error(f"Error running post-crawl checks: {e}", exc_info=True)

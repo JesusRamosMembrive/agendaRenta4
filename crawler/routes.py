@@ -384,3 +384,339 @@ def tree():
         search_query=search_query,
         current_user=current_user
     )
+
+
+@crawler_bp.route('/quality')
+@login_required
+def quality():
+    """
+    Quality checks dashboard - shows image quality results for discovered URLs.
+    """
+    # Get filter parameters
+    status_filter = request.args.get('status', '')  # 'ok', 'warning', 'error'
+    page = request.args.get('page', 1, type=int)
+    per_page = 20
+
+    with db_cursor(commit=False) as cursor:
+        # Build WHERE clause
+        where_clauses = []
+        params = []
+
+        if status_filter:
+            where_clauses.append("qc.status = %s")
+            params.append(status_filter)
+
+        where_sql = " AND " + " AND ".join(where_clauses) if where_clauses else ""
+
+        # Get quality check results with discovered URL info
+        cursor.execute(f"""
+            SELECT
+                qc.id,
+                qc.section_id,
+                s.url,
+                s.name as url_name,
+                qc.check_type,
+                qc.status,
+                qc.score,
+                qc.message,
+                qc.details,
+                qc.issues_found,
+                qc.checked_at,
+                qc.execution_time_ms
+            FROM quality_checks qc
+            INNER JOIN sections s ON qc.section_id = s.id
+            WHERE qc.check_type = 'image_quality'{where_sql}
+            ORDER BY qc.checked_at DESC
+            LIMIT %s OFFSET %s
+        """, params + [per_page, (page - 1) * per_page])
+        quality_checks = cursor.fetchall()
+
+        # Get total count
+        cursor.execute(f"""
+            SELECT COUNT(*) as count
+            FROM quality_checks qc
+            WHERE qc.check_type = 'image_quality'{where_sql}
+        """, params)
+        total = cursor.fetchone()['count']
+
+        # Get statistics
+        cursor.execute("""
+            SELECT
+                COUNT(*) as total_checks,
+                COUNT(CASE WHEN status = 'ok' THEN 1 END) as ok_count,
+                COUNT(CASE WHEN status = 'warning' THEN 1 END) as warning_count,
+                COUNT(CASE WHEN status = 'error' THEN 1 END) as error_count,
+                AVG(score) as avg_score,
+                SUM(issues_found) as total_issues
+            FROM quality_checks
+            WHERE check_type = 'image_quality'
+        """)
+        stats = cursor.fetchone()
+
+    # Calculate pagination
+    total_pages = (total + per_page - 1) // per_page
+
+    return render_template(
+        'crawler/quality.html',
+        quality_checks=quality_checks,
+        stats=stats,
+        status_filter=status_filter,
+        page=page,
+        total_pages=total_pages,
+        current_user=current_user
+    )
+
+
+@crawler_bp.route('/quality/check/<int:section_id>', methods=['POST'])
+@login_required
+def run_quality_check(section_id):
+    """
+    Run image quality check on a specific URL.
+    """
+    from calidad import ImagenesChecker
+    import json
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        with db_cursor() as cursor:
+            # Get URL from sections table
+            cursor.execute("SELECT id, url, name FROM sections WHERE id = %s", (section_id,))
+            section = cursor.fetchone()
+
+            if not section:
+                return jsonify({'success': False, 'error': 'URL not found'}), 404
+
+            # Run image quality check
+            checker = ImagenesChecker(config={'check_format': True})
+            result = checker.check(section['url'])
+
+            # Save result to quality_checks table
+            cursor.execute("""
+                INSERT INTO quality_checks (
+                    section_id, check_type, status, score, message,
+                    details, issues_found, checked_at, execution_time_ms
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING id
+            """, (
+                section_id,
+                result.check_type,
+                result.status,
+                result.score,
+                result.message,
+                json.dumps(result.details),
+                result.issues_found,
+                result.checked_at,
+                result.execution_time_ms
+            ))
+
+            check_id = cursor.fetchone()['id']
+
+            logger.info(f"Quality check completed for {section['url']}: {result.status} (score: {result.score})")
+
+            return jsonify({
+                'success': True,
+                'check_id': check_id,
+                'status': result.status,
+                'score': result.score,
+                'message': result.message,
+                'issues_found': result.issues_found
+            })
+
+    except Exception as e:
+        logger.error(f"Error running quality check: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@crawler_bp.route('/quality/batch', methods=['POST'])
+@login_required
+def run_batch_quality_check():
+    """
+    Run quality checks on multiple URLs in batch.
+    Expects JSON with list of section_ids.
+    """
+    from calidad import ImagenesChecker
+    from calidad.batch import BatchQualityCheckRunner
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        data = request.get_json()
+        section_ids = data.get('section_ids', [])
+
+        if not section_ids:
+            return jsonify({'success': False, 'error': 'No section IDs provided'}), 400
+
+        # Create batch runner
+        runner = BatchQualityCheckRunner(
+            batch_type='image_quality',
+            checker_class=ImagenesChecker,
+            checker_config={'check_format': True}
+        )
+
+        # Run batch in current thread (for simplicity)
+        # TODO: In production, consider using Celery or background thread
+        result = runner.run_batch(section_ids, created_by=current_user.full_name)
+
+        logger.info(f"Batch {result['batch_id']} completed: {result['successful']}/{result['total']} successful")
+
+        return jsonify({
+            'success': True,
+            'batch_id': result['batch_id'],
+            'total': result['total'],
+            'successful': result['successful'],
+            'failed': result['failed']
+        })
+
+    except Exception as e:
+        logger.error(f"Error running batch quality check: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@crawler_bp.route('/quality/batch/<int:batch_id>', methods=['GET'])
+@login_required
+def get_batch_quality_status(batch_id):
+    """
+    Get status of a batch quality check.
+    """
+    from calidad.batch import get_batch_status
+
+    try:
+        status = get_batch_status(batch_id)
+
+        if not status:
+            return jsonify({'success': False, 'error': 'Batch not found'}), 404
+
+        return jsonify({
+            'success': True,
+            'batch': status
+        })
+
+    except Exception as e:
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error getting batch status: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ============================================================
+# QUALITY CHECK CONFIGURATION ROUTES
+# ============================================================
+
+@crawler_bp.route('/config/checks', methods=['GET'])
+@login_required
+def get_quality_check_config():
+    """
+    Get quality check configuration for current user.
+    Returns list of available checks with their settings.
+    """
+    from calidad.post_crawl_runner import get_user_check_config
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        config = get_user_check_config(current_user.id)
+
+        return jsonify({
+            'success': True,
+            'checks': config
+        })
+
+    except Exception as e:
+        logger.error(f"Error getting check config: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@crawler_bp.route('/config/checks', methods=['POST'])
+@login_required
+def update_quality_check_config():
+    """
+    Update quality check configuration for current user.
+
+    Expects JSON: {
+        "check_type": "image_quality",
+        "enabled": true,
+        "run_after_crawl": true
+    }
+    """
+    from calidad.post_crawl_runner import update_user_check_config
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        data = request.get_json()
+        check_type = data.get('check_type')
+        enabled = data.get('enabled', False)
+        run_after_crawl = data.get('run_after_crawl', False)
+
+        if not check_type:
+            return jsonify({'success': False, 'error': 'check_type is required'}), 400
+
+        success = update_user_check_config(
+            user_id=current_user.id,
+            check_type=check_type,
+            enabled=enabled,
+            run_after_crawl=run_after_crawl
+        )
+
+        if success:
+            return jsonify({'success': True})
+        else:
+            return jsonify({'success': False, 'error': 'Failed to update config'}), 500
+
+    except Exception as e:
+        logger.error(f"Error updating check config: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@crawler_bp.route('/results/<int:crawl_run_id>/run-checks', methods=['POST'])
+@login_required
+def run_crawl_quality_checks(crawl_run_id):
+    """
+    Manually run quality checks on a completed crawl.
+
+    Expects JSON: {
+        "check_types": ["broken_links", "image_quality"]
+    }
+    """
+    from calidad.post_crawl_runner import PostCrawlQualityRunner
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        # Verify crawl run exists
+        with db_cursor(commit=False) as cursor:
+            cursor.execute("""
+                SELECT id, status, root_url
+                FROM crawl_runs
+                WHERE id = %s
+            """, (crawl_run_id,))
+            crawl_run = cursor.fetchone()
+
+        if not crawl_run:
+            return jsonify({'success': False, 'error': 'Crawl run not found'}), 404
+
+        # Get requested checks
+        data = request.get_json()
+        check_types = data.get('check_types', [])
+
+        if not check_types:
+            return jsonify({'success': False, 'error': 'check_types is required'}), 400
+
+        # Run checks
+        runner = PostCrawlQualityRunner(crawl_run_id)
+        results = runner.run_selected_checks(check_types)
+
+        return jsonify({
+            'success': True,
+            'results': results
+        })
+
+    except Exception as e:
+        logger.error(f"Error running checks: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500

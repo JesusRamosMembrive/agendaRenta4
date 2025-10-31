@@ -15,6 +15,14 @@ Available checkers:
 - Content Freshness Checker (Stage 3.8)
 """
 
-from calidad.base import QualityCheck, QualityCheckResult
+from calidad.base import QualityCheck, QualityCheckResult, QualityCheckRunner
+from calidad.enlaces import EnlacesChecker
+from calidad.imagenes import ImagenesChecker
 
-__all__ = ["QualityCheck", "QualityCheckResult"]
+__all__ = [
+    "QualityCheck",
+    "QualityCheckResult",
+    "QualityCheckRunner",
+    "EnlacesChecker",
+    "ImagenesChecker",
+]
