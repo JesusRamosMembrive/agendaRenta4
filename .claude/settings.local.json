@@ -23,7 +23,9 @@
       "Bash(autoflake:*)",
       "Bash(vulture:*)",
       "Bash(flake8:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(ruff check:*)",
+      "Bash(ruff format:*)"
     ],
     "deny": [],
     "ask": []

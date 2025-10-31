@@ -53,7 +53,7 @@
           Realizadas
           <span class="nav-counter">{{ task_counts.completed }}</span>
         </a>
-        <a href="{{ url_for('configuracion') }}" class="{% if request.endpoint == 'configuracion' %}active{% endif %}">
+        <a href="{{ url_for('config.index') }}" class="{% if request.endpoint == 'config.index' %}active{% endif %}">
           Configuración
         </a>
       </nav>
