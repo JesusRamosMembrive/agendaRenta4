@@ -180,12 +180,34 @@ def client(app):
 
 
 @pytest.fixture
-def authenticated_client(client):
+def authenticated_client(client, db_cursor_fixture):
     """
     Provide authenticated Flask test client.
+    Creates a test user and logs in.
     """
-    # Mock login
-    with client.session_transaction() as sess:
-        sess["user_id"] = 1
+    cursor = db_cursor_fixture
+
+    # Create test user if doesn't exist
+    from werkzeug.security import generate_password_hash
+
+    cursor.execute(
+        """
+        INSERT INTO users (username, password_hash, full_name, created_at)
+        VALUES (%s, %s, %s, CURRENT_TIMESTAMP)
+        ON CONFLICT (username) DO NOTHING
+        RETURNING id
+    """,
+        ("testuser", generate_password_hash("testpass123"), "Test User"),
+    )
+
+    result = cursor.fetchone()
+    user_id = result["id"] if result else 1
+
+    # Login with test credentials
+    response = client.post(
+        "/login",
+        data={"username": "testuser", "password": "testpass123"},
+        follow_redirects=False,
+    )
 
     yield client
