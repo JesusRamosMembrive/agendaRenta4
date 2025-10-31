@@ -11,7 +11,7 @@
     <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 20px; margin: 20px 0; border-radius: 8px;">
         <strong>⚠️ No hay crawls disponibles</strong>
         <p style="margin: 10px 0 0 0;">Ejecuta el crawler primero para descubrir URLs.</p>
-        <a href="{{ url_for('crawler_dashboard') }}" class="btn" style="margin-top: 10px;">Ir al Dashboard</a>
+        <a href="{{ url_for('crawler.dashboard') }}" class="btn" style="margin-top: 10px;">Ir al Dashboard</a>
     </div>
     {% else %}
 
@@ -117,8 +117,8 @@
 
     <!-- Actions -->
     <div style="margin: 30px 0;">
-        <a href="{{ url_for('crawler_dashboard') }}" class="btn">⬅️ Volver al Dashboard</a>
-        <a href="{{ url_for('crawler_results') }}" class="btn">📋 Ver Todas las URLs</a>
+        <a href="{{ url_for('crawler.dashboard') }}" class="btn">⬅️ Volver al Dashboard</a>
+        <a href="{{ url_for('crawler.results') }}" class="btn">📋 Ver Todas las URLs</a>
     </div>
 
     {% endif %}

@@ -17,7 +17,13 @@
       "Bash(python validate_urls.py:*)",
       "Bash(python:*)",
       "Bash(pip install:*)",
-      "Bash(pkill:*)"
+      "Bash(pkill:*)",
+      "Bash(find:*)",
+      "Bash(radon cc:*)",
+      "Bash(autoflake:*)",
+      "Bash(vulture:*)",
+      "Bash(flake8:*)",
+      "Bash(git checkout:*)"
     ],
     "deny": [],
     "ask": []

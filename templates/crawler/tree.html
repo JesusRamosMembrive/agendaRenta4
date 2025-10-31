@@ -97,7 +97,7 @@
     <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
         <h3 style="margin-top: 0; margin-bottom: 20px; color: #111827;">Filtros</h3>
 
-        <form method="get" action="{{ url_for('crawler_tree') }}" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; align-items: end;">
+        <form method="get" action="{{ url_for('crawler.tree') }}" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; align-items: end;">
             <!-- Broken Only -->
             <div>
                 <label style="display: block; margin-bottom: 5px; color: #374151; font-weight: 600; font-size: 14px;">
@@ -134,7 +134,7 @@
 
             <!-- Clear Filters -->
             <div style="text-align: right;">
-                <a href="{{ url_for('crawler_tree') }}" class="btn" style="display: inline-block; margin: 0; background: #6b7280;">
+                <a href="{{ url_for('crawler.tree') }}" class="btn" style="display: inline-block; margin: 0; background: #6b7280;">
                     Limpiar filtros
                 </a>
             </div>
@@ -162,16 +162,16 @@
         {% else %}
         <div style="text-align: center; padding: 40px; color: #9ca3af;">
             <p><strong>No se encontraron URLs con los filtros seleccionados.</strong></p>
-            <p><a href="{{ url_for('crawler_tree') }}">Limpiar filtros</a></p>
+            <p><a href="{{ url_for('crawler.tree') }}">Limpiar filtros</a></p>
         </div>
         {% endif %}
     </div>
 
     <!-- Actions -->
     <div style="display: flex; gap: 10px; margin-top: 30px;">
-        <a href="{{ url_for('crawler_dashboard') }}" class="btn">← Volver al Dashboard</a>
-        <a href="{{ url_for('crawler_results') }}" class="btn">📋 Ver Lista</a>
-        <a href="{{ url_for('crawler_broken') }}" class="btn">🔍 Solo Rotas</a>
+        <a href="{{ url_for('crawler.dashboard') }}" class="btn">← Volver al Dashboard</a>
+        <a href="{{ url_for('crawler.results') }}" class="btn">📋 Ver Lista</a>
+        <a href="{{ url_for('crawler.broken') }}" class="btn">🔍 Solo Rotas</a>
     </div>
 </div>
 

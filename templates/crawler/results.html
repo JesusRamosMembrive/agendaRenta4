@@ -31,7 +31,7 @@
     <!-- Summary Info -->
     <div style="margin-bottom: 20px;">
         <p>Total: <strong>{{ total }}</strong> URLs descubiertas</p>
-        <a href="{{ url_for('crawler_dashboard') }}" class="btn">← Volver al Dashboard</a>
+        <a href="{{ url_for('crawler.dashboard') }}" class="btn">← Volver al Dashboard</a>
     </div>
     {% endif %}
 
@@ -98,7 +98,7 @@
     {% else %}
     <div style="padding: 40px; text-align: center; background: #f3f4f6; border-radius: 8px;">
         <p>No hay URLs descubiertas todavía.</p>
-        <p><a href="{{ url_for('crawler_dashboard') }}">Iniciar un crawl</a> para comenzar.</p>
+        <p><a href="{{ url_for('crawler.dashboard') }}">Iniciar un crawl</a> para comenzar.</p>
     </div>
     {% endif %}
 </div>
