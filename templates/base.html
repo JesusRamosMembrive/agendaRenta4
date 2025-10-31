@@ -67,6 +67,9 @@
         <a href="{{ url_for('crawler_dashboard') }}" class="{% if request.endpoint == 'crawler_dashboard' %}active{% endif %}">
           📊 Dashboard
         </a>
+        <a href="{{ url_for('crawler_tree') }}" class="{% if request.endpoint == 'crawler_tree' %}active{% endif %}">
+          🌳 Vista de Árbol
+        </a>
         <a href="{{ url_for('crawler_results') }}" class="{% if request.endpoint == 'crawler_results' %}active{% endif %}">
           🌐 URLs Descubiertas
         </a>
