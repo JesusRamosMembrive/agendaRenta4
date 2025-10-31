@@ -1,8 +1,518 @@
 # Estado Actual
 
-**Fecha**: 2025-10-29
-**Etapa**: 1 (Prototipado) - ✅ **COMPLETADO Y DESPLEGADO EN PRODUCCIÓN**
-**Sesión Final**: Migración completa a PostgreSQL y despliegue en Render
+**Fecha**: 2025-10-31
+**Etapa**: 2 (Sistema Estructurado) - Phase 2.4 COMPLETADA - ✅ Revalidación Automática
+**Sesión Actual**: Sistema de revalidación automática implementado y funcionando
+
+## 🤖 PHASE 2.4 REVALIDACIÓN AUTOMÁTICA COMPLETADA (2025-10-31)
+
+**Sistema de Revalidación Automática con Scheduler y Notificaciones**
+
+### Implementación Completada
+
+✅ **Módulo Scheduler (crawler/scheduler.py - 273 líneas)**
+- Clase `ValidationScheduler` para revalidación automática
+- Integración con APScheduler (BackgroundScheduler)
+- Configuración de frecuencia: diaria, semanal
+- Tracking automático de cambios (broken, fixed, status_change)
+- Cálculo automático de Health Score
+- Notificaciones por email cuando se detectan nuevos enlaces rotos
+- Manejo de errores robusto con logging detallado
+
+✅ **Base de Datos - Tabla health_snapshots (migration 004)**
+- Almacena snapshots históricos de salud del sitio
+- Campos: snapshot_date, health_score, total_urls, ok_urls, broken_urls, redirect_urls, error_urls
+- Índice en snapshot_date para queries rápidas
+- Permite análisis de tendencias temporales
+
+✅ **Flask Routes - Health Dashboard & Scheduler (app.py:1440-1542)**
+- `/crawler/health` - Dashboard con gráficos históricos
+- `/crawler/scheduler` - Configuración del scheduler (GET/POST)
+- Acciones: start, stop, run_now
+- Integración completa con el sistema de validación existente
+
+✅ **UI Templates**
+- `templates/crawler/health.html` - Dashboard con Chart.js
+  * Cards de métricas (Health Score, Total URLs, OK, Broken)
+  * Gráfico de evolución histórica (últimos 30 días)
+  * Indicador de tendencia (comparación 7 días)
+  * Resumen de cambios recientes
+- `templates/crawler/scheduler.html` - Configuración del scheduler
+  * Estado actual (activo/inactivo, próxima ejecución)
+  * Formulario de configuración (frecuencia, hora, minuto)
+  * Ejecución manual inmediata
+  * Panel informativo
+
+✅ **Email Notifications (templates/emails/revalidation_report.html)**
+- Email HTML responsive con estadísticas
+- Lista de enlaces rotos detectados
+- Priorización de URLs críticas
+- Link directo al dashboard
+- Diseño con colores semánticos
+
+✅ **Menú Sidebar Actualizado (templates/base.html)**
+- Nuevos enlaces: 💚 Health y ⚙️ Scheduler
+- Navegación completa del módulo crawler
+
+### Características del Sistema
+
+**Scheduler Automático:**
+- Frecuencia configurable (diaria, semanal)
+- Hora y minuto personalizables
+- Próxima ejecución visible en UI
+- Start/Stop desde interfaz web
+
+**Health Tracking:**
+- Snapshots automáticos en cada revalidación
+- Health Score: (OK URLs / Total URLs) * 100
+- Gráfico histórico con Chart.js (dual-axis)
+- Tendencia comparativa (7 días)
+
+**Notificaciones Inteligentes:**
+- Email solo cuando hay nuevos enlaces rotos
+- Detección de cambios: new, broken, fixed, status_change
+- Filtro últimas 24 horas
+- Template HTML profesional
+
+**Ejecución Manual:**
+- Botón "Ejecutar Revalidación Ahora"
+- Útil para testing y troubleshooting
+- Ejecuta en contexto de Flask app
+
+### Dependencias Añadidas
+
+- `APScheduler==3.10.4` - Background scheduler
+- `pytz`, `tzlocal` - Timezone handling (dependencies de APScheduler)
+
+### Archivos Creados/Modificados
+
+**Nuevos archivos (7):**
+- `crawler/scheduler.py` (273 líneas)
+- `migrations/004_add_health_snapshots.sql`
+- `templates/crawler/health.html`
+- `templates/crawler/scheduler.html`
+- `templates/emails/revalidation_report.html`
+- `test_scheduler.py` (166 líneas)
+
+**Modificados (4):**
+- `app.py` - 2 nuevas rutas (líneas 1440-1542)
+- `templates/base.html` - Menú sidebar actualizado
+- `templates/crawler/results.html` - Bugs visuales corregidos
+- `requirements.txt` - APScheduler añadido
+
+### Bugs Corregidos
+
+✅ **Bug Visual /crawler/results**
+- Enlaces rotos con fondo rosa y texto gris (ilegible)
+- Badge de profundidad con texto gris sobre azul claro (ilegible)
+- **Fix**: Colores contrastantes (#991b1b sobre rosa, #1e40af sobre azul)
+
+### Testing
+
+✅ **test_scheduler.py - Script de Pruebas**
+- Check de database setup (health_snapshots table)
+- Test de revalidación manual
+- Test de configuración del scheduler (start/stop)
+- Todos los tests pasan correctamente
+
+**Resultados:**
+```
+✅ health_snapshots table exists
+✅ discovered_urls table: 2839 URLs
+   - Validated: 2788
+   - Broken: 46
+✅ Scheduler started successfully
+   - Next Run: 2025-11-01 03:00:00
+   - Trigger: cron[hour='3', minute='0']
+✅ Scheduler stopped successfully
+```
+
+### Próximos Pasos Sugeridos
+
+**🎯 OPCIÓN D: Despliegue en Producción (RECOMENDADO)**
+1. Configurar variables de entorno en Render
+2. Ejecutar migración 004 en producción
+3. Configurar SMTP para emails (MAIL_SERVER, MAIL_USERNAME, MAIL_PASSWORD)
+4. Activar scheduler desde UI en producción
+5. Monitorear primeras ejecuciones
+
+**Variables necesarias en Render:**
+```bash
+MAIL_SERVER=smtp.gmail.com
+MAIL_PORT=587
+MAIL_USE_TLS=True
+MAIL_USERNAME=tu-email@gmail.com
+MAIL_PASSWORD=tu-app-password
+MAIL_DEFAULT_SENDER=Agenda Renta4 <noreply@renta4.com>
+```
+
+**Comandos para producción:**
+```bash
+# 1. Ejecutar migración
+psql $DATABASE_URL < migrations/004_add_health_snapshots.sql
+
+# 2. Auto-start scheduler en app.py (descomentar líneas 1552-1553)
+# from crawler.scheduler import start_scheduler
+# start_scheduler(frequency='daily', hour=3, minute=0)
+```
+
+---
+
+## 🎉 PHASE 2.3 VALIDACIÓN COMPLETA TERMINADA (2025-10-30 tarde)
+
+**Validación de Todas las URLs Descubiertas por el Crawler**
+
+### Ejecución de Validación Completa
+
+✅ **Validación masiva ejecutada exitosamente**
+- **2,788 URLs validadas** (99.8% del total descubierto)
+- **Duración**: 52.1 minutos (3,124 segundos)
+- **Rate limiting**: 2 req/segundo respetado
+- **Inicio**: 2025-10-30 20:20:18
+- **Fin**: 2025-10-30 21:12:21
+
+### Resultados de Salud del Sitio
+
+📊 **Estadísticas Generales:**
+- ✅ **URLs OK (2xx, 3xx)**: 2,743 (98.4%)
+- ❌ **Enlaces rotos (4xx, 5xx)**: 45 (1.6%)
+- ⚠️ **Timeouts/Errores**: 1 (0.04%)
+- 🔄 **Redirects detectados**: 392
+
+💚 **Health Score: 98.4%** - Excelente salud general del sitio
+
+⭐ **URLs Prioritarias: 117/117 OK (100%)** - Todas las URLs críticas funcionan correctamente
+
+### Patrones de Errores Identificados
+
+**45 URLs con HTTP 404:**
+
+1. **Academia R4 (9 URLs)**
+   - Formularios de cursos con IDs inexistentes
+   - Patrón: `www.r4.com/academiar4/formulario-cursos?id=XXXX`
+   - IDs rotos: 3636-3643, 4367
+
+2. **Análisis de Compañías (múltiples URLs)**
+   - Sección completa eliminada o reestructurada
+   - Ejemplo: `www.r4.com/articulos-y-analisis/seguimiento-de-companias`
+   - Artículos individuales también rotos
+
+3. **Renta Fija (múltiples URLs)**
+   - Sección de productos de renta fija eliminada
+   - Ejemplo: `www.r4.com/broker-online/productos-de-inversion/renta-fija`
+
+4. **URLs Malformadas (1 URL)**
+   - Espacios codificados incorrectamente
+   - Ejemplo: `www.r4.com/autor/%20`
+
+**1 Timeout:**
+- Error de conexión o respuesta muy lenta
+
+### Herramientas Creadas
+
+✅ **Script de Monitoreo (monitor_validation.py)**
+- Monitor en tiempo real de progreso de validación
+- Barra de progreso visual
+- Estadísticas actualizadas cada 5 segundos (configurable)
+- Velocidad de procesamiento (URLs/minuto)
+- Estimación de tiempo restante
+- Health score en vivo
+- Auto-detección de completitud
+
+✅ **Script de Exportación (export_broken_links.py)**
+- Genera reporte detallado en formato TXT
+- Agrupa enlaces por tipo de error (4xx, 5xx, timeouts)
+- Identifica redirects problemáticos (→ 404)
+- Lista todos los redirects para análisis
+- Incluye recomendaciones de corrección
+
+### Reportes Generados
+
+📄 **Archivos creados (2025-10-30 21:30):**
+
+1. **broken_links_report_20251030_213051.txt**
+   - Reporte detallado de 46 problemas encontrados
+   - Secciones: Broken URLs, Bad Redirects, Errors, All Redirects
+   - Información completa: URL, código, tiempo de respuesta, profundidad, fecha
+
+2. **informe_crawl_r4_20251030_213134.xlsx**
+   - Informe Excel completo con 6 hojas
+   - Incluye columnas de validación (estado, código, tiempo)
+   - Colores condicionales (verde=OK, rojo=roto)
+
+3. **urls_todas_20251030_213135.csv**
+   - Respaldo en formato CSV
+
+4. **urls_todas_20251030_213135.txt**
+   - Lista simple de URLs
+
+### Mejoras a la UI
+
+✅ **Menú Lateral Actualizado (templates/base.html)**
+- Nueva sección "Crawler" con divisor visual
+- Tres enlaces principales:
+  - 📊 Dashboard
+  - 🌐 URLs Descubiertas
+  - 🔍 Validación (con contador de enlaces rotos)
+- Contador dinámico que muestra número de enlaces rotos en badge rojo
+- Context processor actualizado para inyectar `broken_count` en todas las páginas
+
+✅ **Fixes en UI /crawler/broken**
+- Texto negro en cajas de información (antes gris ilegible)
+- Stats cards mostrando números correctos (antes mostraba 0)
+- Query SQL corregida para mostrar URLs validadas, no solo rotas
+
+### Archivos Creados/Modificados
+
+**Nuevos archivos:**
+- `monitor_validation.py` (247 líneas) - Monitor de progreso en tiempo real
+- `export_broken_links.py` (237 líneas) - Exportador de reportes de enlaces rotos
+
+**Modificados:**
+- `templates/base.html` - Nueva sección Crawler en sidebar (líneas 61-79)
+- `app.py` - Context processor actualizado con `broken_count` (líneas 451-484)
+- `templates/crawler/broken.html` - Fixes de colores y stats (múltiples líneas)
+
+### Archivos de Reporte Generados
+
+- `broken_links_report_20251030_213051.txt` (7KB)
+- `informe_crawl_r4_20251030_213134.xlsx` (180KB)
+- `urls_todas_20251030_213135.csv` (210KB)
+- `urls_todas_20251030_213135.txt` (98KB)
+
+### Próximos Pasos para Mañana
+
+**🎯 OPCIÓN A: Phase 2.4 - Sistema de Revalidación Automática**
+1. Crear cron job o scheduler para revalidar URLs periódicamente
+2. Sistema de notificaciones por email cuando se detecten nuevos enlaces rotos
+3. Dashboard con histórico de salud del sitio (gráficos temporales)
+4. Comparación entre crawls (¿qué enlaces se rompieron desde el último crawl?)
+
+**🎯 OPCIÓN B: Phase 2.5 - Corrección de Enlaces Rotos**
+1. Analizar manualmente los 46 enlaces rotos identificados
+2. Crear plan de corrección con prioridades
+3. Coordinar con equipo de desarrollo para corregir enlaces
+4. Re-crawl y revalidación post-corrección
+
+**🎯 OPCIÓN C: Phase 3 - Comparación de Contenido**
+1. Sistema de snapshots de contenido de páginas
+2. Detección de cambios en contenido entre crawls
+3. Alertas cuando páginas críticas cambien
+4. Diff visual de cambios
+
+**🎯 OPCIÓN D: Despliegue en Producción**
+1. Preparar sistema de crawler para Render
+2. Configurar PostgreSQL para almacenar crawls en producción
+3. Programar crawls automáticos (ej: semanal)
+4. Dashboard accesible para equipo
+
+**Recomendación**: Opción D (Despliegue) o Opción A (Revalidación automática) para cerrar Phase 2 completamente antes de pasar a Phase 3.
+
+---
+
+## ✅ PHASE 2.2 VALIDACIÓN INICIAL COMPLETADA (2025-10-30 mañana)
+
+**Sistema de Validación de URLs y Detección de Enlaces Rotos**
+
+### Implementación Completada
+
+✅ **Módulo Validador (crawler/validator.py - 237 líneas)**
+- Clase `URLValidator` para verificar status codes HTTP
+- Medición de response time en segundos
+- Detección de enlaces rotos (4xx, 5xx, timeouts)
+- Tracking de redirects (301, 302)
+- Rate limiting: 2 requests/segundo
+- Actualización automática de base de datos
+- Tracking de cambios en tabla `url_changes`
+
+✅ **Script de Validación (validate_urls.py - 143 líneas)**
+- Valida todas las URLs descubiertas o solo prioritarias
+- Modo `--priority-only` para validar solo las 117 URLs críticas
+- Confirmación interactiva antes de ejecutar
+- Estadísticas detalladas de validación
+- Progress logging cada 10 URLs
+
+✅ **Flask Route - Enlaces Rotos (app.py:1314-1362)**
+- Nueva ruta `/crawler/broken` para visualizar enlaces rotos
+- Filtra URLs con `is_broken = TRUE`
+- Ordena por prioridad (prioritarias primero)
+- Muestra estadísticas: total, prioritarias, nuevas
+
+✅ **UI Template (templates/crawler/broken.html)**
+- Dashboard visual con stats cards
+- Tabla filtrable (todas/prioritarias/nuevas)
+- Badges de status code con colores
+- Información de error y tiempo de respuesta
+- JavaScript para filtrado dinámico
+
+✅ **Excel Mejorado con Datos de Validación**
+- Nueva columna "Estado" con colores (✅ OK, ❌ Roto, ⚪ No validada)
+- Columna "Código" con HTTP status code
+- Columna "Tiempo(s)" con response time
+- Hojas actualizadas: "Todas las URLs" y "URLs Prioritarias"
+
+### Resultados de la Validación
+
+**Test con 117 URLs Prioritarias:**
+```
+✅ 117/117 URLs validadas exitosamente
+✅ 100% de salud - 0 enlaces rotos
+⏱️  Duración: 75.5 segundos (1.3 minutos)
+📊 Estadísticas:
+   - OK (2xx, 3xx):     117
+   - Broken (4xx, 5xx): 0
+   - Redirects:         0
+   - Errors (timeout):  0
+```
+
+### Archivos Creados/Modificados
+
+**Nuevos archivos:**
+- `crawler/validator.py`
+- `validate_urls.py`
+- `templates/crawler/broken.html`
+
+**Modificados:**
+- `app.py` - Nueva ruta `/crawler/broken`
+- `generate_excel_report.py` - Añadidas columnas de validación
+
+### Próximo Paso
+Phase 2.2 completada exitosamente. El sistema puede ahora:
+- Descubrir URLs automáticamente
+- Marcar URLs prioritarias
+- Validar salud de URLs
+- Detectar enlaces rotos
+- Generar reportes completos
+
+---
+
+## ⭐ PHASE 2.2 PREPARACIÓN COMPLETADA (2025-10-30)
+
+**URLs Prioritarias - Sistema de Marcado**
+
+### Implementación Completada
+
+✅ **Migración de Base de Datos (migrations/003_add_priority_flag.sql)**
+- Campo `is_priority` añadido a tabla `discovered_urls`
+- Índice creado para queries rápidas por prioridad
+- Preparación para validación selectiva de URLs críticas
+
+✅ **Script de Marcado (mark_priority_urls.py - 79 líneas)**
+- Marca automáticamente las 117 URLs de la lista manual como prioritarias
+- Cruza datos entre tabla `sections` (manual) y `discovered_urls` (crawler)
+- Resultado: 100% de éxito (117/117 URLs marcadas)
+
+✅ **Reportes Excel Mejorados (generate_excel_report.py)**
+- Nueva columna "⭐ Prioritaria" en hoja "Todas las URLs"
+- Nueva hoja exclusiva "URLs Prioritarias" con 117 URLs destacadas
+- Estadísticas actualizadas mostrando separación prioritarias/nuevas
+- Highlight visual: fondo amarillo claro para URLs prioritarias
+
+### Resultado Final
+- **117 URLs prioritarias** marcadas (lista manual de auditoría)
+- **2,722 URLs nuevas** descubiertas por crawler
+- **Total: 2,839 URLs** en sistema
+
+### Archivos Creados/Modificados
+
+**Nuevos archivos:**
+- `migrations/003_add_priority_flag.sql`
+- `mark_priority_urls.py`
+
+**Modificados:**
+- `generate_excel_report.py` - Añadida columna prioritaria y nueva hoja
+
+### Próximo Paso
+Con las URLs prioritarias marcadas, el siguiente paso es implementar la **validación de URLs (Phase 2.2)** enfocándose primero en las 117 URLs críticas.
+
+---
+
+## 🕷️ PHASE 2.1 MVP COMPLETADO (2025-10-30)
+
+**Web Crawler Automático - Descubrimiento de URLs**
+
+### Implementación Completada
+
+✅ **Base de datos (migrations/002_add_crawler_tables.sql)**
+- Tabla `discovered_urls`: Almacena URLs descubiertas con depth, status_code, parent_url
+- Tabla `crawl_runs`: Historial de ejecuciones del crawler
+- Tabla `url_changes`: Tracking de cambios (preparada para Phase 2.2)
+
+✅ **Crawler Engine (crawler/crawler.py - 362 líneas)**
+- Queue-based crawling (evita recursión infinita)
+- Rate limiting: 1 request/segundo
+- Respeta dominios permitidos y profundidad máxima
+- Normalización de URLs (fragmentos, trailing slashes)
+- Extracción de links con BeautifulSoup
+- Manejo de errores y timeouts
+
+✅ **Configuración (crawler/config.py)**
+- Límites MVP: 50 URLs, profundidad 3 niveles
+- Timeout: 10 segundos por request
+- Ignore patterns: /static/, PDFs, imágenes, etc.
+- User-Agent identificable
+
+✅ **Flask Routes (app.py líneas 1182-1311)**
+- `/crawler` - Dashboard con stats y historial
+- `/crawler/start` - Iniciar crawl manual (POST)
+- `/crawler/results` - Lista paginada de URLs descubiertas
+- `/crawler/results/<id>` - URLs de un crawl específico
+
+✅ **Templates HTML**
+- `templates/crawler/dashboard.html` - UI con stats cards y botón de inicio
+- `templates/crawler/results.html` - Tabla de URLs con estados y profundidad
+
+✅ **Testing**
+- Test exitoso con 50 URLs descubiertas
+- 0 errores durante el crawl
+- Tiempo de ejecución: ~78 segundos
+- 186 links encontrados en la página raíz
+- URLs guardadas correctamente en base de datos
+
+### Archivos Creados/Modificados
+
+**Nuevos archivos:**
+- `migrations/002_add_crawler_tables.sql`
+- `crawler/__init__.py`
+- `crawler/config.py`
+- `crawler/crawler.py`
+- `templates/crawler/dashboard.html`
+- `templates/crawler/results.html`
+- `test_crawler.py`
+
+**Modificados:**
+- `app.py` - 4 nuevas rutas Flask (líneas 1182-1311)
+- `requirements.txt` - Añadido requests==2.31.0, beautifulsoup4==4.12.2
+
+### Resultados del Test
+
+```
+URLs Discovered: 50
+URLs Skipped: 5
+Errors: 0
+Crawl Duration: 78 seconds
+```
+
+**Estadísticas de descubrimiento:**
+- Depth 0 (root): 1 URL
+- Depth 1: 42 URLs
+- Depth 2: 7 URLs
+- Total links encontrados en homepage: 186
+
+### Bugs Corregidos en el Proceso
+
+1. **Encoding Error en crawler/__init__.py**
+   - Error: `'utf-8' codec can't decode byte 0xe1` (caracter "ó" mal codificado)
+   - Fix: Cambio "Automático" → "Automatico"
+
+### Convivencia Temporal
+
+La tabla `sections` (Stage 1) sigue funcionando. Las nuevas tablas del crawler (`discovered_urls`) conviven en paralelo, permitiendo:
+- Comparar descubrimiento manual vs automático
+- Stage 1 sigue operativo sin cambios
+- Migración gradual en fases posteriores
+
+---
 
 ## 🎉 STAGE 1 COMPLETADO Y EN PRODUCCIÓN
 

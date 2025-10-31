@@ -5,3 +5,8 @@ Flask-Mail==0.10.0
 Flask-Login==0.6.3
 psycopg2-binary==2.9.11
 gunicorn==21.2.0
+
+# Stage 2 - Crawler
+requests==2.31.0
+beautifulsoup4==4.12.2
+APScheduler==3.10.4

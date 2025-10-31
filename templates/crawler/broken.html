@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+
+{% block title %}Enlaces Rotos - Crawler{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>❌ Enlaces Rotos</h1>
+    <p class="subtitle">URLs con errores detectadas por el crawler</p>
+
+    {% if not crawl_run %}
+    <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 20px; margin: 20px 0; border-radius: 8px;">
+        <strong>⚠️ No hay crawls disponibles</strong>
+        <p style="margin: 10px 0 0 0;">Ejecuta el crawler primero para descubrir URLs.</p>
+        <a href="{{ url_for('crawler_dashboard') }}" class="btn" style="margin-top: 10px;">Ir al Dashboard</a>
+    </div>
+    {% else %}
+
+    <!-- Stats Cards -->
+    <div class="stats-row" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin: 30px 0;">
+        <div class="stat-card" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 20px; border-radius: 12px;">
+            <div style="font-size: 2em; font-weight: bold;">{{ stats.total_validated }}</div>
+            <div>URLs Validadas</div>
+        </div>
+
+        <div class="stat-card" style="background: linear-gradient(135deg, #f6c445 0%, #f59e0b 100%); color: white; padding: 20px; border-radius: 12px;">
+            <div style="font-size: 2em; font-weight: bold;">{{ stats.priority_validated }}</div>
+            <div>⭐ URLs Prioritarias</div>
+        </div>
+
+        <div class="stat-card" style="background: linear-gradient(135deg, #f5576c 0%, #e63946 100%); color: white; padding: 20px; border-radius: 12px;">
+            <div style="font-size: 2em; font-weight: bold;">{{ stats.total_broken }}</div>
+            <div>❌ Enlaces Rotos</div>
+        </div>
+    </div>
+
+    {% if broken_urls %}
+    <!-- Filter Buttons -->
+    <div style="margin: 20px 0;">
+        <button onclick="filterTable('all')" class="btn btn-primary" id="filter-all">Todas ({{ broken_urls|length }})</button>
+        <button onclick="filterTable('priority')" class="btn" id="filter-priority">⭐ Prioritarias ({{ stats.priority_broken }})</button>
+        <button onclick="filterTable('non-priority')" class="btn" id="filter-non-priority">📄 Nuevas ({{ stats.non_priority_broken }})</button>
+    </div>
+    <!-- Broken URLs Table -->
+    <div class="table-container" style="margin: 20px 0;">
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 50px;">#</th>
+                    <th style="width: 50px;">⭐</th>
+                    <th style="width: 500px;">URL</th>
+                    <th style="width: 100px;">Código</th>
+                    <th style="width: 120px;">Tiempo (s)</th>
+                    <th>Error</th>
+                    <th style="width: 180px;">Última Revisión</th>
+                </tr>
+            </thead>
+            <tbody id="broken-urls-table">
+                {% for url in broken_urls %}
+                <tr class="url-row" data-priority="{{ url.is_priority|lower }}">
+                    <td>{{ loop.index }}</td>
+                    <td style="text-align: center;">
+                        {% if url.is_priority %}
+                            <span style="font-size: 1.2em;">⭐</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="{{ url.url }}" target="_blank" style="color: #3b82f6; text-decoration: none; word-break: break-all;">
+                            {{ url.url }}
+                        </a>
+                    </td>
+                    <td>
+                        <span class="status-badge status-{{ url.status_code if url.status_code else 'error' }}">
+                            {{ url.status_code if url.status_code else 'N/A' }}
+                        </span>
+                    </td>
+                    <td style="text-align: right;">
+                        {% if url.response_time %}
+                            {{ "%.2f"|format(url.response_time) }}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span style="color: #dc2626; font-size: 13px;">
+                            {{ url.error_message if url.error_message else 'Error desconocido' }}
+                        </span>
+                    </td>
+                    <td style="font-size: 13px;">
+                        {% if url.last_checked %}
+                            {{ url.last_checked.strftime('%d/%m/%Y %H:%M') }}
+                        {% else %}
+                            No validada
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div style="background: #d1fae5; border-left: 4px solid #10b981; padding: 20px; margin: 20px 0; border-radius: 8px; color: #000000;">
+        <strong style="color: #000000;">✅ ¡Excelente!</strong>
+        <p style="margin: 10px 0 0 0; color: #000000;">No se encontraron enlaces rotos en el último crawl. Todas las {{ stats.total_validated }} URLs validadas funcionan correctamente.</p>
+    </div>
+    {% endif %}
+
+    <!-- Crawl Info -->
+    <div style="margin-top: 40px; padding: 20px; background: #f3f4f6; border-radius: 8px; color: #000000;">
+        <h3 style="margin: 0 0 10px 0; color: #000000;">Información del Crawl</h3>
+        <p style="margin: 5px 0; color: #000000;"><strong>Iniciado:</strong> {{ crawl_run.started_at.strftime('%d/%m/%Y %H:%M:%S') }}</p>
+        {% if crawl_run.finished_at %}
+        <p style="margin: 5px 0; color: #000000;"><strong>Finalizado:</strong> {{ crawl_run.finished_at.strftime('%d/%m/%Y %H:%M:%S') }}</p>
+        {% endif %}
+        <p style="margin: 5px 0; color: #000000;"><strong>URLs Descubiertas:</strong> {{ crawl_run.urls_discovered }}</p>
+        <p style="margin: 5px 0; color: #000000;"><strong>URLs Validadas:</strong> {{ stats.total_validated }}</p>
+    </div>
+
+    <!-- Actions -->
+    <div style="margin: 30px 0;">
+        <a href="{{ url_for('crawler_dashboard') }}" class="btn">⬅️ Volver al Dashboard</a>
+        <a href="{{ url_for('crawler_results') }}" class="btn">📋 Ver Todas las URLs</a>
+    </div>
+
+    {% endif %}
+</div>
+
+<style>
+.status-badge {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-weight: bold;
+    font-size: 12px;
+    display: inline-block;
+}
+
+.status-404 {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.status-500, .status-503 {
+    background: #fef3c7;
+    color: #f59e0b;
+}
+
+.status-error, .status-N/A {
+    background: #e5e7eb;
+    color: #6b7280;
+}
+
+.btn.active {
+    background: #3b82f6;
+    color: white;
+}
+
+.url-row.hidden {
+    display: none;
+}
+</style>
+
+<script>
+let currentFilter = 'all';
+
+function filterTable(filter) {
+    currentFilter = filter;
+    const rows = document.querySelectorAll('.url-row');
+    const buttons = {
+        'all': document.getElementById('filter-all'),
+        'priority': document.getElementById('filter-priority'),
+        'non-priority': document.getElementById('filter-non-priority')
+    };
+
+    // Update button states
+    Object.values(buttons).forEach(btn => btn.classList.remove('active'));
+    buttons[filter].classList.add('active');
+
+    // Filter rows
+    rows.forEach(row => {
+        const isPriority = row.dataset.priority === 'true';
+
+        if (filter === 'all') {
+            row.classList.remove('hidden');
+        } else if (filter === 'priority' && isPriority) {
+            row.classList.remove('hidden');
+        } else if (filter === 'non-priority' && !isPriority) {
+            row.classList.remove('hidden');
+        } else {
+            row.classList.add('hidden');
+        }
+    });
+
+    // Update row numbers
+    let visibleIndex = 1;
+    rows.forEach(row => {
+        if (!row.classList.contains('hidden')) {
+            row.querySelector('td:first-child').textContent = visibleIndex++;
+        }
+    });
+}
+
+// Initialize with 'all' filter active
+document.addEventListener('DOMContentLoaded', () => {
+    filterTable('all');
+});
+</script>
+{% endblock %}

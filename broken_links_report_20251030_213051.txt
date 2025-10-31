@@ -1,0 +1,318 @@
+================================================================================
+BROKEN LINKS REPORT
+================================================================================
+
+Generated: 2025-10-30 21:30:51
+Crawl Run ID: 2
+Crawl Started: 2025-10-30 12:19:00
+Crawl Finished: 2025-10-30 13:14:22
+Total URLs Discovered: 2839
+
+================================================================================
+SUMMARY
+================================================================================
+Broken URLs (4xx, 5xx): 45
+Bad Redirects (→ 404):  0
+Errors/Timeouts:        1
+Total Redirects:        0
+TOTAL ISSUES:           46
+
+================================================================================
+BROKEN URLS (45)
+================================================================================
+
+--- HTTP 404 (45 URLs) ---
+
+https://r4.com/politicas/politica-privacidad
+   Error: HTTP 404
+   Response time: 0.17s
+   Depth: 4
+   Last checked: 2025-10-30 20:35:07
+
+https://www.r4.com/academiar4/formulario-cursos?id=3636
+   Error: HTTP 404
+   Response time: 1.12s
+   Depth: 7
+   Last checked: 2025-10-30 21:03:04
+
+https://www.r4.com/academiar4/formulario-cursos?id=3637
+   Error: HTTP 404
+   Response time: 0.98s
+   Depth: 7
+   Last checked: 2025-10-30 21:03:12
+
+https://www.r4.com/academiar4/formulario-cursos?id=3638
+   Error: HTTP 404
+   Response time: 1.04s
+   Depth: 7
+   Last checked: 2025-10-30 21:03:06
+
+https://www.r4.com/academiar4/formulario-cursos?id=3639
+   Error: HTTP 404
+   Response time: 1.29s
+   Depth: 7
+   Last checked: 2025-10-30 21:03:11
+
+https://www.r4.com/academiar4/formulario-cursos?id=3640
+   Error: HTTP 404
+   Response time: 1.03s
+   Depth: 7
+   Last checked: 2025-10-30 21:03:08
+
+https://www.r4.com/academiar4/formulario-cursos?id=3641
+   Error: HTTP 404
+   Response time: 0.98s
+   Depth: 7
+   Last checked: 2025-10-30 21:03:09
+
+https://www.r4.com/academiar4/formulario-cursos?id=3642
+   Error: HTTP 404
+   Response time: 1.03s
+   Depth: 7
+   Last checked: 2025-10-30 21:03:14
+
+https://www.r4.com/academiar4/formulario-cursos?id=3643
+   Error: HTTP 404
+   Response time: 0.96s
+   Depth: 7
+   Last checked: 2025-10-30 21:03:16
+
+https://www.r4.com/academiar4/formulario-cursos?id=4367
+   Error: HTTP 404
+   Response time: 0.98s
+   Depth: 3
+   Last checked: 2025-10-30 20:28:16
+
+https://www.r4.com/articulos-y-analisis/ideas/rovi-mapfre-entran-en-carteras
+   Error: HTTP 404
+   Response time: 0.12s
+   Depth: 2
+   Last checked: 2025-10-30 20:24:56
+
+https://www.r4.com/articulos-y-analisis/seguimiento-de-companias
+   Error: HTTP 404
+   Response time: 0.08s
+   Depth: 5
+   Last checked: 2025-10-30 20:49:31
+
+https://www.r4.com/articulos-y-analisis/seguimiento-de-companias/acciona-energia-el-cambio-de-rumbo-se-consolidara-en-2025
+   Error: HTTP 404
+   Response time: 0.59s
+   Depth: 7
+   Last checked: 2025-10-30 20:58:32
+
+https://www.r4.com/articulos-y-analisis/seguimiento-de-companias/acciona-energia-motivos-para-recuperar-el-optimismo
+   Error: HTTP 404
+   Response time: 0.24s
+   Depth: 7
+   Last checked: 2025-10-30 20:58:33
+
+https://www.r4.com/articulos-y-analisis/seguimiento-de-companias/grenergy-las-recientes-caidas-generan-una-nueva-oportunidad-de-compra
+   Error: HTTP 404
+   Response time: 0.53s
+   Depth: 8
+   Last checked: 2025-10-30 21:04:13
+
+https://www.r4.com/articulos-y-analisis/seguimiento-de-companias/guia-para-invertir-en-inteligencia-artificial
+   Error: HTTP 404
+   Response time: 0.26s
+   Depth: 4
+   Last checked: 2025-10-30 20:39:44
+
+https://www.r4.com/articulos-y-analisis/valores/repsol-previo-3t25-no-news-good-news
+   Error: HTTP 404
+   Response time: 0.24s
+   Depth: 6
+   Last checked: 2025-10-30 20:51:51
+
+https://www.r4.com/autor/%20
+   Error: HTTP 404
+   Response time: 0.07s
+   Depth: 4
+   Last checked: 2025-10-30 20:40:19
+
+https://www.r4.com/broker-online/productos-de-inversion/renta-fija
+   Error: HTTP 404
+   Response time: 0.13s
+   Depth: 2
+   Last checked: 2025-10-30 20:24:41
+
+https://www.r4.com/broker-online/productos-de-inversion/renta-fija/invertir-bonos-renta-fija
+   Error: HTTP 404
+   Response time: 0.07s
+   Depth: 2
+   Last checked: 2025-10-30 20:24:43
+
+https://www.r4.com/broker-online/productos-de-inversion/renta-fija/invertir-bonos-renta-fija/rentabilidad-de-bonos-y-obligaciones-del-estado
+   Error: HTTP 404
+   Response time: 0.08s
+   Depth: 2
+   Last checked: 2025-10-30 20:24:43
+
+https://www.r4.com/broker-online/productos-de-inversion/renta-fija/letras-del-tesoro
+   Error: HTTP 404
+   Response time: 0.11s
+   Depth: 2
+   Last checked: 2025-10-30 20:24:44
+
+https://www.r4.com/broker-online/productos-de-inversion/renta-fija/letras-del-tesoro/que-son-las-letras-del-tesoro
+   Error: HTTP 404
+   Response time: 0.14s
+   Depth: 4
+   Last checked: 2025-10-30 20:40:17
+
+https://www.r4.com/broker-online/productos-de-inversion/renta-fija/letras-del-tesoro?soc=blogr4:letesoro:texto
+   Error: HTTP 404
+   Response time: 0.08s
+   Depth: 5
+   Last checked: 2025-10-30 20:48:37
+
+https://www.r4.com/fondos-de-inversion/gama-de-fondos
+   Error: HTTP 404
+   Response time: 0.07s
+   Depth: 4
+   Last checked: 2025-10-30 20:40:20
+
+https://www.r4.com/go/apertura/15dias
+   Error: HTTP 404
+   Response time: 0.15s
+   Depth: 2
+   Last checked: 2025-10-30 20:24:26
+
+https://www.r4.com/go/bolsas/internacional
+   Error: HTTP 404
+   Response time: 0.07s
+   Depth: 2
+   Last checked: 2025-10-30 20:24:30
+
+https://www.r4.com/go/bolsas/nacional
+   Error: HTTP 404
+   Response time: 0.10s
+   Depth: 2
+   Last checked: 2025-10-30 20:24:29
+
+https://www.r4.com/go/cfds
+   Error: HTTP 404
+   Response time: 0.08s
+   Depth: 2
+   Last checked: 2025-10-30 20:24:31
+
+https://www.r4.com/go/derivados/futuros-sobre-acciones
+   Error: HTTP 404
+   Response time: 0.07s
+   Depth: 2
+   Last checked: 2025-10-30 20:24:32
+
+https://www.r4.com/go/derivados/futuros-sobre-divisas
+   Error: HTTP 404
+   Response time: 0.07s
+   Depth: 2
+   Last checked: 2025-10-30 20:24:33
+
+https://www.r4.com/go/derivados/futuros-sobre-materias-primas
+   Error: HTTP 404
+   Response time: 0.08s
+   Depth: 2
+   Last checked: 2025-10-30 20:24:33
+
+https://www.r4.com/go/derivados/futuros-sobre-renta-fija
+   Error: HTTP 404
+   Response time: 0.07s
+   Depth: 2
+   Last checked: 2025-10-30 20:24:34
+
+https://www.r4.com/go/etfs
+   Error: HTTP 404
+   Response time: 0.07s
+   Depth: 2
+   Last checked: 2025-10-30 20:24:30
+
+https://www.r4.com/go/fondos-planes
+   Error: HTTP 404
+   Response time: 0.07s
+   Depth: 2
+   Last checked: 2025-10-30 20:24:34
+
+https://www.r4.com/go/gestion
+   Error: HTTP 404
+   Response time: 0.08s
+   Depth: 2
+   Last checked: 2025-10-30 20:24:35
+
+https://www.r4.com/go/main
+   Error: HTTP 404
+   Response time: 0.70s
+   Depth: 2
+   Last checked: 2025-10-30 20:24:23
+
+https://www.r4.com/go/planes
+   Error: HTTP 404
+   Response time: 0.07s
+   Depth: 2
+   Last checked: 2025-10-30 20:24:36
+
+https://www.r4.com/goto/mapa-sitio
+   Error: HTTP 404
+   Response time: 0.14s
+   Depth: 2
+   Last checked: 2025-10-30 20:24:24
+
+https://www.r4.com/go/warrants/renta4directo
+   Error: HTTP 404
+   Response time: 0.07s
+   Depth: 2
+   Last checked: 2025-10-30 20:24:31
+
+https://www.r4.com/normativa/politica-privacidad/politica-privacidadclientes
+   Error: HTTP 404
+   Response time: 0.08s
+   Depth: 4
+   Last checked: 2025-10-30 20:38:32
+
+https://www.r4.com/normativa/politica-privacidad/politica-privacidadnoclientes
+   Error: HTTP 404
+   Response time: 0.07s
+   Depth: 4
+   Last checked: 2025-10-30 20:38:32
+
+https://www.r4.com/politicas/politica-privacidad
+   Error: HTTP 404
+   Response time: 0.15s
+   Depth: 2
+   Last checked: 2025-10-30 20:26:51
+
+https://www.r4.com/soluciones-easy/fondos-easy
+   Error: HTTP 404
+   Response time: 0.08s
+   Depth: 6
+   Last checked: 2025-10-30 20:57:13
+
+http://www.r4.com/politicas/politica-privacidad
+   Error: HTTP 404
+   Response time: 0.10s
+   Depth: 6
+   Last checked: 2025-10-30 20:57:44
+
+
+================================================================================
+ERRORS & TIMEOUTS (1)
+================================================================================
+
+URLs that failed to respond:
+
+ps://www.r4.com/inversion-para-todos/pasivos-financieros-que-son-tipos-y-ejemplos
+   Error: Request failed: No connection adapters were found for 'ps://www.r4.com/inversion-para-todos/pasivos-financieros-que-
+   Depth: 4
+
+
+================================================================================
+RECOMMENDATIONS
+================================================================================
+
+1. Fix or remove broken links (4xx, 5xx errors)
+3. Investigate timeout/connection errors
+
+View detailed results:
+- Web UI: http://localhost:5000/crawler/broken
+- Excel Report: python generate_excel_report.py
+
