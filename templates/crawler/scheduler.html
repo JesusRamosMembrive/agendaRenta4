@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+
+{% block title %}Scheduler Configuration - Crawler{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>⚙️ Configuración del Scheduler</h1>
+    <p style="color: #9ca3af; margin-bottom: 30px;">
+        Programa la revalidación automática de URLs
+    </p>
+
+    <!-- Current Status -->
+    <div style="background: {% if schedule_info %}#dcfce7{% else %}#f3f4f6{% endif %}; padding: 20px; border-radius: 8px; margin-bottom: 40px; color: #111827;">
+        <h3 style="margin-top: 0; color: #111827;">Estado Actual</h3>
+
+        {% if schedule_info %}
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+            <div>
+                <strong style="color: #374151;">Estado:</strong>
+                <span style="color: #059669;">🟢 Activo</span>
+            </div>
+            <div>
+                <strong style="color: #374151;">Próxima ejecución:</strong>
+                <span style="color: #111827;">{{ schedule_info.next_run.strftime('%d/%m/%Y %H:%M:%S') if schedule_info.next_run else 'N/A' }}</span>
+            </div>
+            <div>
+                <strong style="color: #374151;">Configuración:</strong>
+                <span style="color: #111827;">{{ schedule_info.trigger }}</span>
+            </div>
+        </div>
+
+        <form method="POST" style="margin-top: 20px;">
+            <input type="hidden" name="action" value="stop">
+            <button type="submit" class="btn" style="background: #ef4444;">
+                🛑 Detener Scheduler
+            </button>
+        </form>
+        {% else %}
+        <p><strong style="color: #111827;">⚪ Scheduler inactivo</strong></p>
+        <p style="color: #4b5563;">El scheduler no está en ejecución. Configura y activa la revalidación automática abajo.</p>
+        {% endif %}
+    </div>
+
+    <!-- Configuration Form -->
+    <div style="background: #f9fafb; padding: 30px; border-radius: 8px; margin-bottom: 30px;">
+        <h3 style="margin-top: 0; color: #111827;">Configurar Nueva Programación</h3>
+
+        <form method="POST">
+            <input type="hidden" name="action" value="start">
+
+            <div style="margin-bottom: 20px;">
+                <label for="frequency" style="display: block; font-weight: 600; margin-bottom: 8px; color: #374151;">
+                    Frecuencia:
+                </label>
+                <select id="frequency" name="frequency" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; color: #111827;">
+                    <option value="daily">Diaria</option>
+                    <option value="weekly">Semanal (Lunes)</option>
+                </select>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                <div>
+                    <label for="hour" style="display: block; font-weight: 600; margin-bottom: 8px; color: #374151;">
+                        Hora (0-23):
+                    </label>
+                    <input type="number" id="hour" name="hour" min="0" max="23" value="3"
+                           style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; color: #111827;">
+                </div>
+
+                <div>
+                    <label for="minute" style="display: block; font-weight: 600; margin-bottom: 8px; color: #374151;">
+                        Minuto (0-59):
+                    </label>
+                    <input type="number" id="minute" name="minute" min="0" max="59" value="0"
+                           style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; color: #111827;">
+                </div>
+            </div>
+
+            <button type="submit" class="btn" style="background: #10b981;">
+                ▶️ Iniciar Scheduler
+            </button>
+        </form>
+    </div>
+
+    <!-- Manual Execution -->
+    <div style="background: #fef3c7; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
+        <h3 style="margin-top: 0; color: #78350f;">Ejecución Manual</h3>
+        <p style="color: #78350f; margin-bottom: 15px;">
+            Ejecuta una revalidación inmediata sin esperar al scheduler.
+            <strong>Esto puede tomar varios minutos.</strong>
+        </p>
+
+        <form method="POST" onsubmit="return confirm('¿Ejecutar revalidación ahora? Esto validará todas las URLs descubiertas.');">
+            <input type="hidden" name="action" value="run_now">
+            <button type="submit" class="btn" style="background: #f59e0b;">
+                ▶️ Ejecutar Revalidación Ahora
+            </button>
+        </form>
+    </div>
+
+    <!-- Information Panel -->
+    <div style="background: #dbeafe; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
+        <h3 style="margin-top: 0; color: #1e40af;">ℹ️ Información del Scheduler</h3>
+
+        <ul style="color: #1e40af; line-height: 1.8;">
+            <li><strong style="color: #1e3a8a;">Revalidación automática:</strong> El scheduler ejecutará la validación de URLs según la frecuencia configurada.</li>
+            <li><strong style="color: #1e3a8a;">Notificaciones por email:</strong> Si se detectan nuevos enlaces rotos, se enviará un email de alerta automáticamente.</li>
+            <li><strong style="color: #1e3a8a;">Health tracking:</strong> Cada ejecución guarda un snapshot de salud para seguimiento histórico.</li>
+            <li><strong style="color: #1e3a8a;">Rate limiting:</strong> La validación respeta límites de 2 req/segundo para no saturar el servidor.</li>
+            <li><strong style="color: #1e3a8a;">Tiempo estimado:</strong> ~{{ ((2839 * 0.5) / 60)|round(1) }} minutos para validar todas las URLs descubiertas.</li>
+        </ul>
+    </div>
+
+    <!-- Actions -->
+    <div style="display: flex; gap: 10px;">
+        <a href="{{ url_for('crawler_health') }}" class="btn">💚 Ver Health Dashboard</a>
+        <a href="{{ url_for('crawler_dashboard') }}" class="btn">← Volver al Dashboard</a>
+    </div>
+</div>
+
+<!-- Flash messages -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        <script>
+            {% for category, message in messages %}
+                alert("{{ message }}");
+            {% endfor %}
+        </script>
+    {% endif %}
+{% endwith %}
+{% endblock %}

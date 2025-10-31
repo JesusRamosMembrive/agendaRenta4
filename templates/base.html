@@ -57,6 +57,32 @@
           Configuración
         </a>
       </nav>
+
+      <div class="divider"></div>
+
+      <nav class="nav">
+        <div style="padding: 10px 20px; color: var(--text-muted); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">
+          Crawler
+        </div>
+        <a href="{{ url_for('crawler_dashboard') }}" class="{% if request.endpoint == 'crawler_dashboard' %}active{% endif %}">
+          📊 Dashboard
+        </a>
+        <a href="{{ url_for('crawler_results') }}" class="{% if request.endpoint == 'crawler_results' %}active{% endif %}">
+          🌐 URLs Descubiertas
+        </a>
+        <a href="{{ url_for('crawler_broken') }}" class="{% if request.endpoint == 'crawler_broken' %}active{% endif %}">
+          🔍 Validación
+          {% if broken_count is defined and broken_count > 0 %}
+            <span class="nav-counter alert-counter">{{ broken_count }}</span>
+          {% endif %}
+        </a>
+        <a href="{{ url_for('crawler_health') }}" class="{% if request.endpoint == 'crawler_health' %}active{% endif %}">
+          💚 Health
+        </a>
+        <a href="{{ url_for('crawler_scheduler') }}" class="{% if request.endpoint == 'crawler_scheduler' %}active{% endif %}">
+          ⚙️ Scheduler
+        </a>
+      </nav>
     </aside>
 
     <!-- ===============================================================

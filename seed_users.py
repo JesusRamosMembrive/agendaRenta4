@@ -7,48 +7,41 @@ Pobla la tabla 'users' con usuarios de prueba para notificaciones.
 import sys
 import os
 from pathlib import Path
-import sqlite3
+from utils import db_cursor
+import psycopg2
 
 
-DATABASE_PATH = os.getenv('DATABASE_PATH', 'agendaRenta4.db')
-
-
-def seed_users(db_path):
+def seed_users():
     """
     Inserta usuarios de prueba en la tabla 'users'.
     """
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-
     print(f"👥 Poblando usuarios...\n")
 
     # Usuarios de prueba
     users_data = [
         # (name, email, notify_email, notify_browser, active)
-        ('María García', 'maria.garcia@r4.com', 1, 1, 1),
-        ('José Ramos', 'jose.ramos@r4.com', 1, 1, 1),
+        ('María García', 'maria.garcia@r4.com', True, True, True),
+        ('José Ramos', 'jose.ramos@r4.com', True, True, True),
     ]
 
     inserted = 0
     skipped = 0
 
-    for name, email, notify_email, notify_browser, active in users_data:
-        try:
-            cursor.execute("""
-                INSERT INTO users (name, email, notify_email, notify_browser, active)
-                VALUES (?, ?, ?, ?, ?)
-            """, (name, email, notify_email, notify_browser, active))
-            inserted += 1
-            print(f"   ✓ {name}")
-            print(f"     Email: {email}")
-            print(f"     Notificaciones: Email={'✓' if notify_email else '✗'}, Browser={'✓' if notify_browser else '✗'}")
-        except sqlite3.IntegrityError:
-            # Email duplicado (ya existe)
-            skipped += 1
-            print(f"   ⚠️  {name} ({email}) ya existe (skip)")
-
-    conn.commit()
-    conn.close()
+    with db_cursor() as cursor:
+        for name, email, notify_email, notify_browser, active in users_data:
+            try:
+                cursor.execute("""
+                    INSERT INTO users (name, email, notify_email, notify_browser, active)
+                    VALUES (%s, %s, %s, %s, %s)
+                """, (name, email, notify_email, notify_browser, active))
+                inserted += 1
+                print(f"   ✓ {name}")
+                print(f"     Email: {email}")
+                print(f"     Notificaciones: Email={'✓' if notify_email else '✗'}, Browser={'✓' if notify_browser else '✗'}")
+            except psycopg2.IntegrityError:
+                # Email duplicado (ya existe)
+                skipped += 1
+                print(f"   ⚠️  {name} ({email}) ya existe (skip)")
 
     # Resumen
     print("\n" + "=" * 80)
@@ -61,37 +54,31 @@ def seed_users(db_path):
         print(f"✅ {inserted} usuarios creados correctamente\n")
 
 
-def list_users(db_path):
+def list_users():
     """
     Lista todos los usuarios en la BD.
     """
-    conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
-
     print(f"\n👥 Usuarios en la base de datos:\n")
 
-    cursor.execute("""
-        SELECT id, name, email, notify_email, notify_browser, active
-        FROM users
-        ORDER BY id
-    """)
+    with db_cursor() as cursor:
+        cursor.execute("""
+            SELECT id, name, email, notify_email, notify_browser, active
+            FROM users
+            ORDER BY id
+        """)
 
-    users = cursor.fetchall()
+        users = cursor.fetchall()
 
-    if not users:
-        print("   (No hay usuarios)\n")
-        conn.close()
-        return
+        if not users:
+            print("   (No hay usuarios)\n")
+            return
 
-    for user in users:
-        status = "✓ ACTIVO" if user['active'] else "✗ INACTIVO"
-        print(f"   ID {user['id']}: {user['name']} ({status})")
-        print(f"           Email: {user['email']}")
-        print(f"           Notificaciones: Email={'✓' if user['notify_email'] else '✗'}, Browser={'✓' if user['notify_browser'] else '✗'}")
-        print()
-
-    conn.close()
+        for user in users:
+            status = "✓ ACTIVO" if user['active'] else "✗ INACTIVO"
+            print(f"   ID {user['id']}: {user['name']} ({status})")
+            print(f"           Email: {user['email']}")
+            print(f"           Notificaciones: Email={'✓' if user['notify_email'] else '✗'}, Browser={'✓' if user['notify_browser'] else '✗'}")
+            print()
 
 
 def main():
@@ -104,17 +91,11 @@ def main():
     parser.add_argument('--list', action='store_true', help='Listar usuarios existentes')
     args = parser.parse_args()
 
-    # Verificar que la BD existe
-    if not Path(DATABASE_PATH).exists():
-        print(f"❌ ERROR: Base de datos no encontrada: {DATABASE_PATH}")
-        print(f"   Ejecuta primero: python database.py")
-        sys.exit(1)
-
     if args.list:
-        list_users(DATABASE_PATH)
+        list_users()
     else:
-        seed_users(DATABASE_PATH)
-        list_users(DATABASE_PATH)
+        seed_users()
+        list_users()
 
 
 if __name__ == '__main__':

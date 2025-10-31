@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+
+{% block title %}Health Dashboard - Crawler{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>💚 Health Dashboard</h1>
+    <p style="color: #9ca3af; margin-bottom: 30px;">
+        Seguimiento histórico de la salud del sitio web
+    </p>
+
+    <!-- Current Health Summary -->
+    {% if current_health %}
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 40px;">
+        <!-- Health Score Card -->
+        <div style="background: {% if current_health.health_score >= 95 %}#dcfce7{% elif current_health.health_score >= 80 %}#fef3c7{% else %}#fee2e2{% endif %}; padding: 20px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 14px; color: #374151; font-weight: 600; margin-bottom: 10px;">HEALTH SCORE</div>
+            <div style="font-size: 48px; font-weight: bold; color: {% if current_health.health_score >= 95 %}#059669{% elif current_health.health_score >= 80 %}#d97706{% else %}#dc2626{% endif %};">
+                {{ "%.1f"|format(current_health.health_score) }}%
+            </div>
+            {% if trend != 0 %}
+            <div style="font-size: 12px; margin-top: 10px; color: {% if trend > 0 %}#059669{% else %}#dc2626{% endif %};">
+                {% if trend > 0 %}↑{% else %}↓{% endif %} {{ "%.1f"|format(trend|abs) }}% (7 días)
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Total URLs -->
+        <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 14px; color: #374151; font-weight: 600; margin-bottom: 10px;">TOTAL URLs</div>
+            <div style="font-size: 36px; font-weight: bold; color: #111827;">{{ current_health.total_urls }}</div>
+            <div style="font-size: 12px; margin-top: 10px; color: #4b5563;">validadas</div>
+        </div>
+
+        <!-- OK URLs -->
+        <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 14px; color: #374151; font-weight: 600; margin-bottom: 10px;">URLs OK</div>
+            <div style="font-size: 36px; font-weight: bold; color: #10b981;">{{ current_health.ok_urls }}</div>
+            <div style="font-size: 12px; margin-top: 10px; color: #4b5563;">
+                {{ "%.1f"|format((current_health.ok_urls / current_health.total_urls * 100) if current_health.total_urls > 0 else 0) }}%
+            </div>
+        </div>
+
+        <!-- Broken URLs -->
+        <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 14px; color: #374151; font-weight: 600; margin-bottom: 10px;">ENLACES ROTOS</div>
+            <div style="font-size: 36px; font-weight: bold; color: #ef4444;">{{ current_health.broken_urls }}</div>
+            <div style="font-size: 12px; margin-top: 10px; color: #4b5563;">
+                {{ "%.1f"|format((current_health.broken_urls / current_health.total_urls * 100) if current_health.total_urls > 0 else 0) }}%
+            </div>
+        </div>
+    </div>
+
+    <!-- Last Updated -->
+    <div style="text-align: center; margin-bottom: 40px; color: #6b7280; font-size: 14px;">
+        Última actualización: {{ current_health.snapshot_date.strftime('%d/%m/%Y %H:%M:%S') }}
+    </div>
+    {% else %}
+    <div style="background: #fef3c7; padding: 20px; border-radius: 8px; margin-bottom: 40px; text-align: center; color: #78350f;">
+        <p style="color: #78350f;"><strong>No hay datos de salud disponibles.</strong></p>
+        <p style="color: #78350f;">Ejecuta una <a href="{{ url_for('crawler_scheduler') }}" style="color: #9a3412; text-decoration: underline;">revalidación</a> para generar el primer snapshot.</p>
+    </div>
+    {% endif %}
+
+    <!-- Recent Changes -->
+    {% if recent_changes %}
+    <h2 style="margin-top: 40px; margin-bottom: 20px;">Cambios Recientes (últimos 7 días)</h2>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 40px;">
+        {% for change in recent_changes %}
+        <div style="background: #f9fafb; padding: 15px; border-radius: 6px; text-align: center;">
+            <div style="font-size: 24px; font-weight: bold; margin-bottom: 5px; color: #111827;">{{ change.count }}</div>
+            <div style="font-size: 12px; color: #374151; text-transform: uppercase; font-weight: 600;">
+                {% if change.change_type == 'new' %}🆕 Nuevas
+                {% elif change.change_type == 'broken' %}❌ Rotas
+                {% elif change.change_type == 'fixed' %}✅ Corregidas
+                {% elif change.change_type == 'status_change' %}🔄 Cambios
+                {% else %}{{ change.change_type }}
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Historical Chart -->
+    {% if snapshots|length > 1 %}
+    <h2 style="margin-top: 40px; margin-bottom: 20px;">Evolución Histórica</h2>
+    <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 40px;">
+        <canvas id="healthChart" width="400" height="200"></canvas>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    <script>
+        const ctx = document.getElementById('healthChart').getContext('2d');
+
+        // Prepare data (reverse to show oldest first)
+        const snapshots = {{ snapshots|tojson|safe }};
+        snapshots.reverse();
+
+        const labels = snapshots.map(s => {
+            const date = new Date(s.snapshot_date);
+            return date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
+        });
+
+        const healthData = snapshots.map(s => s.health_score);
+        const brokenData = snapshots.map(s => s.broken_urls);
+
+        const chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Health Score (%)',
+                        data: healthData,
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        tension: 0.3,
+                        yAxisID: 'y'
+                    },
+                    {
+                        label: 'Enlaces Rotos',
+                        data: brokenData,
+                        borderColor: '#ef4444',
+                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                        tension: 0.3,
+                        yAxisID: 'y1'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                interaction: {
+                    mode: 'index',
+                    intersect: false
+                },
+                plugins: {
+                    legend: {
+                        position: 'top'
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                if (context.parsed.y !== null) {
+                                    if (context.datasetIndex === 0) {
+                                        label += context.parsed.y.toFixed(1) + '%';
+                                    } else {
+                                        label += context.parsed.y;
+                                    }
+                                }
+                                return label;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        min: 0,
+                        max: 100,
+                        title: {
+                            display: true,
+                            text: 'Health Score (%)'
+                        }
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        min: 0,
+                        title: {
+                            display: true,
+                            text: 'Enlaces Rotos'
+                        },
+                        grid: {
+                            drawOnChartArea: false
+                        }
+                    }
+                }
+            }
+        });
+    </script>
+    {% endif %}
+
+    <!-- Actions -->
+    <div style="display: flex; gap: 10px; margin-top: 40px;">
+        <a href="{{ url_for('crawler_scheduler') }}" class="btn">⚙️ Configurar Scheduler</a>
+        <a href="{{ url_for('crawler_broken') }}" class="btn">🔍 Ver Enlaces Rotos</a>
+        <a href="{{ url_for('crawler_dashboard') }}" class="btn">← Volver al Dashboard</a>
+    </div>
+</div>
+{% endblock %}

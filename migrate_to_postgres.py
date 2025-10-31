@@ -15,6 +15,7 @@ from datetime import datetime
 
 # Tablas a migrar en orden (respetando foreign keys)
 TABLES_ORDER = [
+    # Stage 1 - Sistema Manual
     'sections',
     'task_types',
     'alert_settings',
@@ -24,6 +25,12 @@ TABLES_ORDER = [
     'tasks',
     'notifications',
     'pending_alerts',
+
+    # Stage 2 - Crawler Automático
+    'crawl_runs',           # Primero crawl_runs (no tiene FK)
+    'discovered_urls',      # Luego discovered_urls (FK a crawl_runs)
+    'url_changes',          # Luego url_changes (FK a discovered_urls)
+    'health_snapshots',     # Health snapshots (independiente)
 ]
 
 
@@ -122,9 +129,14 @@ def reset_sequences(pg_conn):
     """Reset PostgreSQL sequences to match current max IDs"""
     cursor = pg_conn.cursor()
 
-    # Tables with auto-increment IDs
-    tables_with_id = ['sections', 'task_types', 'tasks', 'notifications',
-                      'pending_alerts', 'notification_emails', 'users']
+    # Tables with auto-increment IDs (Stage 1 + Stage 2)
+    tables_with_id = [
+        # Stage 1
+        'sections', 'task_types', 'tasks', 'notifications',
+        'pending_alerts', 'notification_emails', 'users',
+        # Stage 2 - Crawler
+        'crawl_runs', 'discovered_urls', 'url_changes', 'health_snapshots'
+    ]
 
     for table in tables_with_id:
         try:

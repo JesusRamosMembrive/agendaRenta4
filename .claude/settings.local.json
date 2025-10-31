@@ -9,7 +9,15 @@
       "Bash(xargs:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(chmod:*)"
+      "Bash(chmod:*)",
+      "Read(///**)",
+      "Bash(sort:*)",
+      "Bash(source .env)",
+      "Bash(psql:*)",
+      "Bash(python validate_urls.py:*)",
+      "Bash(python:*)",
+      "Bash(pip install:*)",
+      "Bash(pkill:*)"
     ],
     "deny": [],
     "ask": []

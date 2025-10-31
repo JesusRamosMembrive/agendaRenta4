@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reporte de Revalidación de URLs</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #e5e7eb;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            margin: 0;
+            color: #ef4444;
+            font-size: 24px;
+        }
+        .header .timestamp {
+            color: #6b7280;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background: #f9fafb;
+            padding: 15px;
+            border-radius: 6px;
+            text-align: center;
+        }
+        .stat-card .label {
+            font-size: 12px;
+            color: #6b7280;
+            text-transform: uppercase;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        .stat-card .value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #111827;
+        }
+        .stat-card.health {
+            background: {% if health_score >= 95 %}#dcfce7{% elif health_score >= 80 %}#fef3c7{% else %}#fee2e2{% endif %};
+        }
+        .stat-card.health .value {
+            color: {% if health_score >= 95 %}#059669{% elif health_score >= 80 %}#d97706{% else %}#dc2626{% endif %};
+        }
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #111827;
+            margin: 30px 0 15px 0;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .url-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .url-item {
+            background: #f9fafb;
+            padding: 12px 15px;
+            margin-bottom: 10px;
+            border-radius: 6px;
+            border-left: 4px solid #ef4444;
+        }
+        .url-item.priority {
+            background: #fef3c7;
+            border-left-color: #d97706;
+        }
+        .url-item .url {
+            font-family: monospace;
+            font-size: 13px;
+            color: #3b82f6;
+            word-break: break-all;
+            margin-bottom: 5px;
+        }
+        .url-item .meta {
+            font-size: 12px;
+            color: #6b7280;
+        }
+        .url-item .status {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-weight: 600;
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        .priority-badge {
+            display: inline-block;
+            background: #fbbf24;
+            color: #78350f;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+        .cta-button {
+            display: inline-block;
+            background: #3b82f6;
+            color: white;
+            text-decoration: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-weight: 600;
+            margin-top: 20px;
+            text-align: center;
+        }
+        .footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #e5e7eb;
+            text-align: center;
+            font-size: 12px;
+            color: #6b7280;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>⚠️ Alerta de Enlaces Rotos</h1>
+            <div class="timestamp">
+                {{ timestamp.strftime('%d/%m/%Y %H:%M:%S') }}
+            </div>
+        </div>
+
+        <!-- Stats Summary -->
+        <div class="stats-grid">
+            <div class="stat-card health">
+                <div class="label">Health Score</div>
+                <div class="value">{{ "%.1f"|format(health_score) }}%</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Total URLs</div>
+                <div class="value">{{ stats.validated }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Enlaces Rotos</div>
+                <div class="value">{{ stats.broken }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Nuevos Rotos</div>
+                <div class="value">{{ broken_urls|length }}</div>
+            </div>
+        </div>
+
+        <!-- Summary Message -->
+        <p style="background: #fef3c7; padding: 15px; border-radius: 6px; border-left: 4px solid #f59e0b;">
+            <strong>Se detectaron {{ broken_urls|length }} enlaces que se rompieron desde la última validación.</strong>
+            {% if priority_broken > 0 %}
+            <br>
+            ⚠️ <strong>{{ priority_broken }} de ellos son URLs prioritarias.</strong>
+            {% endif %}
+        </p>
+
+        <!-- Broken URLs List -->
+        <h2 class="section-title">Enlaces Rotos Detectados</h2>
+
+        {% if broken_urls %}
+        <ul class="url-list">
+            {% for url in broken_urls[:10] %}
+            <li class="url-item {% if url.is_priority %}priority{% endif %}">
+                <div class="url">{{ url.url }}</div>
+                <div class="meta">
+                    <span class="status">{{ url.old_status }} → {{ url.new_status }}</span>
+                    {% if url.is_priority %}
+                    <span class="priority-badge">⭐ PRIORITARIA</span>
+                    {% endif %}
+                    <span style="margin-left: 8px;">{{ url.detected_at.strftime('%d/%m/%Y %H:%M') }}</span>
+                </div>
+            </li>
+            {% endfor %}
+
+            {% if broken_urls|length > 10 %}
+            <li style="text-align: center; color: #6b7280; padding: 10px;">
+                ... y {{ broken_urls|length - 10 }} enlaces más
+            </li>
+            {% endif %}
+        </ul>
+        {% else %}
+        <p style="color: #6b7280;">No se detectaron enlaces rotos nuevos.</p>
+        {% endif %}
+
+        <!-- Call to Action -->
+        <div style="text-align: center;">
+            <a href="http://localhost:5000/crawler/broken" class="cta-button">
+                Ver Todos los Enlaces Rotos →
+            </a>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p>Este es un mensaje automático del Sistema de Control de Calidad Web - Agenda Renta4</p>
+            <p>Para modificar las preferencias de notificación, accede a la <a href="http://localhost:5000/configuracion">página de configuración</a>.</p>
+        </div>
+    </div>
+</body>
+</html>
