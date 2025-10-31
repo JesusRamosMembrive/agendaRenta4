@@ -1,10 +1,70 @@
 # Estado Actual
 
 **Fecha**: 2025-10-31
-**Etapa**: 2 (Sistema Estructurado) - Phase 2.4 COMPLETADA - ✅ Revalidación Automática
-**Sesión Actual**: Sistema de revalidación automática implementado y funcionando
+**Etapa**: 2 (Sistema Estructurado) - ✅ STAGE 2 COMPLETADO AL 100%
+**Sesión Actual**: Vista de árbol navegable implementada - Stage 2 finalizado
 
-## 🤖 PHASE 2.4 REVALIDACIÓN AUTOMÁTICA COMPLETADA (2025-10-31)
+## 🌳 PHASE 2.5 VISTA DE ÁRBOL NAVEGABLE COMPLETADA (2025-10-31 tarde)
+
+**UI Jerárquica con Expand/Collapse y Filtros Avanzados**
+
+### Implementación Completada
+
+✅ **Nueva Ruta Flask (app.py:1545-1621)**
+- `/crawler/tree` - Vista de árbol jerárquica
+- Construcción de estructura parent-child desde base de datos
+- Filtros: broken_only, max_depth, search_query
+- Estadísticas en tiempo real
+
+✅ **Template tree.html (300+ líneas)**
+- Vista de árbol recursiva con macro Jinja2
+- Expand/collapse con JavaScript vanilla (sin librerías)
+- Botones: "Expandir todo", "Contraer todo"
+- Auto-expand primer nivel al cargar
+- Indentación visual proporcional a profundidad
+- Colores semánticos (verde=OK, rojo=roto)
+
+✅ **Filtros Avanzados**
+- ☑️ **Solo enlaces rotos** - Checkbox con auto-submit
+- 🔢 **Profundidad máxima** - Selector 0-10 niveles
+- 🔍 **Búsqueda** - Input con ILIKE (insensible a mayúsculas)
+- 🧹 **Limpiar filtros** - Botón para resetear
+
+✅ **Características del Árbol**
+- Icono de status (✅ OK, ❌ Roto, 🔄 Redirect, ⚠️ Otro)
+- Metadata en cada nodo: depth, status_code, response_time, last_checked
+- Links externos funcionales (target="_blank")
+- Hover effects suaves
+- Línea vertical conectando niveles
+
+✅ **Navegación Integrada**
+- Menú sidebar actualizado: 🌳 Vista de Árbol
+- Dashboard con botón destacado verde
+- Links cruzados entre vistas (árbol ↔ lista ↔ rotas)
+
+### Archivos Creados/Modificados
+
+**Nuevos archivos (1):**
+- `templates/crawler/tree.html` (300+ líneas)
+
+**Modificados (3):**
+- `app.py` - Nueva ruta `/crawler/tree` (líneas 1545-1621)
+- `templates/base.html` - Link en sidebar
+- `templates/crawler/dashboard.html` - Botón "Vista de Árbol"
+
+### Testing
+
+✅ **Estructura de Datos Verificada**
+```
+Total URLs: 2,839
+Root URLs: 1 (https://www.r4.com)
+Max Depth: 10 niveles
+Parent-child relationships: Correctas
+```
+
+---
+
+## 🤖 PHASE 2.4 REVALIDACIÓN AUTOMÁTICA COMPLETADA (2025-10-31 mañana)
 
 **Sistema de Revalidación Automática con Scheduler y Notificaciones**
 

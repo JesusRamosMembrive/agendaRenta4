@@ -940,9 +940,14 @@ def save_alert_settings():
 
                 # Update or insert alert_settings
                 cursor.execute("""
-                    INSERT OR REPLACE INTO alert_settings (task_type_id, alert_frequency, alert_day, enabled)
+                    INSERT INTO alert_settings (task_type_id, alert_frequency, alert_day, enabled)
                     VALUES (%s, %s, %s, %s)
-                """, (task_type_id, alert_frequency, alert_day, 1 if enabled else 0))
+                    ON CONFLICT (task_type_id)
+                    DO UPDATE SET
+                        alert_frequency = EXCLUDED.alert_frequency,
+                        alert_day = EXCLUDED.alert_day,
+                        enabled = EXCLUDED.enabled
+                """, (task_type_id, alert_frequency, alert_day, enabled))
 
         return jsonify({'success': True, 'message': 'Configuración de alertas guardada'})
 
@@ -965,10 +970,17 @@ def save_notification_preferences():
         with db_cursor() as cursor:
             # Update or insert notification preferences
             cursor.execute("""
-                INSERT OR REPLACE INTO notification_preferences
-                (id, user_name, email, enable_email, enable_desktop, enable_in_app, updated_at)
-                VALUES (1, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
-            """, (current_user.full_name, email, 1 if enable_email else 0, 1 if enable_desktop else 0, 1 if enable_in_app else 0))
+                INSERT INTO notification_preferences
+                (user_name, email, enable_email, enable_desktop, enable_in_app, updated_at)
+                VALUES (%s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
+                ON CONFLICT (user_name)
+                DO UPDATE SET
+                    email = EXCLUDED.email,
+                    enable_email = EXCLUDED.enable_email,
+                    enable_desktop = EXCLUDED.enable_desktop,
+                    enable_in_app = EXCLUDED.enable_in_app,
+                    updated_at = CURRENT_TIMESTAMP
+            """, (current_user.full_name, email, enable_email, enable_desktop, enable_in_app))
 
         return jsonify({'success': True, 'message': 'Preferencias de notificación guardadas'})
 
@@ -1539,6 +1551,85 @@ def crawler_scheduler():
     return render_template(
         'crawler/scheduler.html',
         schedule_info=schedule_info
+    )
+
+
+@app.route('/crawler/tree')
+@login_required
+def crawler_tree():
+    """
+    Tree view of discovered URLs with hierarchical structure.
+    Shows parent-child relationships with expand/collapse functionality.
+    """
+    # Get filter parameters
+    show_broken_only = request.args.get('broken_only', '0') == '1'
+    max_depth = request.args.get('max_depth', type=int)
+    search_query = request.args.get('search', '').strip()
+
+    with db_cursor(commit=False) as cursor:
+        # Build WHERE clause based on filters
+        where_clauses = ["active = TRUE"]
+        params = []
+
+        if show_broken_only:
+            where_clauses.append("is_broken = TRUE")
+
+        if max_depth is not None:
+            where_clauses.append("depth <= %s")
+            params.append(max_depth)
+
+        if search_query:
+            where_clauses.append("url ILIKE %s")
+            params.append(f'%{search_query}%')
+
+        where_sql = " AND ".join(where_clauses)
+
+        # Get all URLs with parent information
+        cursor.execute(f"""
+            SELECT id, url, parent_url_id, depth, status_code,
+                   is_broken, last_checked, response_time
+            FROM discovered_urls
+            WHERE {where_sql}
+            ORDER BY url
+        """, params)
+        all_urls = cursor.fetchall()
+
+        # Get statistics
+        cursor.execute("""
+            SELECT
+                COUNT(*) as total,
+                COUNT(CASE WHEN is_broken THEN 1 END) as broken,
+                COUNT(CASE WHEN status_code >= 200 AND status_code < 300 THEN 1 END) as ok,
+                MAX(depth) as max_depth_value
+            FROM discovered_urls
+            WHERE active = TRUE
+        """)
+        stats = cursor.fetchone()
+
+    # Build tree structure
+    url_dict = {url['id']: dict(url) for url in all_urls}
+
+    # Add children list to each URL
+    for url in url_dict.values():
+        url['children'] = []
+
+    # Build parent-child relationships
+    root_urls = []
+    for url in url_dict.values():
+        if url['parent_url_id'] and url['parent_url_id'] in url_dict:
+            url_dict[url['parent_url_id']]['children'].append(url)
+        else:
+            # Root URL (no parent or parent not in filtered results)
+            root_urls.append(url)
+
+    return render_template(
+        'crawler/tree.html',
+        root_urls=root_urls,
+        stats=stats,
+        show_broken_only=show_broken_only,
+        max_depth_filter=max_depth,
+        search_query=search_query,
+        current_user=current_user
     )
 
 

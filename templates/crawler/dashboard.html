@@ -26,12 +26,18 @@
     </div>
 
     <!-- Action Buttons -->
-    <div style="margin: 30px 0;">
+    <div style="margin: 30px 0; display: flex; flex-wrap: wrap; gap: 15px;">
         <button onclick="startCrawl()" class="btn btn-primary" style="padding: 12px 30px; font-size: 16px;">
             ▶️ Iniciar Crawl Manual
         </button>
+        <a href="{{ url_for('crawler_tree') }}" class="btn" style="padding: 12px 30px; font-size: 16px; background: #10b981;">
+            🌳 Vista de Árbol
+        </a>
         <a href="{{ url_for('crawler_results') }}" class="btn" style="padding: 12px 30px; font-size: 16px;">
-            📋 Ver Todas las URLs
+            📋 Ver Lista
+        </a>
+        <a href="{{ url_for('crawler_broken') }}" class="btn" style="padding: 12px 30px; font-size: 16px; background: #ef4444;">
+            🔍 Enlaces Rotos ({{ broken_urls }})
         </a>
     </div>
 
