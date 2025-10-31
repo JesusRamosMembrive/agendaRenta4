@@ -279,8 +279,9 @@ jobs:
 ## Current Test Results
 
 **Date**: 2025-10-31
-**Total Tests**: 43
+**Total Tests**: 90 (43 passing, 47 skipped)
 **Passing**: 43 ✅
+**Skipped**: 47 ⏭️ (Blueprint tests - TODO)
 **Failing**: 0
 **Coverage**: 97%
 
@@ -292,6 +293,12 @@ jobs:
 
 - **Integration Tests**: 10/10 ✅
   - `test_quality_checks_db.py`: 10/10 ✅
+
+- **Blueprint Tests**: 47 SKIPPED ⏭️ (TODO: Fix Flask app context)
+  - `test_crawler_blueprint.py`: 23 tests skipped
+  - `test_config_blueprint.py`: 24 tests skipped
+  - **Reason**: Require proper Flask-Login session handling and request context
+  - **Status**: Scaffolded, serve as documentation of expected behavior
 
 ### Coverage Report
 
@@ -325,11 +332,20 @@ Before implementing:
 
 ### Blueprint Integration Tests
 
-When crawler and config blueprints are stable:
-1. Flask route testing with test client
-2. Authentication testing
-3. Blueprint registration verification
-4. Target: >70% coverage (critical paths)
+**Status**: Scaffolded but skipped (47 tests)
+
+**TODO for future sessions**:
+1. Fix Flask-Login session handling in test fixtures
+2. Properly mock background jobs (scheduler)
+3. Handle request context lifecycle
+4. Parse JSON responses with correct content-types
+5. Test with real Flask app context
+
+**Current blueprint tests** (ready to be fixed):
+- `test_crawler_blueprint.py`: 23 tests for crawler routes
+- `test_config_blueprint.py`: 24 tests for config routes
+
+**Target**: >70% coverage when tests are enabled
 
 ## Maintenance
 
