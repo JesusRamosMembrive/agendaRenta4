@@ -1,8 +1,162 @@
 # Estado Actual
 
-**Fecha**: 2025-10-30
-**Etapa**: 2 (Sistema Estructurado) - Phase 2.3 COMPLETADA - ✅ Validación Completa
-**Sesión Actual**: Validación completa de 2,788 URLs ejecutada y documentada
+**Fecha**: 2025-10-31
+**Etapa**: 2 (Sistema Estructurado) - Phase 2.4 COMPLETADA - ✅ Revalidación Automática
+**Sesión Actual**: Sistema de revalidación automática implementado y funcionando
+
+## 🤖 PHASE 2.4 REVALIDACIÓN AUTOMÁTICA COMPLETADA (2025-10-31)
+
+**Sistema de Revalidación Automática con Scheduler y Notificaciones**
+
+### Implementación Completada
+
+✅ **Módulo Scheduler (crawler/scheduler.py - 273 líneas)**
+- Clase `ValidationScheduler` para revalidación automática
+- Integración con APScheduler (BackgroundScheduler)
+- Configuración de frecuencia: diaria, semanal
+- Tracking automático de cambios (broken, fixed, status_change)
+- Cálculo automático de Health Score
+- Notificaciones por email cuando se detectan nuevos enlaces rotos
+- Manejo de errores robusto con logging detallado
+
+✅ **Base de Datos - Tabla health_snapshots (migration 004)**
+- Almacena snapshots históricos de salud del sitio
+- Campos: snapshot_date, health_score, total_urls, ok_urls, broken_urls, redirect_urls, error_urls
+- Índice en snapshot_date para queries rápidas
+- Permite análisis de tendencias temporales
+
+✅ **Flask Routes - Health Dashboard & Scheduler (app.py:1440-1542)**
+- `/crawler/health` - Dashboard con gráficos históricos
+- `/crawler/scheduler` - Configuración del scheduler (GET/POST)
+- Acciones: start, stop, run_now
+- Integración completa con el sistema de validación existente
+
+✅ **UI Templates**
+- `templates/crawler/health.html` - Dashboard con Chart.js
+  * Cards de métricas (Health Score, Total URLs, OK, Broken)
+  * Gráfico de evolución histórica (últimos 30 días)
+  * Indicador de tendencia (comparación 7 días)
+  * Resumen de cambios recientes
+- `templates/crawler/scheduler.html` - Configuración del scheduler
+  * Estado actual (activo/inactivo, próxima ejecución)
+  * Formulario de configuración (frecuencia, hora, minuto)
+  * Ejecución manual inmediata
+  * Panel informativo
+
+✅ **Email Notifications (templates/emails/revalidation_report.html)**
+- Email HTML responsive con estadísticas
+- Lista de enlaces rotos detectados
+- Priorización de URLs críticas
+- Link directo al dashboard
+- Diseño con colores semánticos
+
+✅ **Menú Sidebar Actualizado (templates/base.html)**
+- Nuevos enlaces: 💚 Health y ⚙️ Scheduler
+- Navegación completa del módulo crawler
+
+### Características del Sistema
+
+**Scheduler Automático:**
+- Frecuencia configurable (diaria, semanal)
+- Hora y minuto personalizables
+- Próxima ejecución visible en UI
+- Start/Stop desde interfaz web
+
+**Health Tracking:**
+- Snapshots automáticos en cada revalidación
+- Health Score: (OK URLs / Total URLs) * 100
+- Gráfico histórico con Chart.js (dual-axis)
+- Tendencia comparativa (7 días)
+
+**Notificaciones Inteligentes:**
+- Email solo cuando hay nuevos enlaces rotos
+- Detección de cambios: new, broken, fixed, status_change
+- Filtro últimas 24 horas
+- Template HTML profesional
+
+**Ejecución Manual:**
+- Botón "Ejecutar Revalidación Ahora"
+- Útil para testing y troubleshooting
+- Ejecuta en contexto de Flask app
+
+### Dependencias Añadidas
+
+- `APScheduler==3.10.4` - Background scheduler
+- `pytz`, `tzlocal` - Timezone handling (dependencies de APScheduler)
+
+### Archivos Creados/Modificados
+
+**Nuevos archivos (7):**
+- `crawler/scheduler.py` (273 líneas)
+- `migrations/004_add_health_snapshots.sql`
+- `templates/crawler/health.html`
+- `templates/crawler/scheduler.html`
+- `templates/emails/revalidation_report.html`
+- `test_scheduler.py` (166 líneas)
+
+**Modificados (4):**
+- `app.py` - 2 nuevas rutas (líneas 1440-1542)
+- `templates/base.html` - Menú sidebar actualizado
+- `templates/crawler/results.html` - Bugs visuales corregidos
+- `requirements.txt` - APScheduler añadido
+
+### Bugs Corregidos
+
+✅ **Bug Visual /crawler/results**
+- Enlaces rotos con fondo rosa y texto gris (ilegible)
+- Badge de profundidad con texto gris sobre azul claro (ilegible)
+- **Fix**: Colores contrastantes (#991b1b sobre rosa, #1e40af sobre azul)
+
+### Testing
+
+✅ **test_scheduler.py - Script de Pruebas**
+- Check de database setup (health_snapshots table)
+- Test de revalidación manual
+- Test de configuración del scheduler (start/stop)
+- Todos los tests pasan correctamente
+
+**Resultados:**
+```
+✅ health_snapshots table exists
+✅ discovered_urls table: 2839 URLs
+   - Validated: 2788
+   - Broken: 46
+✅ Scheduler started successfully
+   - Next Run: 2025-11-01 03:00:00
+   - Trigger: cron[hour='3', minute='0']
+✅ Scheduler stopped successfully
+```
+
+### Próximos Pasos Sugeridos
+
+**🎯 OPCIÓN D: Despliegue en Producción (RECOMENDADO)**
+1. Configurar variables de entorno en Render
+2. Ejecutar migración 004 en producción
+3. Configurar SMTP para emails (MAIL_SERVER, MAIL_USERNAME, MAIL_PASSWORD)
+4. Activar scheduler desde UI en producción
+5. Monitorear primeras ejecuciones
+
+**Variables necesarias en Render:**
+```bash
+MAIL_SERVER=smtp.gmail.com
+MAIL_PORT=587
+MAIL_USE_TLS=True
+MAIL_USERNAME=tu-email@gmail.com
+MAIL_PASSWORD=tu-app-password
+MAIL_DEFAULT_SENDER=Agenda Renta4 <noreply@renta4.com>
+```
+
+**Comandos para producción:**
+```bash
+# 1. Ejecutar migración
+psql $DATABASE_URL < migrations/004_add_health_snapshots.sql
+
+# 2. Auto-start scheduler en app.py (descomentar líneas 1552-1553)
+# from crawler.scheduler import start_scheduler
+# start_scheduler(frequency='daily', hour=3, minute=0)
+```
+
+---
 
 ## 🎉 PHASE 2.3 VALIDACIÓN COMPLETA TERMINADA (2025-10-30 tarde)
 

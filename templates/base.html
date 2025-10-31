@@ -76,6 +76,12 @@
             <span class="nav-counter alert-counter">{{ broken_count }}</span>
           {% endif %}
         </a>
+        <a href="{{ url_for('crawler_health') }}" class="{% if request.endpoint == 'crawler_health' %}active{% endif %}">
+          💚 Health
+        </a>
+        <a href="{{ url_for('crawler_scheduler') }}" class="{% if request.endpoint == 'crawler_scheduler' %}active{% endif %}">
+          ⚙️ Scheduler
+        </a>
       </nav>
     </aside>
 

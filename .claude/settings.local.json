@@ -15,7 +15,9 @@
       "Bash(source .env)",
       "Bash(psql:*)",
       "Bash(python validate_urls.py:*)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(pip install:*)",
+      "Bash(pkill:*)"
     ],
     "deny": [],
     "ask": []

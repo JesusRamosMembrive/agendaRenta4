@@ -1434,10 +1434,124 @@ def internal_error(error):
 
 
 # ==============================================================================
+# CRAWLER - HEALTH DASHBOARD & SCHEDULER (Phase 2.4)
+# ==============================================================================
+
+@app.route('/crawler/health')
+@login_required
+def crawler_health():
+    """
+    Health dashboard with historical tracking.
+    Shows health score evolution over time.
+    """
+    with db_cursor() as cursor:
+        # Get health snapshots (last 30 days)
+        cursor.execute("""
+            SELECT
+                id,
+                snapshot_date,
+                health_score,
+                total_urls,
+                ok_urls,
+                broken_urls,
+                redirect_urls,
+                error_urls
+            FROM health_snapshots
+            ORDER BY snapshot_date DESC
+            LIMIT 30
+        """)
+        snapshots = cursor.fetchall()
+
+        # Get current health (latest snapshot)
+        current_health = snapshots[0] if snapshots else None
+
+        # Get trend (compare with 7 days ago)
+        if len(snapshots) >= 7:
+            week_ago_health = snapshots[6]['health_score']
+            trend = current_health['health_score'] - week_ago_health
+        else:
+            trend = 0
+
+        # Get recent changes (last 7 days)
+        cursor.execute("""
+            SELECT
+                c.change_type,
+                COUNT(*) as count
+            FROM url_changes c
+            WHERE c.detected_at >= NOW() - INTERVAL '7 days'
+            GROUP BY c.change_type
+            ORDER BY count DESC
+        """)
+        recent_changes = cursor.fetchall()
+
+    return render_template(
+        'crawler/health.html',
+        snapshots=snapshots,
+        current_health=current_health,
+        trend=trend,
+        recent_changes=recent_changes
+    )
+
+
+@app.route('/crawler/scheduler', methods=['GET', 'POST'])
+@login_required
+def crawler_scheduler():
+    """
+    Configure automatic revalidation scheduler.
+    """
+    from crawler.scheduler import get_scheduler, start_scheduler, stop_scheduler
+
+    scheduler = get_scheduler()
+
+    if request.method == 'POST':
+        action = request.form.get('action')
+
+        if action == 'start':
+            frequency = request.form.get('frequency', 'daily')
+            hour = int(request.form.get('hour', 3))
+            minute = int(request.form.get('minute', 0))
+
+            try:
+                start_scheduler(frequency, hour, minute)
+                flash(f'✓ Scheduler iniciado: {frequency} a las {hour:02d}:{minute:02d}', 'success')
+            except Exception as e:
+                flash(f'✗ Error al iniciar scheduler: {e}', 'error')
+
+        elif action == 'stop':
+            try:
+                stop_scheduler()
+                flash('✓ Scheduler detenido', 'success')
+            except Exception as e:
+                flash(f'✗ Error al detener scheduler: {e}', 'error')
+
+        elif action == 'run_now':
+            try:
+                scheduler.run_revalidation()
+                flash('✓ Revalidación manual ejecutada', 'success')
+            except Exception as e:
+                flash(f'✗ Error al ejecutar revalidación: {e}', 'error')
+
+        return redirect(url_for('crawler_scheduler'))
+
+    # Get scheduler info
+    schedule_info = scheduler.get_schedule_info()
+
+    return render_template(
+        'crawler/scheduler.html',
+        schedule_info=schedule_info
+    )
+
+
+# ==============================================================================
 # MAIN
 # ==============================================================================
 
 if __name__ == '__main__':
+    # Initialize scheduler on startup (optional)
+    # Uncomment to auto-start scheduler when app starts
+    # from crawler.scheduler import start_scheduler
+    # start_scheduler(frequency='daily', hour=3, minute=0)
+
     # Run Flask development server
     port = int(os.getenv('PORT', DEFAULT_PORT))
     app.run(debug=True, host='0.0.0.0', port=port)
