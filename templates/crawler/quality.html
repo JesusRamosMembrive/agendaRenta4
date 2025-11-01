@@ -19,8 +19,8 @@
         <!-- Average Score -->
         <div style="background: #f3f4f6; padding: 20px; border-radius: 8px;">
             <div style="font-size: 32px; font-weight: bold;
-                {% if stats.avg_score >= 80 %}color: #10b981;
-                {% elif stats.avg_score >= 50 %}color: #f59e0b;
+                {% if (stats.avg_score or 0) >= 80 %}color: #10b981;
+                {% elif (stats.avg_score or 0) >= 50 %}color: #f59e0b;
                 {% else %}color: #ef4444;{% endif %}">
                 {{ "%.0f"|format(stats.avg_score or 0) }}
             </div>
@@ -60,6 +60,16 @@
         </div>
     </div>
 
+    <!-- Info Box -->
+    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 8px; margin-bottom: 20px; color: white;">
+        <h3 style="margin: 0 0 10px 0; font-size: 16px; font-weight: 600;">🖼️ Verificación de Imágenes</h3>
+        <div style="opacity: 0.9; line-height: 1.6; font-size: 14px;">
+            Este check verifica que todas las imágenes de cada página se carguen correctamente.<br>
+            <strong>✓ OK (100)</strong> = Todas las imágenes funcionan correctamente<br>
+            <strong>✗ Error (0)</strong> = Hay imágenes rotas o que no cargan
+        </div>
+    </div>
+
     <!-- Filters -->
     <div style="background: #f9fafb; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
         <form method="get" style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
@@ -95,13 +105,13 @@
         </thead>
         <tbody>
             {% for check in quality_checks %}
-            <tr>
-                <td>
+            <tr style="border-bottom: 1px solid #ffffff; box-shadow: 0 1px 0 0 #e5e7eb;">
+                <td style="padding: 16px 12px;">
                     <a href="{{ check.url }}" target="_blank" style="color: #3b82f6; word-break: break-all;">
                         {{ check.url_name or check.url[:50] }}
                     </a>
                 </td>
-                <td>
+                <td style="padding: 16px 12px;">
                     {% if check.status == 'ok' %}
                         <span style="padding: 4px 12px; background: #d1fae5; color: #059669; border-radius: 4px; font-weight: 500;">
                             ✓ OK
@@ -116,7 +126,7 @@
                         </span>
                     {% endif %}
                 </td>
-                <td>
+                <td style="padding: 16px 12px;">
                     <div style="display: flex; align-items: center; gap: 8px;">
                         <div style="font-size: 20px; font-weight: bold;
                             {% if check.score >= 80 %}color: #10b981;
@@ -127,7 +137,7 @@
                         <div style="color: #9ca3af;">/100</div>
                     </div>
                 </td>
-                <td>
+                <td style="padding: 16px 12px;">
                     <span style="font-size: 18px; font-weight: 600;
                         {% if check.issues_found == 0 %}color: #10b981;
                         {% elif check.issues_found <= 3 %}color: #f59e0b;
@@ -135,29 +145,41 @@
                         {{ check.issues_found }}
                     </span>
                 </td>
-                <td>
-                    <div style="font-size: 13px; color: #6b7280;">
+                <td style="padding: 16px 12px;">
+                    <div style="font-size: 13px; color: #6b7280; line-height: 1.6;">
                         {% if check.details %}
                             {% set details = check.details if check.details is mapping else check.details|fromjson %}
-                            <div><strong>Total imágenes:</strong> {{ details.total_images }}</div>
-                            {% if details.images_without_alt > 0 %}
-                            <div style="color: #f59e0b;">⚠ Sin alt text: {{ details.images_without_alt }}</div>
-                            {% endif %}
-                            {% if details.oversized_images > 0 %}
-                            <div style="color: #ef4444;">⚠ Muy grandes (>1MB): {{ details.oversized_images }}</div>
-                            {% endif %}
+                            <div style="margin-bottom: 4px;"><strong>Total imágenes:</strong> {{ details.total_images }}</div>
                             {% if details.broken_images > 0 %}
-                            <div style="color: #ef4444;">✗ Rotas: {{ details.broken_images }}</div>
+                            <div style="color: #ef4444; margin-bottom: 8px;">✗ Rotas: {{ details.broken_images }}</div>
                             {% endif %}
-                            {% if details.suboptimal_format > 0 %}
-                            <div style="color: #f59e0b;">⚠ Formato subóptimo: {{ details.suboptimal_format }}</div>
+
+                            {% if check.issues_found > 0 and details.broken_images_list %}
+                            <div style="margin-top: 12px;">
+                                <button onclick="toggleDetails('details-{{ loop.index }}')"
+                                        style="background: #3b82f6; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;">
+                                    🔍 Ver imágenes rotas
+                                </button>
+                            </div>
+
+                            <div id="details-{{ loop.index }}" style="display: none; margin-top: 12px; padding: 12px; background: #fee2e2; border-radius: 6px; border-left: 3px solid #ef4444;">
+                                <strong style="color: #dc2626;">✗ Imágenes rotas ({{ details.broken_images }}):</strong>
+                                <ul style="margin: 6px 0 0 0; padding-left: 20px; font-size: 11px;">
+                                {% for img in details.broken_images_list %}
+                                    <li style="margin-bottom: 4px; word-break: break-all;">
+                                        <a href="{{ img.url }}" target="_blank" style="color: #3b82f6;">{{ img.url }}</a>
+                                        <span style="color: #dc2626; font-weight: 600;"> ({{ img.status }})</span>
+                                    </li>
+                                {% endfor %}
+                                </ul>
+                            </div>
                             {% endif %}
                         {% endif %}
                     </div>
                 </td>
-                <td style="font-size: 13px; color: #6b7280;">
+                <td style="padding: 16px 12px; font-size: 13px; color: #6b7280;">
                     {{ check.checked_at.strftime('%d/%m/%Y %H:%M') if check.checked_at else '-' }}
-                    <div style="font-size: 11px; color: #9ca3af;">
+                    <div style="font-size: 11px; color: #9ca3af; margin-top: 4px;">
                         ({{ check.execution_time_ms }}ms)
                     </div>
                 </td>
@@ -201,4 +223,19 @@
     </div>
     {% endif %}
 </div>
+
+<script>
+function toggleDetails(detailsId) {
+    const detailsDiv = document.getElementById(detailsId);
+    const button = event.target;
+
+    if (detailsDiv.style.display === 'none') {
+        detailsDiv.style.display = 'block';
+        button.textContent = '🔼 Ocultar imágenes rotas';
+    } else {
+        detailsDiv.style.display = 'none';
+        button.textContent = '🔍 Ver imágenes rotas';
+    }
+}
+</script>
 {% endblock %}

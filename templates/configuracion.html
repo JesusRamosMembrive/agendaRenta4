@@ -469,7 +469,7 @@ document.getElementById('form-alerts').addEventListener('submit', function(e) {
     });
   });
 
-  fetch('{{ url_for("save_alert_settings") }}', {
+  fetch('{{ url_for("config.save_alert_settings") }}', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
@@ -502,7 +502,7 @@ document.getElementById('form-notifications').addEventListener('submit', functio
   formData.append('enable_desktop', document.getElementById('enable_desktop').checked);
   formData.append('enable_in_app', document.getElementById('enable_in_app').checked);
 
-  fetch('{{ url_for("save_notification_preferences") }}', {
+  fetch('{{ url_for("config.save_notification_preferences") }}', {
     method: 'POST',
     body: formData
   })
@@ -537,7 +537,7 @@ document.getElementById('form-add-url').addEventListener('submit', function(e) {
 
   const formData = new FormData(this);
 
-  fetch('{{ url_for("add_url") }}', {
+  fetch('{{ url_for("config.add_url") }}', {
     method: 'POST',
     body: formData
   })
@@ -822,16 +822,46 @@ function renderQualityChecksConfig(checks) {
             <div style="color: var(--muted); font-size: 0.9em; margin-bottom: 12px;">
               ${check.description}
             </div>
-            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+
+            <!-- Auto-run checkbox -->
+            <label style="display: flex; align-items: center; gap: 8px; cursor: ${check.enabled ? 'pointer' : 'not-allowed'}; opacity: ${check.enabled ? '1' : '0.5'}; margin-bottom: 12px;">
               <input
                 type="checkbox"
                 class="check-auto-run"
                 data-check-type="${check.check_type}"
                 ${check.run_after_crawl ? 'checked' : ''}
-                ${disabledAttr}
+                ${!check.enabled || !check.available ? 'disabled' : ''}
                 style="width: 18px; height: 18px; cursor: pointer;">
               <span style="font-size: 0.9em; color: var(--text);">Ejecutar automáticamente después de cada crawl</span>
             </label>
+
+            <!-- Scope radio buttons -->
+            <div class="check-scope-selector" data-check-type="${check.check_type}" style="display: flex; gap: 16px; padding-left: 26px; opacity: ${check.enabled ? '1' : '0.5'};">
+              <label style="display: flex; align-items: center; gap: 6px; cursor: ${check.enabled ? 'pointer' : 'not-allowed'}; font-size: 0.9em;">
+                <input
+                  type="radio"
+                  name="scope_${check.check_type}"
+                  value="priority"
+                  class="check-scope"
+                  data-check-type="${check.check_type}"
+                  ${check.scope === 'priority' ? 'checked' : ''}
+                  ${!check.enabled || !check.available ? 'disabled' : ''}
+                  style="width: 16px; height: 16px; cursor: pointer;">
+                <span style="color: var(--text);">Solo URLs Priority (117)</span>
+              </label>
+              <label style="display: flex; align-items: center; gap: 6px; cursor: ${check.enabled ? 'pointer' : 'not-allowed'}; font-size: 0.9em;">
+                <input
+                  type="radio"
+                  name="scope_${check.check_type}"
+                  value="all"
+                  class="check-scope"
+                  data-check-type="${check.check_type}"
+                  ${check.scope === 'all' ? 'checked' : ''}
+                  ${!check.enabled || !check.available ? 'disabled' : ''}
+                  style="width: 16px; height: 16px; cursor: pointer;">
+                <span style="color: var(--text);">Todas las URLs (~2,800)</span>
+              </label>
+            </div>
           </div>
           <label class="toggle-switch">
             <input
@@ -856,11 +886,42 @@ function renderQualityChecksConfig(checks) {
 }
 
 function toggleCheckEnabled(checkType, enabled) {
-  // If disabling, also uncheck auto-run
-  if (!enabled) {
-    const autoRunCheckbox = document.querySelector(`.check-auto-run[data-check-type="${checkType}"]`);
-    if (autoRunCheckbox) {
+  // Enable/disable auto-run checkbox based on toggle state
+  const autoRunCheckbox = document.querySelector(`.check-auto-run[data-check-type="${checkType}"]`);
+  if (autoRunCheckbox) {
+    if (enabled) {
+      // Enable the auto-run checkbox
+      autoRunCheckbox.disabled = false;
+      autoRunCheckbox.parentElement.style.opacity = '1';
+      autoRunCheckbox.parentElement.style.cursor = 'pointer';
+    } else {
+      // Disable and uncheck auto-run checkbox
+      autoRunCheckbox.disabled = true;
       autoRunCheckbox.checked = false;
+      autoRunCheckbox.parentElement.style.opacity = '0.5';
+      autoRunCheckbox.parentElement.style.cursor = 'not-allowed';
+    }
+  }
+
+  // Enable/disable scope radio buttons
+  const scopeSelector = document.querySelector(`.check-scope-selector[data-check-type="${checkType}"]`);
+  const scopeRadios = document.querySelectorAll(`.check-scope[data-check-type="${checkType}"]`);
+
+  if (scopeSelector && scopeRadios.length > 0) {
+    if (enabled) {
+      // Enable scope selection
+      scopeSelector.style.opacity = '1';
+      scopeRadios.forEach(radio => {
+        radio.disabled = false;
+        radio.parentElement.style.cursor = 'pointer';
+      });
+    } else {
+      // Disable scope selection
+      scopeSelector.style.opacity = '0.5';
+      scopeRadios.forEach(radio => {
+        radio.disabled = true;
+        radio.parentElement.style.cursor = 'not-allowed';
+      });
     }
   }
 }
@@ -874,6 +935,7 @@ function saveQualityChecksConfig() {
   // Collect all check configurations
   const enabledCheckboxes = document.querySelectorAll('.check-enabled');
   const autoRunCheckboxes = document.querySelectorAll('.check-auto-run');
+  const scopeRadios = document.querySelectorAll('.check-scope:checked');
 
   const configs = [];
   enabledCheckboxes.forEach((checkbox, index) => {
@@ -882,10 +944,15 @@ function saveQualityChecksConfig() {
     const autoRunCheckbox = Array.from(autoRunCheckboxes).find(cb => cb.dataset.checkType === checkType);
     const runAfterCrawl = autoRunCheckbox ? autoRunCheckbox.checked : false;
 
+    // Get scope for this check type
+    const scopeRadio = Array.from(scopeRadios).find(r => r.dataset.checkType === checkType);
+    const scope = scopeRadio ? scopeRadio.value : 'priority';
+
     configs.push({
       check_type: checkType,
       enabled: enabled,
-      run_after_crawl: runAfterCrawl
+      run_after_crawl: runAfterCrawl,
+      scope: scope
     });
   });
 

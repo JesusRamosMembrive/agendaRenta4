@@ -198,12 +198,16 @@ class Crawler:
                     if parent_row:
                         parent_url_id = parent_row['id']
 
-                # Insert URL (ignore if already exists)
+                # Insert URL (update crawl_run_id if already exists)
                 cursor.execute("""
                     INSERT INTO discovered_urls (url, parent_url_id, depth, crawl_run_id, discovered_at)
                     VALUES (%s, %s, %s, %s, NOW())
                     ON CONFLICT (url) DO UPDATE
-                    SET last_checked = NOW()
+                    SET
+                        last_checked = NOW(),
+                        crawl_run_id = EXCLUDED.crawl_run_id,
+                        depth = EXCLUDED.depth,
+                        parent_url_id = EXCLUDED.parent_url_id
                 """, (url, parent_url_id, depth, self.crawl_run_id))
 
                 logger.debug(f"Saved URL: {url} (depth={depth}, parent={parent_url})")

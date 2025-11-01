@@ -19,10 +19,7 @@ class ImagenesChecker(QualityCheck):
     """Checker for image quality on web pages"""
 
     DEFAULT_CONFIG = {
-        "max_size_mb": 1.0,
         "timeout": 10,
-        "check_format": False,  # Disabled by default, can be enabled
-        "check_alt_text": True,
         "ignore_external": False,
     }
 
@@ -77,11 +74,8 @@ class ImagenesChecker(QualityCheck):
             # Initialize result data
             result_data = {
                 "total_images": 0,
-                "images_without_alt": 0,
-                "oversized_images": 0,
                 "broken_images": 0,
-                "suboptimal_format": 0,
-                "check_errors": 0,
+                "broken_images_list": [],
             }
 
             # Parse base domain for external image filtering
@@ -104,13 +98,7 @@ class ImagenesChecker(QualityCheck):
 
                 result_data["total_images"] += 1
 
-                # Check alt text
-                if self.config["check_alt_text"]:
-                    alt_text = img.get("alt", "").strip()
-                    if not alt_text:
-                        result_data["images_without_alt"] += 1
-
-                # Check image properties via HEAD request
+                # Check if image is broken via HEAD request
                 try:
                     img_response = requests.head(
                         img_url,
@@ -118,57 +106,38 @@ class ImagenesChecker(QualityCheck):
                         allow_redirects=True,
                     )
 
-                    # Check if broken
-                    if img_response.status_code == 404:
+                    # Check if broken (any 4xx or 5xx status)
+                    if img_response.status_code >= 400:
                         result_data["broken_images"] += 1
-                        continue
-                    elif img_response.status_code >= 400:
-                        result_data["broken_images"] += 1
-                        continue
+                        result_data["broken_images_list"].append({
+                            "url": img_url,
+                            "status": img_response.status_code
+                        })
 
-                    # Check file size
-                    content_length = img_response.headers.get("content-length")
-                    if content_length:
-                        size_mb = int(content_length) / (1024 * 1024)
-                        if size_mb > self.config["max_size_mb"]:
-                            result_data["oversized_images"] += 1
-
-                    # Check format
-                    if self.config["check_format"]:
-                        img_ext = img_url.lower().split(".")[-1].split("?")[0]
-                        if img_ext in ["jpg", "jpeg", "png", "gif"]:
-                            result_data["suboptimal_format"] += 1
-
-                except requests.Timeout:
-                    result_data["check_errors"] += 1
-                except Exception:
-                    result_data["check_errors"] += 1
+                except (requests.Timeout, requests.RequestException):
+                    # If we can't reach the image, consider it broken
+                    result_data["broken_images"] += 1
+                    result_data["broken_images_list"].append({
+                        "url": img_url,
+                        "status": "timeout/error"
+                    })
 
             # Calculate score and determine status
-            score = self._calculate_score(result_data)
-            issues_found = (
-                result_data["images_without_alt"]
-                + result_data["oversized_images"]
-                + result_data["broken_images"]
-                + result_data["suboptimal_format"]
-            )
+            issues_found = result_data["broken_images"]
 
-            # Determine status
-            if issues_found == 0:
-                status = "ok"
-                message = f"All {result_data['total_images']} images are optimized"
-            elif score >= 70:
-                status = "warning"
-                message = f"Found {issues_found} image quality issues"
-            else:
-                status = "error"
-                message = f"Found {issues_found} critical image quality issues"
-
-            # Handle no images case
+            # Determine status - simple: broken images = fail, no broken = success
             if result_data["total_images"] == 0:
                 status = "ok"
                 message = "No images found on page"
                 score = 100
+            elif issues_found == 0:
+                status = "ok"
+                message = f"All {result_data['total_images']} images are working"
+                score = 100
+            else:
+                status = "error"
+                message = f"Found {issues_found} broken image(s)"
+                score = 0
 
             execution_time = int((time.time() - start_time) * 1000)
             return self.create_result(
@@ -211,38 +180,3 @@ class ImagenesChecker(QualityCheck):
                 execution_time_ms=execution_time,
             )
 
-    def _calculate_score(self, result_data: Dict[str, int]) -> int:
-        """
-        Calculate quality score based on result data
-
-        Args:
-            result_data: Dictionary with check results
-
-        Returns:
-            Score from 0-100
-        """
-        total_images = result_data.get("total_images", 0)
-
-        # Perfect score if no images
-        if total_images == 0:
-            return 100
-
-        # Calculate penalty for each issue type
-        penalties = 0
-
-        # Alt text missing: -10 points per image
-        penalties += result_data.get("images_without_alt", 0) * 10
-
-        # Oversized images: -15 points per image
-        penalties += result_data.get("oversized_images", 0) * 15
-
-        # Broken images: -20 points per image
-        penalties += result_data.get("broken_images", 0) * 20
-
-        # Suboptimal format: -5 points per image
-        penalties += result_data.get("suboptimal_format", 0) * 5
-
-        # Calculate score (minimum 0)
-        score = max(0, 100 - penalties)
-
-        return score

@@ -105,7 +105,7 @@ function startCrawl() {
     btn.disabled = true;
     btn.textContent = '⏳ Crawling...';
 
-    fetch('{{ url_for("crawler_start") }}', {
+    fetch('{{ url_for("crawler.start") }}', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'

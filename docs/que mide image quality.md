@@ -1,79 +1,82 @@
- Perfecto, ahora tengo toda la información necesaria. Déjame responderte con claridad:
+# 🖼️ Verificación de Imágenes - Documentación
 
-  📊 ¿Qué mide el módulo de Calidad de Imágenes?
+## ¿Qué hace este módulo?
 
-  El ImagenesChecker analiza 5 aspectos de calidad más allá de solo verificar si las imágenes cargan:
+El módulo de **Calidad de Imágenes** verifica que todas las imágenes de cada página web **se carguen correctamente** y no estén rotas.
 
-  1. Texto Alternativo (Alt Text) ❌ -10 puntos por imagen
+---
 
-  - Verifica si cada imagen tiene el atributo alt con contenido
-  - Importante para SEO y accesibilidad
-  - Se activa con: check_alt_text: True (activado por defecto)
+## Sistema de Verificación (Simplificado)
 
-  2. Tamaño de Archivo (File Size) 📦 -15 puntos por imagen
+Este check tiene un objetivo simple y claro:
 
-  - Detecta imágenes que pesan más de 1 MB
-  - Afecta el rendimiento de carga de la página
-  - Umbral configurable con: max_size_mb: 1.0
+### ✓ OK (Score: 100)
+- Todas las imágenes de la página cargan correctamente
+- No hay errores HTTP (404, 500, etc.)
+- No hay timeouts al intentar cargar las imágenes
 
-  3. Formato de Imagen (Format Optimization) 🎨 -5 puntos por imagen
+### ✗ Error (Score: 0)
+- Una o más imágenes NO cargan
+- Devuelven error HTTP (404, 403, 500, etc.)
+- No responden (timeout)
 
-  - Detecta imágenes en formatos antiguos (JPG, PNG, GIF)
-  - Sugiere migración a formatos modernos como WebP
-  - Se activa con: check_format: False (desactivado por defecto, pero lo activaste en las rutas)
+---
 
-  4. Imágenes Rotas (Broken Images) 🔴 -20 puntos por imagen
+## ¿Qué se verifica exactamente?
 
-  - Verifica si la imagen devuelve 404 o error HTTP
-  - El problema más crítico
+Para cada imagen en la página, se hace una petición HTTP HEAD para verificar:
 
-  5. Errores de Red (Check Errors) ⚠️
+1. **Status HTTP < 400** → Imagen funciona ✓
+2. **Status HTTP ≥ 400** → Imagen rota ✗
+3. **Timeout/Error** → Imagen rota ✗
 
-  - Cuenta timeouts o errores de conexión al verificar imágenes
-  - No penaliza el score pero se reporta en check_errors
+---
 
-  ---
-  🎯 Sistema de Puntuación
+## Detalles Reportados
 
-  - Puntuación base: 100 puntos
-  - Estado según score:
-    - ok (verde): 100 puntos (sin problemas) o 0 imágenes
-    - warning (amarillo): 70-99 puntos
-    - error (rojo): 0-69 puntos
+Cuando hay imágenes rotas, el check guarda:
+- URL de cada imagen rota
+- Código de estado HTTP o tipo de error
+- Total de imágenes analizadas
 
-  ---
-  🔄 ¿Cuándo se ejecutan los checks?
+Ejemplo de resultado con errores:
+```json
+{
+  "total_images": 23,
+  "broken_images": 2,
+  "broken_images_list": [
+    {"url": "https://example.com/missing.jpg", "status": 404},
+    {"url": "https://example.com/forbidden.png", "status": 403}
+  ]
+}
+```
 
-  NO se ejecutan automáticamente con el crawler ❌
+---
 
-  Actualmente, el crawler (crawler/crawler.py) solo:
-  1. Descubre URLs
-  2. Guarda enlaces rotos
-  3. NO ejecuta checks de calidad de imágenes
+## ¿Cuándo se ejecuta?
 
-  Se ejecutan SOLO manualmente ✅
+Los checks se ejecutan **automáticamente después de cada crawl** si tienes activada la opción en Configuración.
 
-  Los checks se ejecutan cuando:
+También puedes ejecutarlos manualmente:
+1. **Individual**: Desde la página de Configuración, botón 🖼️ en cada URL
+2. **Batch**: Seleccionando múltiples URLs y haciendo click en "Comprobar Seleccionadas"
+3. **Ver resultados**: Página "🖼️ Calidad de Imágenes" (`/crawler/quality`)
 
-  1. Manualmente desde la UI (botón 🖼️ en cada URL):
-    - Página: "Configuración"
-    - Ruta: /crawler/quality/check/<section_id> (POST)
-  2. Batch manual (seleccionando múltiples URLs):
-    - Página: "Configuración"
-    - Botón: "Comprobar Seleccionadas"
-    - Ruta: /crawler/quality/batch (POST)
-  3. Consultando resultados:
-    - Página: "🖼️ Calidad de Imágenes" (dashboard)
-    - Ruta: /crawler/quality (GET)
+---
 
-  ---
-  📝 Resumen de tu pregunta
+## Configuración
 
-  | Aspecto                                 | Respuesta                                                                            |
-  |-----------------------------------------|--------------------------------------------------------------------------------------|
-  | ¿Solo verifica carga de imágenes?       | No, verifica 5 aspectos: alt text, tamaño, formato, imágenes rotas, y errores de red |
-  | ¿Se genera automáticamente con crawler? | NO - Solo se ejecuta manualmente desde la UI                                         |
-  | ¿Cuándo se ejecuta?                     | Cuando haces clic en 🖼️ (individual) o "Comprobar Seleccionadas" (batch)            |
+Opciones disponibles:
+- `timeout`: Tiempo máximo de espera (por defecto: 10 segundos)
+- `ignore_external`: Ignorar imágenes de dominios externos (por defecto: False)
 
-  ---
-  ¿Te gustaría que el módulo de calidad de imágenes se ejecute automáticamente después de cada crawl? Puedo planificar esa integración si lo deseas.
+---
+
+## Por qué este diseño simple
+
+Este sistema está optimizado para el caso de uso real:
+- **Objetivo claro**: Detectar imágenes rotas
+- **Fácil de entender**: 100 = OK, 0 = Hay problemas
+- **Accionable**: Los detalles muestran exactamente qué imágenes arreglar
+
+Otros aspectos como tamaño de archivo, formato (WebP vs JPG), o alt text para SEO son importantes pero quedan fuera del scope de este check enfocado en **funcionalidad básica**.

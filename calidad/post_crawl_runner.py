@@ -59,7 +59,7 @@ class PostCrawlQualityRunner:
         """
         self.crawl_run_id = crawl_run_id
 
-    def get_configured_checks(self, user_id: int) -> List[str]:
+    def get_configured_checks(self, user_id: int) -> List[Dict[str, str]]:
         """
         Get list of checks configured to run automatically for a user.
 
@@ -67,11 +67,11 @@ class PostCrawlQualityRunner:
             user_id: User ID to check configuration
 
         Returns:
-            List of check types (e.g., ['broken_links', 'image_quality'])
+            List of dicts with check_type and scope (e.g., [{'check_type': 'broken_links', 'scope': 'all'}])
         """
         with db_cursor(commit=False) as cursor:
             cursor.execute("""
-                SELECT check_type
+                SELECT check_type, scope
                 FROM quality_check_config
                 WHERE user_id = %s
                   AND enabled = TRUE
@@ -79,7 +79,7 @@ class PostCrawlQualityRunner:
             """, (user_id,))
 
             results = cursor.fetchall()
-            return [row['check_type'] for row in results]
+            return [{'check_type': row['check_type'], 'scope': row['scope']} for row in results]
 
     def run_configured_checks(self, user_id: int) -> Dict[str, Any]:
         """
@@ -91,9 +91,9 @@ class PostCrawlQualityRunner:
         Returns:
             Dictionary with execution results for each check
         """
-        check_types = self.get_configured_checks(user_id)
+        check_configs = self.get_configured_checks(user_id)
 
-        if not check_types:
+        if not check_configs:
             logger.info(f"No automatic checks configured for user {user_id}")
             return {
                 'executed': False,
@@ -101,15 +101,15 @@ class PostCrawlQualityRunner:
                 'checks': []
             }
 
-        logger.info(f"Running {len(check_types)} automatic checks for crawl {self.crawl_run_id}")
-        return self.run_selected_checks(check_types)
+        logger.info(f"Running {len(check_configs)} automatic checks for crawl {self.crawl_run_id}")
+        return self.run_selected_checks_with_scope(check_configs)
 
-    def run_selected_checks(self, check_types: List[str]) -> Dict[str, Any]:
+    def run_selected_checks_with_scope(self, check_configs: List[Dict[str, str]]) -> Dict[str, Any]:
         """
-        Run specified quality checks.
+        Run specified quality checks with their configured scopes.
 
         Args:
-            check_types: List of check types to run
+            check_configs: List of dicts with check_type and scope
 
         Returns:
             Dictionary with results for each check executed
@@ -120,7 +120,10 @@ class PostCrawlQualityRunner:
             'checks': []
         }
 
-        for check_type in check_types:
+        for config in check_configs:
+            check_type = config['check_type']
+            scope = config['scope']
+
             if check_type not in self.AVAILABLE_CHECKS:
                 logger.warning(f"Unknown check type: {check_type}")
                 continue
@@ -137,10 +140,10 @@ class PostCrawlQualityRunner:
                 })
                 continue
 
-            # Execute check
+            # Execute check with scope
             try:
-                logger.info(f"Executing check: {check_type}")
-                check_result = self._execute_check(check_type)
+                logger.info(f"Executing check: {check_type} (scope: {scope})")
+                check_result = self._execute_check_with_scope(check_type, scope)
                 results['checks'].append(check_result)
 
             except Exception as e:
@@ -153,9 +156,43 @@ class PostCrawlQualityRunner:
 
         return results
 
+    def run_selected_checks(self, check_types: List[str]) -> Dict[str, Any]:
+        """
+        Run specified quality checks (legacy method - defaults to 'priority' scope).
+
+        Args:
+            check_types: List of check types to run
+
+        Returns:
+            Dictionary with results for each check executed
+        """
+        # Convert to new format with default scope
+        check_configs = [{'check_type': ct, 'scope': 'priority'} for ct in check_types]
+        return self.run_selected_checks_with_scope(check_configs)
+
+    def _execute_check_with_scope(self, check_type: str, scope: str) -> Dict[str, Any]:
+        """
+        Execute a specific check type with a given scope.
+
+        Args:
+            check_type: Type of check to execute
+            scope: Scope of URLs to check ('all' or 'priority')
+
+        Returns:
+            Dictionary with check execution results
+        """
+        if check_type == 'broken_links':
+            return self._run_broken_links_check(scope)
+
+        elif check_type == 'image_quality':
+            return self._run_image_quality_check(scope)
+
+        else:
+            raise ValueError(f"Check type '{check_type}' not implemented")
+
     def _execute_check(self, check_type: str) -> Dict[str, Any]:
         """
-        Execute a specific check type.
+        Execute a specific check type (legacy - defaults to 'priority' scope).
 
         Args:
             check_type: Type of check to execute
@@ -163,41 +200,43 @@ class PostCrawlQualityRunner:
         Returns:
             Dictionary with check execution results
         """
-        if check_type == 'broken_links':
-            return self._run_broken_links_check()
+        return self._execute_check_with_scope(check_type, 'priority')
 
-        elif check_type == 'image_quality':
-            return self._run_image_quality_check()
-
-        else:
-            raise ValueError(f"Check type '{check_type}' not implemented")
-
-    def _run_broken_links_check(self) -> Dict[str, Any]:
+    def _run_broken_links_check(self, scope: str = 'priority') -> Dict[str, Any]:
         """
         Run broken links validation.
+
+        Args:
+            scope: 'all' for all URLs, 'priority' for is_priority=TRUE only
 
         Returns:
             Dictionary with validation results
         """
         from crawler.validator import URLValidator
 
+        # Build query based on scope
+        query = """
+            SELECT id, url
+            FROM discovered_urls
+            WHERE crawl_run_id = %s
+              AND active = TRUE
+        """
+
+        if scope == 'priority':
+            query += " AND is_priority = TRUE"
+
+        query += " ORDER BY depth ASC"
+
         # Get URLs from this crawl run
         with db_cursor(commit=False) as cursor:
-            cursor.execute("""
-                SELECT id, url
-                FROM discovered_urls
-                WHERE crawl_run_id = %s
-                  AND active = TRUE
-                ORDER BY depth ASC
-            """, (self.crawl_run_id,))
-
+            cursor.execute(query, (self.crawl_run_id,))
             urls = cursor.fetchall()
 
         if not urls:
             return {
                 'check_type': 'broken_links',
                 'status': 'completed',
-                'message': 'No URLs to validate',
+                'message': f'No URLs to validate (scope: {scope})',
                 'stats': {'total': 0, 'validated': 0, 'broken': 0}
             }
 
@@ -209,60 +248,95 @@ class PostCrawlQualityRunner:
         return {
             'check_type': 'broken_links',
             'status': 'completed',
-            'message': f"Validated {stats['validated']} URLs, found {stats['broken']} broken",
+            'message': f"Validated {stats['validated']} URLs (scope: {scope}), found {stats['broken']} broken",
             'stats': stats
         }
 
-    def _run_image_quality_check(self) -> Dict[str, Any]:
+    def _run_image_quality_check(self, scope: str = 'priority') -> Dict[str, Any]:
         """
         Run image quality checks.
+
+        Args:
+            scope: 'all' for all URLs, 'priority' for is_priority=TRUE only
 
         Returns:
             Dictionary with check results
         """
         from calidad.imagenes import ImagenesChecker
-        from calidad.batch import BatchQualityCheckRunner
+        import json
 
-        # Get section IDs from this crawl run that are in sections table
+        # Build query based on scope
+        query = """
+            SELECT id, url, depth
+            FROM discovered_urls
+            WHERE crawl_run_id = %s
+              AND active = TRUE
+              AND is_broken = FALSE
+        """
+
+        if scope == 'priority':
+            query += " AND is_priority = TRUE"
+
+        query += " ORDER BY depth ASC"
+
+        # Get URLs from this crawl run
         with db_cursor(commit=False) as cursor:
-            cursor.execute("""
-                SELECT s.id
-                FROM sections s
-                INNER JOIN discovered_urls du ON s.url = du.url
-                WHERE du.crawl_run_id = %s
-                  AND s.active = TRUE
-            """, (self.crawl_run_id,))
+            cursor.execute(query, (self.crawl_run_id,))
+            urls = cursor.fetchall()
 
-            sections = cursor.fetchall()
-
-        if not sections:
+        if not urls:
             return {
                 'check_type': 'image_quality',
                 'status': 'completed',
-                'message': 'No sections to check',
+                'message': f'No URLs to check (scope: {scope})',
                 'stats': {'total': 0, 'processed': 0, 'successful': 0, 'failed': 0}
             }
 
-        # Run batch quality check
-        section_ids = [row['id'] for row in sections]
-        runner = BatchQualityCheckRunner(
-            batch_type='image_quality',
-            checker_class=ImagenesChecker,
-            checker_config={'check_format': True}
-        )
+        # Run image quality checks on each URL
+        checker = ImagenesChecker()
+        total = len(urls)
+        processed = 0
+        successful = 0
+        failed = 0
 
-        result = runner.run_batch(section_ids, created_by='post_crawl_auto')
+        for url_row in urls:
+            try:
+                result = checker.check(url_row['url'])
+
+                # Save result to quality_checks table with discovered_url_id
+                with db_cursor() as cursor:
+                    cursor.execute("""
+                        INSERT INTO quality_checks (
+                            discovered_url_id, check_type, status, score, message,
+                            details, issues_found, execution_time_ms, checked_at
+                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                    """, (
+                        url_row['id'],
+                        'image_quality',
+                        result.status,
+                        result.score,
+                        result.message,
+                        json.dumps(result.details),
+                        result.issues_found,
+                        result.execution_time_ms
+                    ))
+                successful += 1
+                processed += 1
+
+            except Exception as e:
+                logger.error(f"Error checking {url_row['url']}: {e}")
+                failed += 1
+                processed += 1
 
         return {
             'check_type': 'image_quality',
-            'status': result['status'],
-            'message': f"Checked {result['processed']} sections, {result['successful']} successful",
-            'batch_id': result['batch_id'],
+            'status': 'completed',
+            'message': f"Checked {processed} URLs (scope: {scope}), {successful} saved to database",
             'stats': {
-                'total': result['total'],
-                'processed': result['processed'],
-                'successful': result['successful'],
-                'failed': result['failed']
+                'total': total,
+                'processed': processed,
+                'successful': successful,
+                'failed': failed
             }
         }
 
@@ -282,7 +356,8 @@ def get_user_check_config(user_id: int) -> List[Dict[str, Any]]:
             SELECT
                 check_type,
                 enabled,
-                run_after_crawl
+                run_after_crawl,
+                scope
             FROM quality_check_config
             WHERE user_id = %s
             ORDER BY check_type
@@ -303,13 +378,14 @@ def get_user_check_config(user_id: int) -> List[Dict[str, Any]]:
             'icon': check_info.get('icon', ''),
             'available': check_info.get('available', True),
             'enabled': config['enabled'],
-            'run_after_crawl': config['run_after_crawl']
+            'run_after_crawl': config['run_after_crawl'],
+            'scope': config['scope']
         })
 
     return result
 
 
-def update_user_check_config(user_id: int, check_type: str, enabled: bool, run_after_crawl: bool) -> bool:
+def update_user_check_config(user_id: int, check_type: str, enabled: bool, run_after_crawl: bool, scope: str = 'priority') -> bool:
     """
     Update quality check configuration for a user.
 
@@ -318,6 +394,7 @@ def update_user_check_config(user_id: int, check_type: str, enabled: bool, run_a
         check_type: Type of check to configure
         enabled: Whether check is enabled
         run_after_crawl: Whether to run automatically after crawl
+        scope: Scope of URLs to check ('all' or 'priority')
 
     Returns:
         True if successful
@@ -325,16 +402,17 @@ def update_user_check_config(user_id: int, check_type: str, enabled: bool, run_a
     try:
         with db_cursor() as cursor:
             cursor.execute("""
-                INSERT INTO quality_check_config (user_id, check_type, enabled, run_after_crawl, updated_at)
-                VALUES (%s, %s, %s, %s, NOW())
+                INSERT INTO quality_check_config (user_id, check_type, enabled, run_after_crawl, scope, updated_at)
+                VALUES (%s, %s, %s, %s, %s, NOW())
                 ON CONFLICT (user_id, check_type)
                 DO UPDATE SET
                     enabled = EXCLUDED.enabled,
                     run_after_crawl = EXCLUDED.run_after_crawl,
+                    scope = EXCLUDED.scope,
                     updated_at = NOW()
-            """, (user_id, check_type, enabled, run_after_crawl))
+            """, (user_id, check_type, enabled, run_after_crawl, scope))
 
-        logger.info(f"Updated check config for user {user_id}: {check_type} enabled={enabled} auto={run_after_crawl}")
+        logger.info(f"Updated check config for user {user_id}: {check_type} enabled={enabled} auto={run_after_crawl} scope={scope}")
         return True
 
     except Exception as e:

@@ -409,12 +409,14 @@ def quality():
         where_sql = " AND " + " AND ".join(where_clauses) if where_clauses else ""
 
         # Get quality check results with discovered URL info
+        # Support both section_id (old) and discovered_url_id (new)
         cursor.execute(f"""
             SELECT
                 qc.id,
                 qc.section_id,
-                s.url,
-                s.name as url_name,
+                qc.discovered_url_id,
+                COALESCE(s.url, du.url) as url,
+                COALESCE(s.name, du.url) as url_name,
                 qc.check_type,
                 qc.status,
                 qc.score,
@@ -424,7 +426,8 @@ def quality():
                 qc.checked_at,
                 qc.execution_time_ms
             FROM quality_checks qc
-            INNER JOIN sections s ON qc.section_id = s.id
+            LEFT JOIN sections s ON qc.section_id = s.id
+            LEFT JOIN discovered_urls du ON qc.discovered_url_id = du.id
             WHERE qc.check_type = 'image_quality'{where_sql}
             ORDER BY qc.checked_at DESC
             LIMIT %s OFFSET %s
@@ -639,7 +642,8 @@ def update_quality_check_config():
     Expects JSON: {
         "check_type": "image_quality",
         "enabled": true,
-        "run_after_crawl": true
+        "run_after_crawl": true,
+        "scope": "priority"  # 'all' or 'priority'
     }
     """
     from calidad.post_crawl_runner import update_user_check_config
@@ -652,6 +656,7 @@ def update_quality_check_config():
         check_type = data.get('check_type')
         enabled = data.get('enabled', False)
         run_after_crawl = data.get('run_after_crawl', False)
+        scope = data.get('scope', 'priority')  # Default to 'priority' if not provided
 
         if not check_type:
             return jsonify({'success': False, 'error': 'check_type is required'}), 400
@@ -660,7 +665,8 @@ def update_quality_check_config():
             user_id=current_user.id,
             check_type=check_type,
             enabled=enabled,
-            run_after_crawl=run_after_crawl
+            run_after_crawl=run_after_crawl,
+            scope=scope
         )
 
         if success:

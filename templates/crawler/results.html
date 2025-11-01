@@ -82,7 +82,7 @@
     {% if not crawl_run and total_pages > 1 %}
     <div style="margin-top: 30px; text-align: center;">
         {% if page > 1 %}
-            <a href="{{ url_for('crawler_results', page=page-1) }}" class="btn">← Anterior</a>
+            <a href="{{ url_for('crawler.results', page=page-1) }}" class="btn">← Anterior</a>
         {% endif %}
 
         <span style="margin: 0 20px;">
@@ -90,7 +90,7 @@
         </span>
 
         {% if page < total_pages %}
-            <a href="{{ url_for('crawler_results', page=page+1) }}" class="btn">Siguiente →</a>
+            <a href="{{ url_for('crawler.results', page=page+1) }}" class="btn">Siguiente →</a>
         {% endif %}
     </div>
     {% endif %}
