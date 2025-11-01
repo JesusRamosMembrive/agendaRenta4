@@ -726,3 +726,79 @@ def run_crawl_quality_checks(crawl_run_id):
     except Exception as e:
         logger.error(f"Error running checks: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@crawler_bp.route('/quality/run', methods=['POST'])
+@login_required
+def run_quality_checks_manual():
+    """
+    Run quality checks manually on-demand (without crawl).
+
+    Works on discovered_urls already in database.
+    User can select which checks to run and scope (all/priority).
+
+    Expects JSON: {
+        "check_types": ["broken_links", "image_quality"],
+        "scope": "priority"  # 'all' or 'priority'
+    }
+    """
+    from calidad.post_crawl_runner import PostCrawlQualityRunner
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        # Get request data
+        data = request.get_json()
+        check_types = data.get('check_types', [])
+        scope = data.get('scope', 'priority')
+
+        if not check_types:
+            return jsonify({'success': False, 'error': 'check_types is required'}), 400
+
+        if scope not in ['all', 'priority']:
+            return jsonify({'success': False, 'error': 'scope must be "all" or "priority"'}), 400
+
+        # Get latest completed crawl run to use as reference
+        with db_cursor(commit=False) as cursor:
+            cursor.execute("""
+                SELECT id, root_url, finished_at
+                FROM crawl_runs
+                WHERE status = 'completed'
+                ORDER BY id DESC
+                LIMIT 1
+            """)
+            latest_crawl = cursor.fetchone()
+
+        if not latest_crawl:
+            return jsonify({
+                'success': False,
+                'error': 'No completed crawl found. Please run a crawl first.'
+            }), 400
+
+        crawl_run_id = latest_crawl['id']
+
+        logger.info(f"Running manual quality checks on crawl {crawl_run_id}")
+        logger.info(f"  - Check types: {check_types}")
+        logger.info(f"  - Scope: {scope}")
+
+        # Create check configs with scope
+        check_configs = [{'check_type': ct, 'scope': scope} for ct in check_types]
+
+        # Run checks
+        runner = PostCrawlQualityRunner(crawl_run_id)
+        results = runner.run_selected_checks_with_scope(check_configs)
+
+        logger.info(f"Manual quality checks completed for crawl {crawl_run_id}")
+        logger.info(f"  - Executed: {results.get('executed', False)}")
+        logger.info(f"  - Checks run: {len(results.get('checks', []))}")
+
+        return jsonify({
+            'success': True,
+            'crawl_run_id': crawl_run_id,
+            'results': results
+        })
+
+    except Exception as e:
+        logger.error(f"Error running manual quality checks: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
