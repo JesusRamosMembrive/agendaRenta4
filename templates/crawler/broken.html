@@ -33,6 +33,13 @@
         </div>
     </div>
 
+    <!-- Action Button -->
+    <div style="margin: 30px 0; text-align: center;">
+        <button onclick="openValidateModal()" class="btn" style="background: #10b981; color: white; padding: 16px 24px; font-size: 16px; font-weight: 600; border: none; cursor: pointer; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: all 0.2s;">
+            ⚡ Validar URLs Ahora
+        </button>
+    </div>
+
     {% if broken_urls %}
     <!-- Filter Buttons -->
     <div style="margin: 20px 0;">
@@ -122,6 +129,59 @@
     </div>
 
     {% endif %}
+
+    <!-- Modal for Running Validation -->
+    <div id="validateModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
+        <div style="background: white; padding: 30px; border-radius: 12px; max-width: 500px; width: 90%;">
+            <h2 style="margin: 0 0 20px 0;">🔍 Validar URLs</h2>
+
+            <p style="color: #6b7280; margin-bottom: 25px;">
+                Selecciona qué URLs validar. La validación verificará enlaces rotos, timeouts y códigos de estado HTTP.
+            </p>
+
+            <!-- Scope Selection -->
+            <div style="margin-bottom: 25px;">
+                <label style="display: block; font-weight: 600; margin-bottom: 10px;">Alcance de la validación:</label>
+
+                <label style="display: block; padding: 12px; border: 2px solid #e5e7eb; border-radius: 6px; margin-bottom: 10px; cursor: pointer;">
+                    <input type="radio" name="validateScope" value="priority" checked style="margin-right: 8px;">
+                    <strong>⭐ URLs Prioritarias</strong>
+                    <span style="display: block; margin-left: 24px; font-size: 13px; color: #6b7280;">
+                        ~117 URLs • Tiempo estimado: 3-5 minutos
+                    </span>
+                </label>
+
+                <label style="display: block; padding: 12px; border: 2px solid #e5e7eb; border-radius: 6px; cursor: pointer;">
+                    <input type="radio" name="validateScope" value="all" style="margin-right: 8px;">
+                    <strong>🌐 Todas las URLs</strong>
+                    <span style="display: block; margin-left: 24px; font-size: 13px; color: #6b7280;">
+                        ~2,800 URLs • Tiempo estimado: 15-30 minutos
+                    </span>
+                </label>
+            </div>
+
+            <!-- Progress (hidden initially) -->
+            <div id="validateProgress" style="display: none; margin: 20px 0;">
+                <div style="background: #e5e7eb; border-radius: 8px; height: 8px; overflow: hidden;">
+                    <div id="validateProgressBar" style="background: #10b981; height: 100%; width: 0%; transition: width 0.3s;"></div>
+                </div>
+                <p id="validateProgressText" style="text-align: center; margin-top: 10px; color: #6b7280; font-size: 14px;">
+                    Preparando validación...
+                </p>
+            </div>
+
+            <!-- Actions -->
+            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 25px;">
+                <button onclick="closeValidateModal()" id="validateCancelBtn" class="btn" style="background: #e5e7eb; color: #374151; padding: 10px 20px; border: none; cursor: pointer; border-radius: 6px;">
+                    Cancelar
+                </button>
+                <button onclick="runValidation()" id="validateRunBtn" class="btn" style="background: #10b981; color: white; padding: 10px 20px; font-weight: 600; border: none; cursor: pointer; border-radius: 6px;">
+                    🚀 Validar
+                </button>
+            </div>
+        </div>
+    </div>
+
 </div>
 
 <style>
@@ -202,5 +262,114 @@ function filterTable(filter) {
 document.addEventListener('DOMContentLoaded', () => {
     filterTable('all');
 });
+
+// ========== Validation Functions ==========
+
+function openValidateModal() {
+    const modal = document.getElementById('validateModal');
+    modal.style.display = 'flex';
+}
+
+function closeValidateModal() {
+    const modal = document.getElementById('validateModal');
+    modal.style.display = 'none';
+
+    // Reset progress
+    document.getElementById('validateProgress').style.display = 'none';
+    document.getElementById('validateProgressBar').style.width = '0%';
+    document.getElementById('validateProgressText').textContent = 'Preparando validación...';
+
+    // Re-enable buttons
+    document.getElementById('validateRunBtn').disabled = false;
+    document.getElementById('validateRunBtn').textContent = '🚀 Validar';
+    document.getElementById('validateCancelBtn').disabled = false;
+}
+
+async function runValidation() {
+    // Get selected scope
+    const scopeRadios = document.getElementsByName('validateScope');
+    let scope = 'priority';
+    for (const radio of scopeRadios) {
+        if (radio.checked) {
+            scope = radio.value;
+            break;
+        }
+    }
+
+    // Disable buttons
+    const runButton = document.getElementById('validateRunBtn');
+    const cancelButton = document.getElementById('validateCancelBtn');
+    runButton.disabled = true;
+    runButton.textContent = '⏳ Validando...';
+    cancelButton.disabled = true;
+
+    // Show progress
+    const progressDiv = document.getElementById('validateProgress');
+    const progressBar = document.getElementById('validateProgressBar');
+    const progressText = document.getElementById('validateProgressText');
+    progressDiv.style.display = 'block';
+    progressText.textContent = 'Iniciando validación...';
+
+    // Simulate progress (indeterminate)
+    let progress = 0;
+    const progressInterval = setInterval(() => {
+        progress = (progress + 5) % 100;
+        progressBar.style.width = progress + '%';
+    }, 200);
+
+    try {
+        // Call API endpoint
+        const response = await fetch('/crawler/quality/run', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                check_types: ['broken_links'],
+                scope: scope
+            })
+        });
+
+        const data = await response.json();
+
+        // Stop progress animation
+        clearInterval(progressInterval);
+        progressBar.style.width = '100%';
+
+        if (data.success) {
+            const results = data.results.broken_links;
+            progressText.textContent = '✅ Validación completada';
+
+            // Show results
+            let message = `Validación completada!\n\n`;
+            message += `Estado: ${results.status}\n`;
+            message += `URLs validadas: ${results.urls_validated || 0}\n`;
+            message += `Enlaces rotos encontrados: ${results.broken_count || 0}\n`;
+
+            alert(message);
+
+            // Close modal and reload
+            closeValidateModal();
+            window.location.reload();
+
+        } else {
+            clearInterval(progressInterval);
+            progressText.textContent = '❌ Error al ejecutar validación';
+            alert('Error: ' + data.error);
+            runButton.disabled = false;
+            runButton.textContent = '🚀 Validar';
+            cancelButton.disabled = false;
+        }
+
+    } catch (error) {
+        clearInterval(progressInterval);
+        console.error('Error:', error);
+        progressText.textContent = '❌ Error de conexión';
+        alert('Error al ejecutar validación: ' + error.message);
+        runButton.disabled = false;
+        runButton.textContent = '🚀 Validar';
+        cancelButton.disabled = false;
+    }
+}
 </script>
 {% endblock %}

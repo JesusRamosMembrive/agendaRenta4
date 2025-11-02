@@ -12,6 +12,7 @@ import re
 import logging
 from datetime import datetime
 from utils import db_cursor
+from crawler.progress_tracker import progress_tracker
 
 # Setup logging
 logging.basicConfig(
@@ -275,6 +276,30 @@ class Crawler:
         except Exception as e:
             logger.error(f"Error updating crawl_run: {e}")
 
+    def _get_last_crawl_total(self):
+        """
+        Get URLs discovered in the last successful crawl (for progress estimation).
+
+        Returns:
+            int or None: Number of URLs in last crawl, or None if no previous crawl
+        """
+        try:
+            with db_cursor(commit=False) as cursor:
+                cursor.execute("""
+                    SELECT urls_discovered
+                    FROM crawl_runs
+                    WHERE status = 'completed' AND urls_discovered > 0
+                    ORDER BY finished_at DESC
+                    LIMIT 1
+                """)
+                row = cursor.fetchone()
+                if row:
+                    return row['urls_discovered']
+        except Exception as e:
+            logger.error(f"Error getting last crawl total: {e}")
+
+        return None
+
     def crawl(self, created_by='system'):
         """
         Main crawl method - discovers URLs from root.
@@ -293,10 +318,23 @@ class Crawler:
         if not self.crawl_run_id:
             return {'error': 'Failed to create crawl_run'}
 
+        # Get estimated total from last successful crawl (for progress estimation)
+        estimated_total = self._get_last_crawl_total()
+
+        # Start progress tracking
+        progress_tracker.start_crawl(self.crawl_run_id, estimated_total)
+
         # Initialize queue with root URL
         self.queue.append((self.root_url, None, 0))  # (url, parent, depth)
 
         while self.queue:
+            # Check if cancellation has been requested
+            if progress_tracker.is_cancel_requested():
+                logger.warning("Crawl cancelled by user request")
+                self.update_crawl_run(status='cancelled')
+                progress_tracker.stop_crawl()
+                return {'error': 'Crawl cancelled by user', 'urls_discovered': self.stats['urls_discovered']}
+
             # Check max_urls limit
             if self.max_urls and self.stats['urls_discovered'] >= self.max_urls:
                 logger.info(f"Reached max_urls limit: {self.max_urls}")
@@ -334,6 +372,16 @@ class Crawler:
             self.save_discovered_url(url, parent_url, depth)
             self.stats['urls_discovered'] += 1
 
+            # Update progress tracker
+            progress_tracker.update_progress(
+                urls_discovered=self.stats['urls_discovered'],
+                urls_skipped=self.stats['urls_skipped'],
+                errors=self.stats['errors'],
+                last_url=url,
+                current_depth=depth,
+                queue_size=len(self.queue)
+            )
+
             # Fetch URL
             response = self.fetch_url(url)
 
@@ -361,6 +409,9 @@ class Crawler:
 
         # Update crawl run
         self.update_crawl_run(status='completed')
+
+        # Stop progress tracking
+        progress_tracker.stop_crawl()
 
         logger.info(f"Crawl completed: {self.stats}")
 

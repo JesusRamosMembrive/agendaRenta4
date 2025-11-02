@@ -27,7 +27,7 @@
 
     <!-- Action Buttons -->
     <div style="margin: 30px 0; display: flex; flex-wrap: wrap; gap: 15px;">
-        <button onclick="startCrawl()" class="btn btn-primary" style="padding: 12px 30px; font-size: 16px;">
+        <button id="crawlBtn" onclick="startCrawl()" class="btn btn-primary" style="padding: 12px 30px; font-size: 16px;">
             ▶️ Iniciar Crawl Manual
         </button>
         <a href="{{ url_for('crawler.tree') }}" class="btn" style="padding: 12px 30px; font-size: 16px; background: #10b981;">
@@ -39,6 +39,70 @@
         <a href="{{ url_for('crawler.broken') }}" class="btn" style="padding: 12px 30px; font-size: 16px; background: #ef4444;">
             🔍 Enlaces Rotos ({{ broken_urls }})
         </a>
+    </div>
+
+    <!-- Progress Section (hidden by default) -->
+    <div id="progressSection" style="display: none; margin: 30px 0; padding: 25px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; color: white;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h3 style="margin: 0; color: white;">🔄 Crawl en Progreso</h3>
+            <button id="cancelBtn" onclick="cancelCrawl()" class="btn" style="background: #ef4444; color: white; padding: 8px 20px;">
+                ⛔ Cancelar Crawl
+            </button>
+        </div>
+
+        <!-- Progress Bar (Indeterminate/Infinite) -->
+        <div style="background: rgba(255,255,255,0.2); border-radius: 8px; height: 30px; margin-bottom: 20px; overflow: hidden; position: relative;">
+            <div id="progressBar" style="
+                position: absolute;
+                height: 100%;
+                width: 40%;
+                background: linear-gradient(90deg, transparent 0%, #10b981 50%, #34d399 100%);
+                animation: progressSlide 1.5s ease-in-out infinite;
+            "></div>
+        </div>
+
+        <style>
+        @keyframes progressSlide {
+            0% {
+                left: -40%;
+            }
+            100% {
+                left: 100%;
+            }
+        }
+        </style>
+
+        <!-- Metrics Grid -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 15px;">
+            <div>
+                <div style="font-size: 0.9em; opacity: 0.9;">URLs Descubiertas</div>
+                <div style="font-size: 1.8em; font-weight: bold;" id="urlsDiscovered">0</div>
+            </div>
+            <div>
+                <div style="font-size: 0.9em; opacity: 0.9;">Velocidad</div>
+                <div style="font-size: 1.8em; font-weight: bold;" id="crawlSpeed">0</div>
+                <div style="font-size: 0.8em; opacity: 0.8;">URLs/min</div>
+            </div>
+            <div>
+                <div style="font-size: 0.9em; opacity: 0.9;">Tiempo Transcurrido</div>
+                <div style="font-size: 1.8em; font-weight: bold;" id="elapsedTime">0s</div>
+            </div>
+            <div>
+                <div style="font-size: 0.9em; opacity: 0.9;">Profundidad Actual</div>
+                <div style="font-size: 1.8em; font-weight: bold;" id="currentDepth">0</div>
+            </div>
+        </div>
+
+        <!-- Last URL -->
+        <div style="background: rgba(0,0,0,0.2); padding: 12px; border-radius: 6px; margin-top: 15px;">
+            <div style="font-size: 0.85em; opacity: 0.9; margin-bottom: 5px;">Última URL procesada:</div>
+            <div id="lastUrl" style="font-size: 0.9em; word-break: break-all; font-family: monospace;">-</div>
+        </div>
+
+        <!-- Estimated Time Remaining -->
+        <div id="estimatedTime" style="margin-top: 15px; text-align: center; font-size: 0.95em; opacity: 0.95;">
+            <!-- Filled by JavaScript if estimation available -->
+        </div>
     </div>
 
     <!-- Crawl Runs History -->
@@ -96,15 +160,46 @@
 </div>
 
 <script>
+let progressInterval = null;
+
+// Check if crawl is already running on page load
+window.addEventListener('DOMContentLoaded', function() {
+    checkCrawlStatus();
+});
+
+function checkCrawlStatus() {
+    console.log('[DEBUG] Checking initial crawl status...');
+    fetch('{{ url_for("crawler.progress") }}')
+        .then(response => response.json())
+        .then(data => {
+            console.log('[DEBUG] Initial status:', data);
+            if (data.is_running) {
+                console.log('[DEBUG] Crawl is running, showing progress...');
+                // Crawl is running, show progress and start polling
+                showProgress();
+                updateProgressUI(data);
+                startProgressPolling();
+            } else {
+                console.log('[DEBUG] No crawl running');
+            }
+        })
+        .catch(error => {
+            console.error('[ERROR] Checking crawl status:', error);
+        });
+}
+
 function startCrawl() {
     if (!confirm('¿Iniciar crawl manual? Esto puede tardar varios minutos.')) {
         return;
     }
 
-    const btn = event.target;
+    const btn = document.getElementById('crawlBtn');
     btn.disabled = true;
-    btn.textContent = '⏳ Crawling...';
+    btn.textContent = '⏳ Iniciando...';
 
+    console.log('[DEBUG] Starting crawl...');
+
+    // Start crawl (async - now runs in background)
     fetch('{{ url_for("crawler.start") }}', {
         method: 'POST',
         headers: {
@@ -113,20 +208,160 @@ function startCrawl() {
     })
     .then(response => response.json())
     .then(data => {
+        console.log('[DEBUG] Start response:', data);
+
         if (data.success) {
-            alert(`Crawl completado!\n\nURLs descubiertas: ${data.stats.urls_discovered}\nURLs omitidas: ${data.stats.urls_skipped}\nErrores: ${data.stats.errors}`);
-            window.location.reload();
+            console.log('[DEBUG] Crawl started successfully, showing progress...');
+            // Show progress section
+            showProgress();
+            // Start progress polling
+            startProgressPolling();
         } else {
+            console.error('[ERROR] Failed to start crawl:', data.error);
             alert('Error: ' + data.error);
             btn.disabled = false;
             btn.textContent = '▶️ Iniciar Crawl Manual';
         }
     })
     .catch(error => {
-        console.error('Error:', error);
-        alert('Error al iniciar crawl');
+        console.error('[ERROR] Starting crawl:', error);
+        alert('Error al iniciar crawl: ' + error.message);
         btn.disabled = false;
         btn.textContent = '▶️ Iniciar Crawl Manual';
+    });
+}
+
+function startProgressPolling() {
+    // Poll every 2 seconds
+    progressInterval = setInterval(fetchProgress, 2000);
+    // Fetch immediately
+    fetchProgress();
+}
+
+function stopProgressPolling() {
+    if (progressInterval) {
+        clearInterval(progressInterval);
+        progressInterval = null;
+    }
+}
+
+function fetchProgress() {
+    console.log('[DEBUG] Fetching progress...');
+    fetch('{{ url_for("crawler.progress") }}')
+        .then(response => response.json())
+        .then(data => {
+            console.log('[DEBUG] Progress data:', data);
+            if (data.is_running) {
+                updateProgressUI(data);
+            } else {
+                console.log('[DEBUG] Crawl finished, stopping polling');
+                // Crawl finished
+                stopProgressPolling();
+                onCrawlComplete();
+            }
+        })
+        .catch(error => {
+            console.error('[ERROR] Fetching progress:', error);
+        });
+}
+
+function onCrawlComplete() {
+    console.log('[DEBUG] Crawl completed, showing alert and reloading...');
+    alert('Crawl completado! La página se recargará para mostrar los resultados.');
+    window.location.reload();
+}
+
+function updateProgressUI(data) {
+    // Update URLs discovered
+    document.getElementById('urlsDiscovered').textContent = data.urls_discovered || 0;
+
+    // Update speed
+    document.getElementById('crawlSpeed').textContent = data.urls_per_minute || 0;
+
+    // Update elapsed time
+    const elapsedMinutes = Math.floor(data.elapsed_seconds / 60);
+    const elapsedSeconds = data.elapsed_seconds % 60;
+    const timeStr = elapsedMinutes > 0
+        ? `${elapsedMinutes}m ${elapsedSeconds}s`
+        : `${elapsedSeconds}s`;
+    document.getElementById('elapsedTime').textContent = timeStr;
+
+    // Update depth
+    document.getElementById('currentDepth').textContent = data.current_depth || 0;
+
+    // Update last URL
+    if (data.last_url) {
+        document.getElementById('lastUrl').textContent = data.last_url;
+    }
+
+    // Progress bar is now indeterminate (infinite animation via CSS)
+    // No need to update width or percentage - animation runs automatically
+
+    // Update estimated time remaining
+    const estimatedDiv = document.getElementById('estimatedTime');
+    if (data.estimated_total) {
+        const percentage = data.percentage || 0;
+        let statusStr = `Progreso: ${data.urls_discovered} / ~${data.estimated_total} URLs (${percentage}%)`;
+
+        if (data.estimated_remaining_minutes !== null && data.estimated_remaining_minutes !== undefined) {
+            const hours = Math.floor(data.estimated_remaining_minutes / 60);
+            const mins = data.estimated_remaining_minutes % 60;
+            if (hours > 0) {
+                statusStr += ` • Tiempo estimado: ${hours}h ${mins}min`;
+            } else {
+                statusStr += ` • Tiempo estimado: ${mins} minutos`;
+            }
+        }
+        estimatedDiv.textContent = statusStr;
+    } else {
+        estimatedDiv.textContent = `Descubriendo URLs... (${data.urls_discovered} encontradas hasta ahora)`;
+    }
+}
+
+function showProgress() {
+    document.getElementById('progressSection').style.display = 'block';
+    document.getElementById('crawlBtn').disabled = true;
+    document.getElementById('crawlBtn').textContent = '⏳ Crawl en Progreso...';
+}
+
+function hideProgress() {
+    document.getElementById('progressSection').style.display = 'none';
+}
+
+function cancelCrawl() {
+    if (!confirm('¿Estás seguro de que quieres cancelar el crawl? El progreso actual se perderá.')) {
+        return;
+    }
+
+    console.log('[DEBUG] Requesting crawl cancellation...');
+
+    const cancelBtn = document.getElementById('cancelBtn');
+    cancelBtn.disabled = true;
+    cancelBtn.textContent = '⏳ Cancelando...';
+
+    fetch('{{ url_for("crawler.cancel") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('[DEBUG] Cancel response:', data);
+        if (data.success) {
+            alert('Crawl cancelado. La página se recargará.');
+            window.location.reload();
+        } else {
+            alert('Error: ' + data.error);
+            cancelBtn.disabled = false;
+            cancelBtn.textContent = '⛔ Cancelar Crawl';
+        }
+    })
+    .catch(error => {
+        console.error('[ERROR] Cancelling crawl:', error);
+        alert('Error al cancelar crawl: ' + error.message);
+        cancelBtn.disabled = false;
+        cancelBtn.textContent = '⛔ Cancelar Crawl';
     });
 }
 </script>

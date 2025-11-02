@@ -28,7 +28,8 @@
       "Bash(ruff format:*)",
       "Bash(pip freeze:*)",
       "Bash(pytest:*)",
-      "Bash(PGPASSWORD=dev-password psql:*)"
+      "Bash(PGPASSWORD=dev-password psql:*)",
+      "Bash(pgrep:*)"
     ],
     "deny": [],
     "ask": []

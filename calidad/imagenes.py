@@ -20,7 +20,7 @@ class ImagenesChecker(QualityCheck):
 
     DEFAULT_CONFIG = {
         "timeout": 10,
-        "ignore_external": False,
+        "ignore_external": True,  # By default, only check same-domain images
     }
 
     def __init__(self, config: Optional[Dict[str, Any]] = None):
@@ -76,6 +76,9 @@ class ImagenesChecker(QualityCheck):
                 "total_images": 0,
                 "broken_images": 0,
                 "broken_images_list": [],
+                "hotlink_protected": 0,
+                "hotlink_protected_list": [],
+                "external_images_skipped": 0,
             }
 
             # Parse base domain for external image filtering
@@ -94,20 +97,36 @@ class ImagenesChecker(QualityCheck):
 
                 # Skip external images if configured
                 if self.config["ignore_external"] and img_domain != base_domain:
+                    result_data["external_images_skipped"] += 1
                     continue
 
                 result_data["total_images"] += 1
 
                 # Check if image is broken via HEAD request
                 try:
+                    # Add realistic headers to avoid false positives
+                    headers = {
+                        'Referer': url,
+                        'User-Agent': 'Mozilla/5.0 (compatible; QualityChecker/1.0; +https://www.r4.com)'
+                    }
+
                     img_response = requests.head(
                         img_url,
+                        headers=headers,
                         timeout=self.config["timeout"],
                         allow_redirects=True,
                     )
 
-                    # Check if broken (any 4xx or 5xx status)
-                    if img_response.status_code >= 400:
+                    # Special handling for 403 (likely hotlink protection, not a real error)
+                    if img_response.status_code == 403:
+                        result_data["hotlink_protected"] += 1
+                        result_data["hotlink_protected_list"].append({
+                            "url": img_url,
+                            "status": 403,
+                            "note": "Hotlink protection (not a real error)"
+                        })
+                    # Check if broken (other 4xx or 5xx status)
+                    elif img_response.status_code >= 400:
                         result_data["broken_images"] += 1
                         result_data["broken_images_list"].append({
                             "url": img_url,
@@ -123,20 +142,30 @@ class ImagenesChecker(QualityCheck):
                     })
 
             # Calculate score and determine status
+            # Only broken_images count as issues, hotlink_protected is just a warning
             issues_found = result_data["broken_images"]
+            warnings_found = result_data["hotlink_protected"]
 
-            # Determine status - simple: broken images = fail, no broken = success
+            # Build message
             if result_data["total_images"] == 0:
                 status = "ok"
                 message = "No images found on page"
+                if result_data["external_images_skipped"] > 0:
+                    message += f" ({result_data['external_images_skipped']} external images skipped)"
                 score = 100
             elif issues_found == 0:
                 status = "ok"
                 message = f"All {result_data['total_images']} images are working"
+                if warnings_found > 0:
+                    message += f" ({warnings_found} with hotlink protection)"
+                if result_data["external_images_skipped"] > 0:
+                    message += f" • {result_data['external_images_skipped']} external images skipped"
                 score = 100
             else:
                 status = "error"
                 message = f"Found {issues_found} broken image(s)"
+                if warnings_found > 0:
+                    message += f" and {warnings_found} with hotlink protection"
                 score = 0
 
             execution_time = int((time.time() - start_time) * 1000)

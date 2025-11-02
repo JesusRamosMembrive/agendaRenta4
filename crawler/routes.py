@@ -48,25 +48,80 @@ def dashboard():
 def start():
     """
     Start a new crawl run manually.
+    Runs crawler in background thread to avoid blocking.
     """
     from crawler import Crawler, CRAWLER_CONFIG
+    from crawler.progress_tracker import progress_tracker
+    import logging
+    import threading
+
+    logger = logging.getLogger(__name__)
+
+    # Check if crawl is already running
+    if progress_tracker.get_progress()['is_running']:
+        return jsonify({'success': False, 'error': 'Ya hay un crawl en ejecución'}), 400
+
+    # Capture current user name (can't access current_user in thread context)
+    created_by = current_user.full_name
+
+    def run_crawler_in_background():
+        """Background task to run crawler."""
+        try:
+            logger.info("Starting background crawler task...")
+            crawler = Crawler(CRAWLER_CONFIG)
+            stats = crawler.crawl(created_by=created_by)
+            logger.info(f"Crawl completed: {stats}")
+        except Exception as e:
+            logger.error(f"Error in background crawler: {e}")
+            progress_tracker.stop_crawl()
+
+    try:
+        # Start crawler in background thread
+        thread = threading.Thread(target=run_crawler_in_background, daemon=True)
+        thread.start()
+
+        logger.info("Crawler thread started successfully")
+
+        # Return immediately (don't wait for completion)
+        return jsonify({
+            'success': True,
+            'message': 'Crawl iniciado en segundo plano. Actualización automática cada 2 segundos.',
+            'polling': True
+        })
+
+    except Exception as e:
+        logger.error(f"Error starting crawler thread: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@crawler_bp.route('/progress', methods=['GET'])
+@login_required
+def progress():
+    """
+    Get current crawl progress (real-time status).
+    Returns JSON with progress metrics.
+    """
+    from crawler.progress_tracker import progress_tracker
+
+    return jsonify(progress_tracker.get_progress())
+
+
+@crawler_bp.route('/cancel', methods=['POST'])
+@login_required
+def cancel():
+    """
+    Request cancellation of current crawl.
+    """
+    from crawler.progress_tracker import progress_tracker
     import logging
 
     logger = logging.getLogger(__name__)
 
-    try:
-        # Create crawler instance
-        crawler = Crawler(CRAWLER_CONFIG)
-
-        # Start crawl
-        stats = crawler.crawl(created_by=current_user.full_name)
-
-        flash(f"Crawl completado: {stats['urls_discovered']} URLs descubiertas", 'success')
-        return jsonify({'success': True, 'stats': stats})
-
-    except Exception as e:
-        logger.error(f"Error starting crawler: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+    if progress_tracker.request_cancel():
+        logger.info("Crawl cancellation requested by user")
+        return jsonify({'success': True, 'message': 'Cancelación solicitada. El crawl se detendrá en breve.'})
+    else:
+        return jsonify({'success': False, 'error': 'No hay crawl en ejecución'}), 400
 
 
 @crawler_bp.route('/results')
@@ -466,6 +521,35 @@ def quality():
         status_filter=status_filter,
         page=page,
         total_pages=total_pages,
+        current_user=current_user
+    )
+
+
+@crawler_bp.route('/test-runner')
+@login_required
+def test_runner():
+    """
+    Test Runner page - configure and run all quality checks from one place.
+    Single source of truth with quality_check_config table.
+    """
+    from calidad.post_crawl_runner import PostCrawlQualityRunner
+
+    with db_cursor(commit=False) as cursor:
+        # Get current user's check configuration
+        cursor.execute("""
+            SELECT check_type, enabled, run_after_crawl, scope
+            FROM quality_check_config
+            WHERE user_id = %s
+        """, (current_user.id,))
+        configs = cursor.fetchall()
+
+    # Convert to dict for easier access in template
+    config_dict = {cfg['check_type']: cfg for cfg in configs}
+
+    return render_template(
+        'crawler/test_runner.html',
+        config_dict=config_dict,
+        available_checks=PostCrawlQualityRunner.AVAILABLE_CHECKS,
         current_user=current_user
     )
 

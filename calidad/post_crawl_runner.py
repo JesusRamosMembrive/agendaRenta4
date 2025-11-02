@@ -214,9 +214,9 @@ class PostCrawlQualityRunner:
         """
         from crawler.validator import URLValidator
 
-        # Build query based on scope
+        # Build query based on scope - include status_code for change tracking
         query = """
-            SELECT id, url
+            SELECT id, url, status_code
             FROM discovered_urls
             WHERE crawl_run_id = %s
               AND active = TRUE
@@ -240,9 +240,14 @@ class PostCrawlQualityRunner:
                 'stats': {'total': 0, 'validated': 0, 'broken': 0}
             }
 
-        # Run validator
-        validator = URLValidator()
-        url_list = [(row['id'], row['url']) for row in urls]
+        # Run validator - pass (id, url, previous_status_code) tuples
+        validator_config = {
+            'timeout': 15,
+            'max_retries': 2,
+            'delay': 0.1
+        }
+        validator = URLValidator(validator_config)
+        url_list = [(row['id'], row['url'], row['status_code']) for row in urls]
         stats = validator.validate_batch(url_list, track_changes=True)
 
         return {

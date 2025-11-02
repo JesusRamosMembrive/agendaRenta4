@@ -6,7 +6,7 @@ El módulo de **Calidad de Imágenes** verifica que todas las imágenes de cada 
 
 ---
 
-## Sistema de Verificación (Simplificado)
+## Sistema de Verificación
 
 Este check tiene un objetivo simple y claro:
 
@@ -14,40 +14,52 @@ Este check tiene un objetivo simple y claro:
 - Todas las imágenes de la página cargan correctamente
 - No hay errores HTTP (404, 500, etc.)
 - No hay timeouts al intentar cargar las imágenes
+- Imágenes con 403 (Forbidden) se reportan como **warnings** (no afectan el score)
+
+### ⚠️ Warnings (No afectan score)
+- Imágenes que devuelven **403 Forbidden** (protección contra hotlinking)
+- Estas NO son errores reales, solo restricciones del servidor externo
 
 ### ✗ Error (Score: 0)
-- Una o más imágenes NO cargan
-- Devuelven error HTTP (404, 403, 500, etc.)
-- No responden (timeout)
+- Una o más imágenes NO cargan (404, 500, timeout, etc.)
+- **NO incluye** imágenes con 403 (ver warnings arriba)
 
 ---
 
 ## ¿Qué se verifica exactamente?
 
-Para cada imagen en la página, se hace una petición HTTP HEAD para verificar:
+Para cada imagen en la página, se hace una petición HTTP HEAD con headers realistas para verificar:
 
 1. **Status HTTP < 400** → Imagen funciona ✓
-2. **Status HTTP ≥ 400** → Imagen rota ✗
-3. **Timeout/Error** → Imagen rota ✗
+2. **Status HTTP = 403** → Warning (hotlink protection) ⚠️
+3. **Status HTTP ≥ 400 (excepto 403)** → Imagen rota ✗
+4. **Timeout/Error** → Imagen rota ✗
+
+**Nota**: Se envían headers `Referer` y `User-Agent` realistas para evitar falsos positivos.
 
 ---
 
 ## Detalles Reportados
 
-Cuando hay imágenes rotas, el check guarda:
-- URL de cada imagen rota
-- Código de estado HTTP o tipo de error
+El check guarda información detallada:
 - Total de imágenes analizadas
+- Imágenes rotas (errores reales)
+- Imágenes con hotlink protection (warnings)
+- Imágenes externas omitidas (si `ignore_external: true`)
 
-Ejemplo de resultado con errores:
+Ejemplo de resultado:
 ```json
 {
-  "total_images": 23,
-  "broken_images": 2,
+  "total_images": 21,
+  "broken_images": 1,
   "broken_images_list": [
-    {"url": "https://example.com/missing.jpg", "status": 404},
-    {"url": "https://example.com/forbidden.png", "status": 403}
-  ]
+    {"url": "https://example.com/missing.jpg", "status": 404}
+  ],
+  "hotlink_protected": 4,
+  "hotlink_protected_list": [
+    {"url": "https://external.com/image.png", "status": 403, "note": "Hotlink protection (not a real error)"}
+  ],
+  "external_images_skipped": 5
 }
 ```
 
@@ -68,7 +80,9 @@ También puedes ejecutarlos manualmente:
 
 Opciones disponibles:
 - `timeout`: Tiempo máximo de espera (por defecto: 10 segundos)
-- `ignore_external`: Ignorar imágenes de dominios externos (por defecto: False)
+- `ignore_external`: Ignorar imágenes de dominios externos (por defecto: **True**)
+
+**Recomendación**: Mantener `ignore_external: True` para evitar falsos positivos por hotlink protection de sitios externos.
 
 ---
 

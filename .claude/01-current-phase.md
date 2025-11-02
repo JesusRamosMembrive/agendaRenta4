@@ -1,12 +1,251 @@
 # Estado Actual
 
-**Fecha**: 2025-11-01
-**Etapa**: Stage 3 - Phase 3.1 Quality Checks con Scopes - IMPLEMENTACIÓN COMPLETADA ✅
-**Sesión Actual**: Sistema completo de Quality Checks on-demand
+**Fecha**: 2025-11-02
+**Etapa**: Stage 3 - UX Improvements - Crawler Progress Tracking
+**Sesión Actual**: Sistema de progreso en tiempo real para crawler - IMPLEMENTACIÓN COMPLETADA ✅
 
 ---
 
-## 🎉 SESIÓN ACTUAL (2025-11-01) - COMPLETADA
+## 🎉 SESIÓN ACTUAL (2025-11-02) - COMPLETADA
+
+### Objetivo de la Sesión
+Mejorar la UX del crawler mostrando progreso en tiempo real durante la ejecución del crawling.
+
+### ✅ Implementado Hoy
+
+#### 1. Sistema de Progress Tracking en Memoria
+**Archivo creado**: `crawler/progress_tracker.py`
+- Singleton thread-safe para trackear estado del crawler
+- Métricas disponibles:
+  - URLs descubiertas, omitidas, errores
+  - Última URL procesada
+  - Profundidad actual
+  - Tamaño de la cola
+  - Velocidad (URLs/min)
+  - Tiempo transcurrido
+  - Porcentaje completado (basado en último crawl)
+  - Tiempo estimado restante
+
+#### 2. Integración del Tracker en el Crawler
+**Archivo modificado**: `crawler/crawler.py`
+- Import del progress_tracker
+- Método `_get_last_crawl_total()` para obtener estimación del último crawl
+- Llamadas a `progress_tracker.start_crawl()` al inicio
+- Actualización de progreso en cada URL procesada
+- Llamada a `progress_tracker.stop_crawl()` al finalizar
+
+#### 3. Endpoint de Progreso en Tiempo Real
+**Archivo modificado**: `crawler/routes.py`
+- Nueva ruta: `GET /crawler/progress`
+- Retorna JSON con todas las métricas del progreso actual
+- Integración con progress_tracker
+- Manejo de errores en endpoint de inicio
+
+#### 4. UI con Progreso en Tiempo Real
+**Archivo modificado**: `templates/crawler/dashboard.html`
+- Sección de progreso (oculta por defecto)
+- Barra de progreso animada con porcentaje
+- Grid de métricas:
+  - URLs descubiertas
+  - Velocidad (URLs/min)
+  - Tiempo transcurrido
+  - Profundidad actual
+- Display de última URL procesada
+- Estimación de tiempo restante
+- Botón "Iniciar Crawl" deshabilitado durante ejecución
+- Polling automático cada 2 segundos
+- Detección automática de crawl en progreso al cargar página
+
+### 🎯 Funcionalidades Implementadas
+
+✅ **Botón deshabilitado durante crawl** - Usuario no puede iniciar múltiples crawls
+✅ **Progreso en tiempo real** - Actualización cada 2 segundos vía polling
+✅ **Métricas detalladas** - URLs, velocidad, tiempo, profundidad
+✅ **Última URL visible** - Usuario ve qué está procesando el crawler
+✅ **Estimación de tiempo** - Basada en crawls anteriores y velocidad actual
+✅ **Barra de progreso visual** - Con porcentaje si hay estimación
+✅ **Persistencia de estado** - Si recarga página, detecta crawl en progreso
+✅ **Manejo de errores** - Cleanup correcto del estado en caso de error
+
+---
+
+## 📊 Respuestas a Preguntas del Usuario
+
+### 1. ¿Es posible saber el número total de URLs de antemano?
+**Respuesta**: NO de forma precisa.
+**Solución implementada**:
+- Estimación basada en el último crawl exitoso
+- Muestra porcentaje si hay estimación disponible
+- Cálculo de tiempo restante basado en velocidad actual
+
+### 2. ¿Desactivar el botón durante crawl?
+**Respuesta**: SÍ, implementado ✅
+- Botón cambia a "⏳ Crawl en Progreso..." y se deshabilita
+- No se puede iniciar otro crawl hasta que termine
+
+### 3. ¿Mostrar qué está haciendo el crawler?
+**Respuesta**: SÍ, implementado ✅
+- Última URL procesada visible
+- Métricas en tiempo real (URLs/min, tiempo, profundidad)
+- Barra de progreso visual
+- Estimación de tiempo restante
+
+---
+
+## 🗂️ Archivos Modificados/Creados Hoy
+
+### Creados (1):
+1. `crawler/progress_tracker.py` - Sistema de tracking en memoria (thread-safe)
+
+### Modificados (3):
+2. `crawler/crawler.py` - Integración con progress_tracker
+3. `crawler/routes.py` - Endpoint GET /crawler/progress
+4. `templates/crawler/dashboard.html` - UI con progreso en tiempo real
+
+---
+
+## 🧪 Testing Manual Requerido
+
+### Test 1: Iniciar Crawl y Verificar Progreso
+**Pasos**:
+1. Levantar app: `python app.py`
+2. Ir a http://localhost:5000/crawler
+3. Clic en "▶️ Iniciar Crawl Manual"
+4. Verificar:
+   - ✅ Botón se deshabilita y cambia a "⏳ Crawl en Progreso..."
+   - ✅ Sección de progreso aparece
+   - ✅ Métricas se actualizan cada 2 segundos
+   - ✅ Última URL cambia constantemente
+   - ✅ Barra de progreso avanza (si hay estimación)
+   - ✅ Velocidad se calcula correctamente
+   - ✅ Tiempo transcurrido incrementa
+
+### Test 2: Recargar Página Durante Crawl
+**Pasos**:
+1. Iniciar crawl
+2. Esperar 10 segundos
+3. Recargar página (F5)
+4. Verificar:
+   - ✅ Progreso sigue visible
+   - ✅ Métricas continúan actualizándose
+   - ✅ Botón sigue deshabilitado
+
+### Test 3: Finalización de Crawl
+**Pasos**:
+1. Esperar a que crawl termine
+2. Verificar:
+   - ✅ Alert muestra resumen de resultados
+   - ✅ Página se recarga automáticamente
+   - ✅ Progreso se oculta
+   - ✅ Botón vuelve a estar habilitado
+
+---
+
+## 📞 Comandos Útiles para Testing
+
+```bash
+# 1. Levantar aplicación
+python app.py
+
+# 2. Ver logs del crawler en tiempo real
+tail -f logs/crawler.log  # (si existe)
+
+# 3. Verificar que progress_tracker funciona
+python -c "from crawler.progress_tracker import progress_tracker; print(progress_tracker.get_progress())"
+
+# 4. Simular progreso (testing)
+python -c "
+from crawler.progress_tracker import progress_tracker
+progress_tracker.start_crawl(999, estimated_total=2800)
+progress_tracker.update_progress(urls_discovered=150, last_url='https://test.com/page')
+print(progress_tracker.get_progress())
+"
+```
+
+---
+
+## 🎯 Próximos Pasos
+
+### Inmediato (Hoy):
+1. ✅ Testing manual del flujo completo
+2. ✅ Verificar que funciona en producción
+
+### Opcional (Futuro):
+- Notificación de escritorio al completar crawl
+- Histórico de velocidades de crawl
+- Gráfico de progreso temporal
+- Estimación más precisa basada en múltiples crawls
+- Pausar/reanudar crawl
+- Cancelar crawl en progreso
+
+---
+
+## 💡 Decisiones Técnicas
+
+### 1. ¿Por qué Singleton para ProgressTracker?
+- Solo puede haber un crawl activo a la vez
+- Estado compartido entre endpoint y crawler
+- Thread-safe para acceso concurrente
+
+### 2. ¿Por qué Polling cada 2 segundos?
+- Balance entre UX responsiva y carga del servidor
+- No requiere WebSockets (complejidad adicional)
+- Suficiente para mostrar progreso fluido
+
+### 3. ¿Por qué Estimación basada en último crawl?
+- Imposible saber total exacto antes de crawlear
+- Último crawl es mejor predictor disponible
+- Permite mostrar porcentaje y tiempo estimado
+
+### 4. ¿Por qué No usar WebSockets/Server-Sent Events?
+- Evitar complejidad adicional
+- Polling es suficiente para este caso de uso
+- Más fácil de mantener y debuggear
+
+---
+
+## 🐛 Problemas Potenciales y Soluciones
+
+### Problema 1: Múltiples usuarios iniciando crawl simultáneamente
+**Estado**: No manejado aún
+**Impacto**: Bajo (1-5 usuarios internos)
+**Solución futura**: Lock en base de datos o Redis
+
+### Problema 2: Crawler falla sin llamar a stop_crawl()
+**Estado**: Manejado parcialmente
+**Solución**: try/finally en endpoint, pero podría mejorarse
+
+### Problema 3: Estimación incorrecta si sitio cambió drásticamente
+**Estado**: Esperado
+**Impacto**: Bajo (solo afecta estimación, no funcionalidad)
+**Mitigación**: Mensaje claro "Estimación basada en último crawl"
+
+---
+
+## 📚 Documentación de Referencia
+
+**Archivos clave**:
+- `crawler/progress_tracker.py:1-150` - Singleton tracker
+- `crawler/crawler.py:279-302` - Integración en método crawl()
+- `crawler/routes.py:75-84` - Endpoint de progreso
+- `templates/crawler/dashboard.html:45-303` - UI y JavaScript
+
+**Arquitectura**:
+```
+Crawler (crawler.py)
+    ↓ updates
+ProgressTracker (singleton en memoria)
+    ↓ exposes
+GET /crawler/progress (API endpoint)
+    ↓ consumed by
+JavaScript Polling (cada 2s)
+    ↓ updates
+UI Dashboard (métricas visuales)
+```
+
+---
+
+## 📝 SESIÓN ANTERIOR (2025-11-01) - COMPLETADA
 
 ### Objetivo de la Sesión
 Implementar sistema completo de Quality Checks con scopes, eliminando el límite de 50 URLs del crawler y permitiendo ejecución manual de tests.
