@@ -368,31 +368,18 @@ def check_alert_day(reference_date, frequency, alert_day):
     return False
 
 
-def send_email_notifications(alert_list, user_name=None):
+def _get_email_recipients(user_name):
     """
-    Send email notifications for newly generated alerts.
+    Get list of active email recipients and check if email notifications are enabled.
 
     Args:
-        alert_list: List of dicts with keys: task_type_name, due_date, etc.
-        user_name: User name to check preferences for. If None, uses current_user (requires Flask request context).
+        user_name: User name to check preferences for
 
     Returns:
-        dict with stats: {'sent': count, 'failed': count, 'errors': []}
+        tuple: (email_recipients_list, error_message) - error_message is None if successful
     """
-    stats = {"sent": 0, "failed": 0, "errors": []}
-
-    # Determine user name to use
-    if user_name is None:
-        try:
-            user_name = current_user.full_name
-        except (AttributeError, RuntimeError):
-            stats["errors"].append(
-                "No user context available and user_name not provided"
-            )
-            return stats
-
-    # Check if email notifications are enabled
     with db_cursor(commit=False) as cursor:
+        # Check if email notifications are enabled
         cursor.execute(
             """
             SELECT enable_email FROM notification_preferences
@@ -403,10 +390,8 @@ def send_email_notifications(alert_list, user_name=None):
         )
 
         email_enabled = cursor.fetchone()
-
         if not email_enabled:
-            stats["errors"].append("Email notifications not enabled")
-            return stats
+            return None, "Email notifications not enabled"
 
         # Get active email addresses
         cursor.execute("""
@@ -418,58 +403,27 @@ def send_email_notifications(alert_list, user_name=None):
         email_recipients = cursor.fetchall()
 
     if not email_recipients:
-        stats["errors"].append("No active email recipients configured")
-        return stats
+        return None, "No active email recipients configured"
 
-    # Check if SMTP is configured
-    if not app.config["MAIL_USERNAME"] or not app.config["MAIL_PASSWORD"]:
-        stats["errors"].append(
-            "SMTP not configured. Set MAIL_USERNAME and MAIL_PASSWORD in .env"
-        )
-        return stats
+    return email_recipients, None
 
-    # Prepare email content
-    if not alert_list:
-        return stats
 
-    try:
-        # Build email body
-        html_body = f"""
-        <html>
-        <head>
-            <style>
-                body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
-                .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
-                .header {{ background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-                          color: white; padding: 20px; border-radius: 8px 8px 0 0; }}
-                .content {{ background: #f9fafb; padding: 20px; }}
-                .alert-item {{ background: white; padding: 15px; margin: 10px 0;
-                               border-left: 4px solid #f59e0b; border-radius: 4px; }}
-                .alert-title {{ font-weight: bold; color: #f59e0b; font-size: 1.1em; }}
-                .alert-date {{ color: #6b7280; font-size: 0.9em; }}
-                .footer {{ background: #1f2937; color: #9ca3af; padding: 15px;
-                          border-radius: 0 0 8px 8px; text-align: center; font-size: 0.85em; }}
-                .btn {{ background: #5b8cff; color: white; padding: 10px 20px;
-                       text-decoration: none; border-radius: 6px; display: inline-block;
-                       margin-top: 10px; }}
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <div class="header">
-                    <h2 style="margin: 0;">⚠️ Nuevas Alertas - Agenda Renta4</h2>
-                    <p style="margin: 5px 0 0 0; opacity: 0.9;">
-                        Se han generado {len(alert_list)} nueva(s) alerta(s) pendiente(s)
-                    </p>
-                </div>
+def _build_email_body(alert_list):
+    """
+    Build HTML email body with alert details.
 
-                <div class="content">
-                    <p><strong>Hola,</strong></p>
-                    <p>Se han generado las siguientes alertas que requieren tu atención:</p>
-        """
+    Args:
+        alert_list: List of alert dicts with keys: task_type_name, due_date, etc.
 
-        for alert in alert_list:
-            html_body += f"""
+    Returns:
+        str: HTML email body
+    """
+    alertas_url = url_for('alertas', _external=True)
+
+    # Build alert items HTML
+    alert_items_html = ""
+    for alert in alert_list:
+        alert_items_html += f"""
                     <div class="alert-item">
                         <div class="alert-title">{alert["task_type_name"]}</div>
                         <div class="alert-date">Fecha de aviso: {alert["due_date"]}</div>
@@ -477,45 +431,139 @@ def send_email_notifications(alert_list, user_name=None):
                             Revisar todas las URLs para esta tarea
                         </p>
                     </div>
-            """
-
-        alertas_url = url_for('alertas', _external=True)
-        html_body += f"""
-                    <p style="margin-top: 20px;">
-                        <a href="{alertas_url}" class="btn">Ver Alertas Pendientes</a>
-                    </p>
-                </div>
-
-                <div class="footer">
-                    <p style="margin: 0;">
-                        Este es un mensaje automático de Agenda Renta4. Por favor, no respondas a este email.
-                    </p>
-                </div>
-            </div>
-        </body>
-        </html>
         """
 
-        # Send email to all recipients
-        for recipient in email_recipients:
-            try:
-                msg = Message(
-                    subject=f"🔔 {len(alert_list)} Nueva(s) Alerta(s) - Agenda Renta4",
-                    recipients=[recipient["email"]],
-                    html=html_body,
-                )
+    # Complete HTML template
+    html_body = f"""
+    <html>
+    <head>
+        <style>
+            body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+            .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+            .header {{ background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+                      color: white; padding: 20px; border-radius: 8px 8px 0 0; }}
+            .content {{ background: #f9fafb; padding: 20px; }}
+            .alert-item {{ background: white; padding: 15px; margin: 10px 0;
+                           border-left: 4px solid #f59e0b; border-radius: 4px; }}
+            .alert-title {{ font-weight: bold; color: #f59e0b; font-size: 1.1em; }}
+            .alert-date {{ color: #6b7280; font-size: 0.9em; }}
+            .footer {{ background: #1f2937; color: #9ca3af; padding: 15px;
+                      border-radius: 0 0 8px 8px; text-align: center; font-size: 0.85em; }}
+            .btn {{ background: #5b8cff; color: white; padding: 10px 20px;
+                   text-decoration: none; border-radius: 6px; display: inline-block;
+                   margin-top: 10px; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h2 style="margin: 0;">⚠️ Nuevas Alertas - Agenda Renta4</h2>
+                <p style="margin: 5px 0 0 0; opacity: 0.9;">
+                    Se han generado {len(alert_list)} nueva(s) alerta(s) pendiente(s)
+                </p>
+            </div>
 
-                mail.send(msg)
-                stats["sent"] += 1
+            <div class="content">
+                <p><strong>Hola,</strong></p>
+                <p>Se han generado las siguientes alertas que requieren tu atención:</p>
+                {alert_items_html}
+                <p style="margin-top: 20px;">
+                    <a href="{alertas_url}" class="btn">Ver Alertas Pendientes</a>
+                </p>
+            </div>
 
-            except Exception as e:
-                stats["failed"] += 1
-                stats["errors"].append(
-                    f"Failed to send to {recipient['email']}: {str(e)}"
-                )
+            <div class="footer">
+                <p style="margin: 0;">
+                    Este es un mensaje automático de Agenda Renta4. Por favor, no respondas a este email.
+                </p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
 
+    return html_body
+
+
+def _send_email_to_recipient(recipient, html_body, alert_count):
+    """
+    Send email to a single recipient.
+
+    Args:
+        recipient: Dict with keys: email, name
+        html_body: HTML content of the email
+        alert_count: Number of alerts (for subject line)
+
+    Returns:
+        tuple: (success: bool, error_message: str or None)
+    """
+    try:
+        msg = Message(
+            subject=f"🔔 {alert_count} Nueva(s) Alerta(s) - Agenda Renta4",
+            recipients=[recipient["email"]],
+            html=html_body,
+        )
+        mail.send(msg)
+        return True, None
+    except Exception as e:
+        return False, f"Failed to send to {recipient['email']}: {str(e)}"
+
+
+def send_email_notifications(alert_list, user_name=None):
+    """
+    Send email notifications for newly generated alerts (orchestrator function).
+
+    Args:
+        alert_list: List of dicts with keys: task_type_name, due_date, etc.
+        user_name: User name to check preferences for. If None, uses current_user.
+
+    Returns:
+        dict with stats: {'sent': count, 'failed': count, 'errors': []}
+    """
+    stats = {"sent": 0, "failed": 0, "errors": []}
+
+    # Determine user name
+    if user_name is None:
+        try:
+            user_name = current_user.full_name
+        except (AttributeError, RuntimeError):
+            stats["errors"].append(
+                "No user context available and user_name not provided"
+            )
+            return stats
+
+    # Validate inputs
+    if not alert_list:
+        return stats
+
+    # Check SMTP configuration
+    if not app.config["MAIL_USERNAME"] or not app.config["MAIL_PASSWORD"]:
+        stats["errors"].append(
+            "SMTP not configured. Set MAIL_USERNAME and MAIL_PASSWORD in .env"
+        )
+        return stats
+
+    # Get email recipients
+    email_recipients, error = _get_email_recipients(user_name)
+    if error:
+        stats["errors"].append(error)
+        return stats
+
+    # Build email body
+    try:
+        html_body = _build_email_body(alert_list)
     except Exception as e:
         stats["errors"].append(f"Error building email: {str(e)}")
+        return stats
+
+    # Send to all recipients
+    for recipient in email_recipients:
+        success, error = _send_email_to_recipient(recipient, html_body, len(alert_list))
+        if success:
+            stats["sent"] += 1
+        else:
+            stats["failed"] += 1
+            stats["errors"].append(error)
 
     return stats
 
