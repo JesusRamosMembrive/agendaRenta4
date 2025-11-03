@@ -79,7 +79,7 @@ mail = Mail(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = "login"
-login_manager.login_message = "Por favor inicia sesión para acceder a esta página."
+login_manager.login_message = None  # Disable automatic flash messages to prevent accumulation
 
 # Register Blueprints
 from crawler.routes import crawler_bp
@@ -745,6 +745,10 @@ def login():
             return redirect(next_page) if next_page else redirect(url_for("inicio"))
         else:
             flash("Usuario o contraseña incorrectos", "error")
+    else:
+        # GET request: show message only if redirected from protected page
+        if request.args.get("next"):
+            flash("Por favor inicia sesión para acceder a esta página.", "info")
 
     return render_template("login.html")
 

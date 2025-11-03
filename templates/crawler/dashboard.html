@@ -161,6 +161,7 @@
 
 <script>
 let progressInterval = null;
+let crawlWasRunning = false;  // Track if crawl was running at least once
 
 // Check if crawl is already running on page load
 window.addEventListener('DOMContentLoaded', function() {
@@ -175,6 +176,8 @@ function checkCrawlStatus() {
             console.log('[DEBUG] Initial status:', data);
             if (data.is_running) {
                 console.log('[DEBUG] Crawl is running, showing progress...');
+                // Mark that crawl is running
+                crawlWasRunning = true;
                 // Crawl is running, show progress and start polling
                 showProgress();
                 updateProgressUI(data);
@@ -196,6 +199,9 @@ function startCrawl() {
     const btn = document.getElementById('crawlBtn');
     btn.disabled = true;
     btn.textContent = '⏳ Iniciando...';
+
+    // Reset the flag for this new crawl
+    crawlWasRunning = false;
 
     console.log('[DEBUG] Starting crawl...');
 
@@ -252,12 +258,18 @@ function fetchProgress() {
         .then(data => {
             console.log('[DEBUG] Progress data:', data);
             if (data.is_running) {
+                crawlWasRunning = true;  // Mark that we've seen the crawl running
                 updateProgressUI(data);
             } else {
-                console.log('[DEBUG] Crawl finished, stopping polling');
-                // Crawl finished
-                stopProgressPolling();
-                onCrawlComplete();
+                console.log('[DEBUG] Crawl not running, was it running before?', crawlWasRunning);
+                // Only show completion message if crawl was actually running before
+                if (crawlWasRunning) {
+                    console.log('[DEBUG] Crawl finished, stopping polling');
+                    stopProgressPolling();
+                    onCrawlComplete();
+                } else {
+                    console.log('[DEBUG] Crawl not started yet, continuing to poll...');
+                }
             }
         })
         .catch(error => {

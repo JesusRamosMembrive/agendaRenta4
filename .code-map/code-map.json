@@ -21699,7 +21699,7 @@
   {
     "path": "app.py",
     "relative": true,
-    "modified_at": "2025-11-03T04:44:16.490051+00:00",
+    "modified_at": "2025-11-03T08:49:05.888711+00:00",
     "symbols": [
       {
         "name": "User",
@@ -21858,91 +21858,91 @@
       {
         "name": "logout",
         "kind": "function",
-        "lineno": 754,
+        "lineno": 758,
         "parent": null,
         "docstring": "Logout current user"
       },
       {
         "name": "index",
         "kind": "function",
-        "lineno": 768,
+        "lineno": 772,
         "parent": null,
         "docstring": "Redirect to inicio page (main dashboard)"
       },
       {
         "name": "inicio",
         "kind": "function",
-        "lineno": 777,
+        "lineno": 781,
         "parent": null,
         "docstring": "Main dashboard - Table with all URLs and their 8 task types"
       },
       {
         "name": "pendientes",
         "kind": "function",
-        "lineno": 853,
+        "lineno": 857,
         "parent": null,
         "docstring": "List of ALL pending tasks (not marked as OK or Problem)\nGenerates all possible combinations and excludes completed/problem tasks"
       },
       {
         "name": "problemas",
         "kind": "function",
-        "lineno": 925,
+        "lineno": 929,
         "parent": null,
         "docstring": "List of tasks with problems (status='problem')\nShows tasks from last 90 days (3 months) that have issues"
       },
       {
         "name": "realizadas",
         "kind": "function",
-        "lineno": 981,
+        "lineno": 985,
         "parent": null,
         "docstring": "List of completed tasks (status='ok')\nShows complete history of all tasks marked as OK"
       },
       {
         "name": "update_task",
         "kind": "function",
-        "lineno": 1026,
+        "lineno": 1030,
         "parent": null,
         "docstring": "Update task status (ok/problem) via AJAX\nReturns JSON response"
       },
       {
         "name": "save_observations",
         "kind": "function",
-        "lineno": 1087,
+        "lineno": 1091,
         "parent": null,
         "docstring": "Save observations for all tasks of a section (when there are problems)\nReturns JSON response"
       },
       {
         "name": "trigger_generate_alerts",
         "kind": "function",
-        "lineno": 1121,
+        "lineno": 1125,
         "parent": null,
         "docstring": "Manually trigger alert generation for testing.\nCan accept optional date parameter (YYYY-MM-DD format)."
       },
       {
         "name": "alertas",
         "kind": "function",
-        "lineno": 1157,
+        "lineno": 1161,
         "parent": null,
         "docstring": "Display ALL alerts (both active and dismissed)\nOne alert per task_type, not per section"
       },
       {
         "name": "dismiss_alert",
         "kind": "function",
-        "lineno": 1197,
+        "lineno": 1201,
         "parent": null,
         "docstring": "Toggle alert status (active \u2194 dismissed)"
       },
       {
         "name": "not_found",
         "kind": "function",
-        "lineno": 1253,
+        "lineno": 1257,
         "parent": null,
         "docstring": "Handle 404 errors"
       },
       {
         "name": "internal_error",
         "kind": "function",
-        "lineno": 1265,
+        "lineno": 1269,
         "parent": null,
         "docstring": "Handle 500 errors"
       }
@@ -23650,7 +23650,7 @@
   {
     "path": "templates/crawler/dashboard.html",
     "relative": true,
-    "modified_at": "2025-11-03T08:33:16.842250+00:00",
+    "modified_at": "2025-11-03T08:54:43.359173+00:00",
     "symbols": [
       {
         "name": "crawlBtn",
