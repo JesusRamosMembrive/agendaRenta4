@@ -200,9 +200,76 @@ def get_task_counts():
     }
 
 
+def _should_create_alert(reference_date, frequency, alert_day):
+    """
+    Determine if an alert should be created for the given criteria.
+
+    Args:
+        reference_date: Date to check
+        frequency: Alert frequency (weekly, monthly, etc.)
+        alert_day: Configured day for alert
+
+    Returns:
+        bool: True if alert should be created
+    """
+    return check_alert_day(reference_date, frequency, alert_day)
+
+
+def _create_alert_for_task_type(cursor, task_type_id, reference_date):
+    """
+    Create a pending alert for a specific task type.
+
+    Args:
+        cursor: Database cursor
+        task_type_id: ID of the task type
+        reference_date: Due date for the alert
+
+    Returns:
+        bool: True if alert was created (not skipped due to duplicate)
+    """
+    cursor.execute(
+        """
+        INSERT INTO pending_alerts
+        (task_type_id, due_date)
+        VALUES (%s, %s)
+        ON CONFLICT (task_type_id, due_date) DO NOTHING
+    """,
+        (task_type_id, reference_date),
+    )
+    return cursor.rowcount > 0
+
+
+def _fetch_alerts_for_notification(cursor, reference_date):
+    """
+    Fetch all non-dismissed alerts for a specific date (for email notification).
+
+    Args:
+        cursor: Database cursor
+        reference_date: Date to fetch alerts for
+
+    Returns:
+        list: Alert dicts with keys: task_type_name, due_date, periodicity
+    """
+    cursor.execute(
+        """
+        SELECT
+            tt.display_name as task_type_name,
+            pa.due_date,
+            tt.periodicity
+        FROM pending_alerts pa
+        INNER JOIN task_types tt ON pa.task_type_id = tt.id
+        WHERE pa.due_date = %s AND pa.dismissed = FALSE
+        ORDER BY tt.display_name ASC
+    """,
+        (reference_date,),
+    )
+    return cursor.fetchall()
+
+
 def generate_alerts(reference_date=None):
     """
-    Generate pending alerts based on alert_settings configuration.
+    Generate pending alerts based on alert_settings configuration (orchestrator).
+
     Creates one alert per task_type (not per section).
     This function should be run periodically (daily) to create alerts.
 
@@ -227,58 +294,32 @@ def generate_alerts(reference_date=None):
             """)
             alert_settings = cursor.fetchall()
 
+            # Process each alert setting
             for alert_setting in alert_settings:
                 task_type_id = alert_setting["task_type_id"]
                 frequency = alert_setting["alert_frequency"]
                 alert_day = alert_setting["alert_day"]
 
                 # Check if today matches the alert criteria
-                should_alert = check_alert_day(reference_date, frequency, alert_day)
-
-                if not should_alert:
+                if not _should_create_alert(reference_date, frequency, alert_day):
                     stats["skipped"] += 1
                     continue
 
+                # Try to create the alert
                 try:
-                    # Create one alert per task_type (not per section)
-                    cursor.execute(
-                        """
-                        INSERT INTO pending_alerts
-                        (task_type_id, due_date)
-                        VALUES (%s, %s)
-                        ON CONFLICT (task_type_id, due_date) DO NOTHING
-                    """,
-                        (task_type_id, reference_date),
-                    )
-
-                    if cursor.rowcount > 0:
+                    if _create_alert_for_task_type(cursor, task_type_id, reference_date):
                         stats["generated"] += 1
                     else:
-                        stats["skipped"] += 1
-
+                        stats["skipped"] += 1  # Duplicate
                 except Exception as e:
                     stats["errors"].append(
                         f"Error creating alert for task_type={task_type_id}: {str(e)}"
                     )
 
-            # Fetch alerts for this day (both new and existing) to send email notifications
-            cursor.execute(
-                """
-                SELECT
-                    tt.display_name as task_type_name,
-                    pa.due_date,
-                    tt.periodicity
-                FROM pending_alerts pa
-                INNER JOIN task_types tt ON pa.task_type_id = tt.id
-                WHERE pa.due_date = %s AND pa.dismissed = FALSE
-                ORDER BY tt.display_name ASC
-            """,
-                (reference_date,),
-            )
+            # Fetch all alerts for today to send email notifications
+            alerts_for_email = _fetch_alerts_for_notification(cursor, reference_date)
 
-            alerts_for_email = cursor.fetchall()
-
-        # Send email notifications if there are alerts (new or existing)
+        # Send email notifications if there are alerts
         if alerts_for_email:
             email_stats = send_email_notifications(alerts_for_email)
             stats["email_stats"] = email_stats

@@ -300,9 +300,102 @@ class Crawler:
 
         return None
 
+    def _check_crawl_limits(self):
+        """
+        Check if crawl limits have been reached.
+
+        Returns:
+            tuple: (should_stop: bool, reason: str or None)
+        """
+        # Check cancellation
+        if progress_tracker.is_cancel_requested():
+            return True, 'cancelled'
+
+        # Check max_urls limit
+        if self.max_urls and self.stats['urls_discovered'] >= self.max_urls:
+            return True, 'max_urls_reached'
+
+        return False, None
+
+    def _should_process_url(self, url, depth):
+        """
+        Determine if a URL should be processed.
+
+        Args:
+            url: URL to check
+            depth: Current depth
+
+        Returns:
+            tuple: (should_process: bool, skip_reason: str or None)
+        """
+        # Check if already visited
+        if url in self.visited:
+            return False, 'already_visited'
+
+        # Check depth limit
+        if depth > self.max_depth:
+            return False, 'too_deep'
+
+        # Check ignore patterns
+        if self.should_ignore_url(url):
+            return False, 'ignored_pattern'
+
+        # Check allowed domain
+        if not self.is_allowed_domain(url):
+            return False, 'external_domain'
+
+        return True, None
+
+    def _process_url(self, url, parent_url, depth):
+        """
+        Process a single URL: fetch, extract links, save to DB.
+
+        Args:
+            url: URL to process
+            parent_url: Parent URL
+            depth: Current depth
+
+        Returns:
+            list: Discovered links (tuples of (url, parent, depth))
+        """
+        # Mark as visited
+        self.visited.add(url)
+
+        # Save to database
+        self.save_discovered_url(url, parent_url, depth)
+        self.stats['urls_discovered'] += 1
+
+        # Update progress tracker
+        progress_tracker.update_progress(
+            urls_discovered=self.stats['urls_discovered'],
+            urls_skipped=self.stats['urls_skipped'],
+            errors=self.stats['errors'],
+            last_url=url,
+            current_depth=depth,
+            queue_size=len(self.queue)
+        )
+
+        # Fetch URL
+        response = self.fetch_url(url)
+        if response is None:
+            return []
+
+        # Only process HTML pages
+        content_type = response.headers.get('Content-Type', '')
+        if 'text/html' not in content_type.lower():
+            logger.debug(f"Skipping non-HTML: {url} ({content_type})")
+            return []
+
+        # Extract links
+        links = self.extract_links(url, response.text)
+        logger.info(f"Found {len(links)} links on {url}")
+
+        # Return links for queue (filter out already visited)
+        return [(link, url, depth + 1) for link in links if link not in self.visited]
+
     def crawl(self, created_by='system'):
         """
-        Main crawl method - discovers URLs from root.
+        Main crawl method - discovers URLs from root (orchestrator).
 
         Args:
             created_by: User who initiated crawl
@@ -327,82 +420,36 @@ class Crawler:
         # Initialize queue with root URL
         self.queue.append((self.root_url, None, 0))  # (url, parent, depth)
 
+        # Main crawl loop (BFS)
         while self.queue:
-            # Check if cancellation has been requested
-            if progress_tracker.is_cancel_requested():
-                logger.warning("Crawl cancelled by user request")
-                self.update_crawl_run(status='cancelled')
-                progress_tracker.stop_crawl()
-                return {'error': 'Crawl cancelled by user', 'urls_discovered': self.stats['urls_discovered']}
-
-            # Check max_urls limit
-            if self.max_urls and self.stats['urls_discovered'] >= self.max_urls:
-                logger.info(f"Reached max_urls limit: {self.max_urls}")
-                break
+            # Check if we should stop (limits or cancellation)
+            should_stop, reason = self._check_crawl_limits()
+            if should_stop:
+                if reason == 'cancelled':
+                    logger.warning("Crawl cancelled by user request")
+                    self.update_crawl_run(status='cancelled')
+                    progress_tracker.stop_crawl()
+                    return {'error': 'Crawl cancelled by user', 'urls_discovered': self.stats['urls_discovered']}
+                else:
+                    logger.info(f"Stopping crawl: {reason}")
+                    break
 
             # Get next URL from queue
             url, parent_url, depth = self.queue.pop(0)
 
-            # Skip if already visited
-            if url in self.visited:
+            # Check if URL should be processed
+            should_process, skip_reason = self._should_process_url(url, depth)
+            if not should_process:
                 self.stats['urls_skipped'] += 1
+                if skip_reason in ('too_deep', 'external_domain'):
+                    logger.debug(f"Skipping ({skip_reason}): {url}")
                 continue
 
-            # Skip if too deep
-            if depth > self.max_depth:
-                logger.debug(f"Skipping (too deep): {url}")
-                self.stats['urls_skipped'] += 1
-                continue
+            # Process URL and get discovered links
+            new_links = self._process_url(url, parent_url, depth)
 
-            # Skip if should ignore
-            if self.should_ignore_url(url):
-                self.stats['urls_skipped'] += 1
-                continue
-
-            # Skip if not allowed domain
-            if not self.is_allowed_domain(url):
-                logger.debug(f"Skipping (external domain): {url}")
-                self.stats['urls_skipped'] += 1
-                continue
-
-            # Mark as visited
-            self.visited.add(url)
-
-            # Save to database
-            self.save_discovered_url(url, parent_url, depth)
-            self.stats['urls_discovered'] += 1
-
-            # Update progress tracker
-            progress_tracker.update_progress(
-                urls_discovered=self.stats['urls_discovered'],
-                urls_skipped=self.stats['urls_skipped'],
-                errors=self.stats['errors'],
-                last_url=url,
-                current_depth=depth,
-                queue_size=len(self.queue)
-            )
-
-            # Fetch URL
-            response = self.fetch_url(url)
-
-            if response is None:
-                # Error fetching (already logged)
-                continue
-
-            # Only process HTML pages
-            content_type = response.headers.get('Content-Type', '')
-            if 'text/html' not in content_type.lower():
-                logger.debug(f"Skipping non-HTML: {url} ({content_type})")
-                continue
-
-            # Extract links
-            links = self.extract_links(url, response.text)
-            logger.info(f"Found {len(links)} links on {url}")
-
-            # Add links to queue
-            for link in links:
-                if link not in self.visited:
-                    self.queue.append((link, url, depth + 1))
+            # Add new links to queue
+            self.queue.extend(new_links)
 
             # Rate limiting
             time.sleep(self.delay)
