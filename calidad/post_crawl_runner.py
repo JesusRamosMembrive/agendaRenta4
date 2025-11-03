@@ -315,6 +315,8 @@ class PostCrawlQualityRunner:
         successful = 0
         failed = 0
 
+        logger.info(f"Starting image quality check for {total} URLs...")
+
         for url_row in urls:
             try:
                 result = checker.check(url_row['url'])
@@ -339,10 +341,16 @@ class PostCrawlQualityRunner:
                 successful += 1
                 processed += 1
 
+                # Progress logging every 10 URLs
+                if processed % 10 == 0:
+                    logger.info(f"Progress: {processed}/{total} URLs checked ({successful} successful, {failed} failed)")
+
             except Exception as e:
                 logger.error(f"Error checking {url_row['url']}: {e}")
                 failed += 1
                 processed += 1
+
+        logger.info(f"Image quality check complete: {processed}/{total} processed, {successful} successful, {failed} failed")
 
         return {
             'check_type': 'image_quality',

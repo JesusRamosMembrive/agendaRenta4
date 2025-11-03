@@ -234,23 +234,17 @@
 <!-- Modal for Running Tests -->
 <div id="runTestsModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
     <div style="background: white; border-radius: 12px; padding: 30px; max-width: 600px; width: 90%; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);">
-        <h2 style="margin: 0 0 20px 0; font-size: 24px; color: #1f2937;">⚡ Ejecutar Quality Checks</h2>
+        <h2 style="margin: 0 0 20px 0; font-size: 24px; color: #1f2937;">🖼️ Ejecutar Test de Calidad de Imágenes</h2>
 
-        <!-- Check Types Selection -->
-        <div style="margin-bottom: 25px;">
-            <h3 style="margin: 0 0 12px 0; font-size: 16px; color: #374151;">Selecciona los tests a ejecutar:</h3>
-            <div style="display: flex; flex-direction: column; gap: 10px;">
-                <label style="display: flex; align-items: center; gap: 10px; padding: 12px; background: #f9fafb; border-radius: 6px; cursor: pointer;">
-                    <input type="checkbox" id="check_broken_links" value="broken_links" checked style="width: 18px; height: 18px; cursor: pointer;">
-                    <span style="font-weight: 500; color: #1f2937;">🔗 Enlaces Rotos</span>
-                    <span style="margin-left: auto; font-size: 12px; color: #374151;">Valida status codes HTTP</span>
-                </label>
-                <label style="display: flex; align-items: center; gap: 10px; padding: 12px; background: #f9fafb; border-radius: 6px; cursor: pointer;">
-                    <input type="checkbox" id="check_image_quality" value="image_quality" checked style="width: 18px; height: 18px; cursor: pointer;">
-                    <span style="font-weight: 500; color: #1f2937;">🖼️ Calidad de Imágenes</span>
-                    <span style="margin-left: auto; font-size: 12px; color: #374151;">Verifica imágenes rotas</span>
-                </label>
+        <!-- Info about what will be tested -->
+        <div style="margin-bottom: 25px; padding: 15px; background: #f0f9ff; border-left: 4px solid #3b82f6; border-radius: 6px;">
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                <span style="font-size: 24px;">🖼️</span>
+                <span style="font-weight: 600; font-size: 16px; color: #1e40af;">Test de Calidad de Imágenes</span>
             </div>
+            <p style="margin: 0; font-size: 14px; color: #1e40af; line-height: 1.6;">
+                Este test verificará que todas las imágenes de cada página se carguen correctamente, detectando imágenes rotas o que no responden.
+            </p>
         </div>
 
         <!-- Scope Selection -->
@@ -259,13 +253,13 @@
             <div style="display: flex; flex-direction: column; gap: 10px;">
                 <label style="display: flex; align-items: center; gap: 10px; padding: 12px; background: #fef3c7; border-radius: 6px; cursor: pointer; border: 2px solid #f59e0b;">
                     <input type="radio" name="scope" value="priority" checked style="width: 18px; height: 18px; cursor: pointer;">
-                    <span style="font-weight: 600; color: #78350f;">⭐ Solo URLs Priority (117 URLs)</span>
-                    <span style="margin-left: auto; font-size: 12px; color: #92400e;">~3-5 minutos</span>
+                    <span style="font-weight: 600; color: #78350f;">⭐ Solo URLs Priority (139 URLs)</span>
+                    <span style="margin-left: auto; font-size: 12px; color: #92400e;">~5-10 minutos</span>
                 </label>
                 <label style="display: flex; align-items: center; gap: 10px; padding: 12px; background: #dbeafe; border-radius: 6px; cursor: pointer; border: 2px solid #3b82f6;">
                     <input type="radio" name="scope" value="all" style="width: 18px; height: 18px; cursor: pointer;">
-                    <span style="font-weight: 600; color: #1e3a8a;">🌐 Todas las URLs (~2,800 URLs)</span>
-                    <span style="margin-left: auto; font-size: 12px; color: #1e40af;">~15-30 minutos</span>
+                    <span style="font-weight: 600; color: #1e3a8a;">🌐 Todas las URLs (~2,827 URLs)</span>
+                    <span style="margin-left: auto; font-size: 12px; color: #1e40af;">~1-2 HORAS</span>
                 </label>
             </div>
         </div>
@@ -317,19 +311,8 @@ function closeRunTestsModal() {
 }
 
 async function runQualityTests() {
-    // Get selected check types
-    const checkTypes = [];
-    if (document.getElementById('check_broken_links').checked) {
-        checkTypes.push('broken_links');
-    }
-    if (document.getElementById('check_image_quality').checked) {
-        checkTypes.push('image_quality');
-    }
-
-    if (checkTypes.length === 0) {
-        alert('Por favor selecciona al menos un test para ejecutar');
-        return;
-    }
+    // Only run image_quality test (this is the image quality page)
+    const checkTypes = ['image_quality'];
 
     // Get selected scope
     const scope = document.querySelector('input[name="scope"]:checked').value;
@@ -347,8 +330,19 @@ async function runQualityTests() {
     progressText.textContent = 'Iniciando tests...';
     progressBar.style.width = '10%';
 
+    // Show estimated time based on scope
+    let estimatedTime = '';
+    if (scope === 'priority') {
+        estimatedTime = ' (analizando 139 URLs, ~5-10 minutos, por favor espere...)';
+    } else {
+        estimatedTime = ' (analizando 2,827 URLs, ~1-2 HORAS, por favor espere...)';
+    }
+
     try {
-        // Call API endpoint
+        progressBar.style.width = '20%';
+        progressText.textContent = 'Analizando calidad de imágenes' + estimatedTime;
+
+        // Call API endpoint with longer timeout expectation
         const response = await fetch('/crawler/quality/run', {
             method: 'POST',
             headers: {
@@ -360,7 +354,7 @@ async function runQualityTests() {
             })
         });
 
-        progressBar.style.width = '50%';
+        progressBar.style.width = '90%';
         progressText.textContent = 'Procesando resultados...';
 
         const data = await response.json();
@@ -368,27 +362,36 @@ async function runQualityTests() {
         progressBar.style.width = '100%';
 
         if (data.success) {
-            progressText.textContent = '✅ Tests completados exitosamente';
+            progressText.textContent = '✅ Test completado exitosamente';
+
+            // Get image quality check result
+            const checks = data.results.checks || [];
+            const imageCheck = checks.find(c => c.check_type === 'image_quality') || checks[0];
 
             // Show results summary
-            const results = data.results;
-            let summary = `Tests ejecutados: ${results.checks.length}\n\n`;
+            let message = 'Test de Calidad de Imágenes completado!\n\n';
 
-            results.checks.forEach(check => {
-                summary += `${check.check_type}: ${check.status}\n`;
-                if (check.message) {
-                    summary += `  ${check.message}\n`;
+            if (imageCheck) {
+                message += `Estado: ${imageCheck.status || 'unknown'}\n`;
+
+                // Access stats object correctly
+                const stats = imageCheck.stats || {};
+                message += `URLs procesadas: ${stats.processed || 0}\n`;
+                message += `Guardadas en BD: ${stats.successful || 0}\n`;
+
+                if (imageCheck.message) {
+                    message += `\nDetalles: ${imageCheck.message}`;
                 }
-            });
+            }
 
-            alert(summary);
+            alert(message);
 
-            // Reload page to show new results
-            setTimeout(() => {
-                window.location.reload();
-            }, 1000);
+            // Close modal and reload page to show new results
+            closeRunTestsModal();
+            window.location.reload();
+
         } else {
-            progressText.textContent = '❌ Error al ejecutar tests';
+            progressText.textContent = '❌ Error al ejecutar test';
             alert('Error: ' + data.error);
             runButton.disabled = false;
             runButton.textContent = '🚀 Ejecutar Tests';

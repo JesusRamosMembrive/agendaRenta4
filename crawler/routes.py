@@ -866,7 +866,7 @@ def run_quality_checks_manual():
 
         # Run checks
         runner = PostCrawlQualityRunner(crawl_run_id)
-        results = runner.run_selected_checks_with_scope(check_configs)
+        results = runner.run_checks(check_configs)
 
         logger.info(f"Manual quality checks completed for crawl {crawl_run_id}")
         logger.info(f"  - Executed: {results.get('executed', False)}")

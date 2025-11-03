@@ -106,7 +106,7 @@ def main():
         check_configs = [{'check_type': 'broken_links', 'scope': 'priority'}]
 
         # Ejecutar
-        results = runner.run_selected_checks_with_scope(check_configs)
+        results = runner.run_checks(check_configs)
 
         print("\n" + "=" * 80)
         print("[6] RESULTADOS")
