@@ -40,7 +40,15 @@ from constants import TASK_STATUS_OK, TASK_STATUS_PROBLEM, DEFAULT_PORT
 
 # Initialize Flask app
 app = Flask(__name__)
-app.secret_key = os.getenv("SECRET_KEY", "dev-secret-key-change-in-production")
+
+# SECRET_KEY validation (required in production)
+secret_key = os.getenv("SECRET_KEY")
+if not secret_key:
+    raise ValueError(
+        "❌ CRITICAL: SECRET_KEY environment variable is required. "
+        "Set it in your .env file or environment."
+    )
+app.secret_key = secret_key
 
 # Email Configuration
 app.config["MAIL_SERVER"] = os.getenv("MAIL_SERVER", "smtp.gmail.com")
@@ -461,9 +469,10 @@ def send_email_notifications(alert_list, user_name=None):
                     </div>
             """
 
-        html_body += """
+        alertas_url = url_for('alertas', _external=True)
+        html_body += f"""
                     <p style="margin-top: 20px;">
-                        <a href="http://localhost:5000/alertas" class="btn">Ver Alertas Pendientes</a>
+                        <a href="{alertas_url}" class="btn">Ver Alertas Pendientes</a>
                     </p>
                 </div>
 
@@ -769,13 +778,16 @@ def pendientes():
 def problemas():
     """
     List of tasks with problems (status='problem')
-    Shows tasks from 2025-10 onwards that have issues
+    Shows tasks from last 90 days (3 months) that have issues
     """
     period = session.get("current_period", datetime.now().strftime("%Y-%m"))
     current_period = datetime.now().strftime("%Y-%m")
 
+    # Calculate cutoff date (90 days ago = ~3 months)
+    cutoff_date = (datetime.now() - timedelta(days=90)).strftime('%Y-%m')
+
     with db_cursor(commit=False) as cursor:
-        # Query problem tasks from 2025-10 to current month
+        # Query problem tasks from last 3 months to current month
         cursor.execute(
             """
             SELECT
@@ -795,11 +807,11 @@ def problemas():
             WHERE
                 s.active = TRUE
                 AND t.status = 'problem'
-                AND t.period >= '2025-10'
+                AND t.period >= %s
                 AND t.period <= %s
             ORDER BY t.period DESC, s.name ASC, tt.display_order ASC
         """,
-            (current_period,),
+            (cutoff_date, current_period),
         )
 
         tasks_raw = cursor.fetchall()
