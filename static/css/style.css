@@ -280,7 +280,7 @@ a {
 .table th {
   background: var(--panel);
   text-align: left;
-  color: var(--muted);
+  color: var(--text);
   font-weight: 600;
 }
 

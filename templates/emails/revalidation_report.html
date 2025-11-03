@@ -209,7 +209,7 @@
 
         <!-- Call to Action -->
         <div style="text-align: center;">
-            <a href="http://localhost:5000/crawler/broken" class="cta-button">
+            <a href="{{ url_for('crawler.broken', _external=True) }}" class="cta-button">
                 Ver Todos los Enlaces Rotos →
             </a>
         </div>
@@ -217,7 +217,7 @@
         <!-- Footer -->
         <div class="footer">
             <p>Este es un mensaje automático del Sistema de Control de Calidad Web - Agenda Renta4</p>
-            <p>Para modificar las preferencias de notificación, accede a la <a href="http://localhost:5000/configuracion">página de configuración</a>.</p>
+            <p>Para modificar las preferencias de notificación, accede a la <a href="{{ url_for('config.configuracion', _external=True) }}">página de configuración</a>.</p>
         </div>
     </div>
 </body>

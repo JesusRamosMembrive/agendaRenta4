@@ -1,0 +1,414 @@
+{% extends "base.html" %}
+{% from 'components/stat_card.html' import stat_card %}
+
+{% block title %}Calidad de Imágenes{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>🖼️ Calidad de Imágenes</h1>
+
+    <!-- Statistics Cards -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px;">
+        <!-- Total Checks -->
+        <div style="background: #f3f4f6; padding: 20px; border-radius: 8px;">
+            <div style="font-size: 32px; font-weight: bold; color: #3b82f6;">
+                {{ stats.total_checks or 0 }}
+            </div>
+            <div style="color: #6b7280; margin-top: 8px;">Total Checks</div>
+        </div>
+
+        <!-- Average Score -->
+        <div style="background: #f3f4f6; padding: 20px; border-radius: 8px;">
+            <div style="font-size: 32px; font-weight: bold;
+                {% if (stats.avg_score or 0) >= 80 %}color: #10b981;
+                {% elif (stats.avg_score or 0) >= 50 %}color: #f59e0b;
+                {% else %}color: #ef4444;{% endif %}">
+                {{ "%.0f"|format(stats.avg_score or 0) }}
+            </div>
+            <div style="color: #6b7280; margin-top: 8px;">Puntuación Media</div>
+        </div>
+
+        <!-- OK Count -->
+        <div style="background: #d1fae5; padding: 20px; border-radius: 8px;">
+            <div style="font-size: 32px; font-weight: bold; color: #10b981;">
+                {{ stats.ok_count or 0 }}
+            </div>
+            <div style="color: #059669; margin-top: 8px;">✓ OK</div>
+        </div>
+
+        <!-- Warning Count -->
+        <div style="background: #fef3c7; padding: 20px; border-radius: 8px;">
+            <div style="font-size: 32px; font-weight: bold; color: #f59e0b;">
+                {{ stats.warning_count or 0 }}
+            </div>
+            <div style="color: #d97706; margin-top: 8px;">⚠ Warnings</div>
+        </div>
+
+        <!-- Error Count -->
+        <div style="background: #fee2e2; padding: 20px; border-radius: 8px;">
+            <div style="font-size: 32px; font-weight: bold; color: #ef4444;">
+                {{ stats.error_count or 0 }}
+            </div>
+            <div style="color: #dc2626; margin-top: 8px;">✗ Errors</div>
+        </div>
+
+        <!-- Total Issues -->
+        <div style="background: #f3f4f6; padding: 20px; border-radius: 8px;">
+            <div style="font-size: 32px; font-weight: bold; color: #6b7280;">
+                {{ stats.total_issues or 0 }}
+            </div>
+            <div style="color: #6b7280; margin-top: 8px;">Issues Found</div>
+        </div>
+    </div>
+
+    <!-- Run Tests Button -->
+    <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; gap: 15px;">
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 8px; color: white; flex: 1;">
+            <h3 style="margin: 0 0 10px 0; font-size: 16px; font-weight: 600;">🖼️ Verificación de Imágenes</h3>
+            <div style="opacity: 0.9; line-height: 1.6; font-size: 14px;">
+                Este check verifica que todas las imágenes de cada página se carguen correctamente.<br>
+                <strong>✓ OK (100)</strong> = Todas las imágenes funcionan correctamente<br>
+                <strong>✗ Error (0)</strong> = Hay imágenes rotas o que no cargan
+            </div>
+        </div>
+        <div>
+            <button onclick="openRunTestsModal()" class="btn" style="background: #10b981; color: white; padding: 16px 24px; font-size: 16px; font-weight: 600; border: none; cursor: pointer; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: all 0.2s;">
+                ⚡ Ejecutar Tests Ahora
+            </button>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div style="background: #f9fafb; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+        <form method="get" style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+            <label style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-weight: 600; color: #1f2937;">Estado:</span>
+                <select name="status" onchange="this.form.submit()" style="padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 4px;">
+                    <option value="">Todos</option>
+                    <option value="ok" {% if status_filter == 'ok' %}selected{% endif %}>✓ OK</option>
+                    <option value="warning" {% if status_filter == 'warning' %}selected{% endif %}>⚠ Warning</option>
+                    <option value="error" {% if status_filter == 'error' %}selected{% endif %}>✗ Error</option>
+                </select>
+            </label>
+            {% if status_filter %}
+            <a href="{{ url_for('crawler.quality') }}" class="btn" style="padding: 8px 12px;">
+                🧹 Limpiar Filtros
+            </a>
+            {% endif %}
+        </form>
+    </div>
+
+    <!-- Quality Checks Table -->
+    {% if quality_checks %}
+    <table>
+        <thead>
+            <tr>
+                <th>URL</th>
+                <th>Estado</th>
+                <th>Puntuación</th>
+                <th>Problemas</th>
+                <th>Detalles</th>
+                <th>Fecha Check</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for check in quality_checks %}
+            <tr style="border-bottom: 1px solid #ffffff; box-shadow: 0 1px 0 0 #e5e7eb;">
+                <td style="padding: 16px 12px;">
+                    <a href="{{ check.url }}" target="_blank" style="color: #3b82f6; word-break: break-all;">
+                        {{ check.url_name or check.url[:50] }}
+                    </a>
+                </td>
+                <td style="padding: 16px 12px;">
+                    {% if check.status == 'ok' %}
+                        <span style="padding: 4px 12px; background: #d1fae5; color: #059669; border-radius: 4px; font-weight: 500;">
+                            ✓ OK
+                        </span>
+                    {% elif check.status == 'warning' %}
+                        <span style="padding: 4px 12px; background: #fef3c7; color: #d97706; border-radius: 4px; font-weight: 500;">
+                            ⚠ Warning
+                        </span>
+                    {% else %}
+                        <span style="padding: 4px 12px; background: #fee2e2; color: #dc2626; border-radius: 4px; font-weight: 500;">
+                            ✗ Error
+                        </span>
+                    {% endif %}
+                </td>
+                <td style="padding: 16px 12px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <div style="font-size: 20px; font-weight: bold;
+                            {% if check.score >= 80 %}color: #10b981;
+                            {% elif check.score >= 50 %}color: #f59e0b;
+                            {% else %}color: #ef4444;{% endif %}">
+                            {{ check.score }}
+                        </div>
+                        <div style="color: #9ca3af;">/100</div>
+                    </div>
+                </td>
+                <td style="padding: 16px 12px;">
+                    <span style="font-size: 18px; font-weight: 600;
+                        {% if check.issues_found == 0 %}color: #10b981;
+                        {% elif check.issues_found <= 3 %}color: #f59e0b;
+                        {% else %}color: #ef4444;{% endif %}">
+                        {{ check.issues_found }}
+                    </span>
+                </td>
+                <td style="padding: 16px 12px;">
+                    <div style="font-size: 13px; color: #6b7280; line-height: 1.6;">
+                        {% if check.details %}
+                            {% set details = check.details if check.details is mapping else check.details|fromjson %}
+                            <div style="margin-bottom: 4px;"><strong>Total imágenes:</strong> {{ details.total_images }}</div>
+                            {% if details.broken_images > 0 %}
+                            <div style="color: #ef4444; margin-bottom: 8px;">✗ Rotas: {{ details.broken_images }}</div>
+                            {% endif %}
+
+                            {% if check.issues_found > 0 and details.broken_images_list %}
+                            <div style="margin-top: 12px;">
+                                <button onclick="toggleDetails('details-{{ loop.index }}')"
+                                        style="background: #3b82f6; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;">
+                                    🔍 Ver imágenes rotas
+                                </button>
+                            </div>
+
+                            <div id="details-{{ loop.index }}" style="display: none; margin-top: 12px; padding: 12px; background: #fee2e2; border-radius: 6px; border-left: 3px solid #ef4444;">
+                                <strong style="color: #dc2626;">✗ Imágenes rotas ({{ details.broken_images }}):</strong>
+                                <ul style="margin: 6px 0 0 0; padding-left: 20px; font-size: 11px;">
+                                {% for img in details.broken_images_list %}
+                                    <li style="margin-bottom: 4px; word-break: break-all;">
+                                        <a href="{{ img.url }}" target="_blank" style="color: #3b82f6;">{{ img.url }}</a>
+                                        <span style="color: #dc2626; font-weight: 600;"> ({{ img.status }})</span>
+                                    </li>
+                                {% endfor %}
+                                </ul>
+                            </div>
+                            {% endif %}
+                        {% endif %}
+                    </div>
+                </td>
+                <td style="padding: 16px 12px; font-size: 13px; color: #6b7280;">
+                    {{ check.checked_at.strftime('%d/%m/%Y %H:%M') if check.checked_at else '-' }}
+                    <div style="font-size: 11px; color: #9ca3af; margin-top: 4px;">
+                        ({{ check.execution_time_ms }}ms)
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- Pagination -->
+    {% if total_pages > 1 %}
+    <div style="margin-top: 20px; text-align: center;">
+        <div style="display: inline-flex; gap: 5px;">
+            {% if page > 1 %}
+            <a href="{{ url_for('crawler.quality', page=page-1, status=status_filter) }}"
+               class="btn" style="padding: 8px 12px;">← Anterior</a>
+            {% endif %}
+
+            <span style="padding: 8px 12px; background: #f3f4f6; border-radius: 4px;">
+                Página {{ page }} de {{ total_pages }}
+            </span>
+
+            {% if page < total_pages %}
+            <a href="{{ url_for('crawler.quality', page=page+1, status=status_filter) }}"
+               class="btn" style="padding: 8px 12px;">Siguiente →</a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% else %}
+    <!-- Empty State -->
+    <div style="text-align: center; padding: 60px 20px; background: #f9fafb; border-radius: 8px;">
+        <div style="font-size: 48px; margin-bottom: 16px;">🖼️</div>
+        <h3 style="color: #6b7280; margin-bottom: 12px;">No hay checks de calidad de imágenes todavía</h3>
+        <p style="color: #9ca3af; margin-bottom: 24px;">
+            Ejecuta checks de calidad desde la configuración de URLs
+        </p>
+        <a href="{{ url_for('config.index') }}" class="btn">
+            Ir a Configuración
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Modal for Running Tests -->
+<div id="runTestsModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+    <div style="background: white; border-radius: 12px; padding: 30px; max-width: 600px; width: 90%; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);">
+        <h2 style="margin: 0 0 20px 0; font-size: 24px; color: #1f2937;">🖼️ Ejecutar Test de Calidad de Imágenes</h2>
+
+        <!-- Info about what will be tested -->
+        <div style="margin-bottom: 25px; padding: 15px; background: #f0f9ff; border-left: 4px solid #3b82f6; border-radius: 6px;">
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                <span style="font-size: 24px;">🖼️</span>
+                <span style="font-weight: 600; font-size: 16px; color: #1e40af;">Test de Calidad de Imágenes</span>
+            </div>
+            <p style="margin: 0; font-size: 14px; color: #1e40af; line-height: 1.6;">
+                Este test verificará que todas las imágenes de cada página se carguen correctamente, detectando imágenes rotas o que no responden.
+            </p>
+        </div>
+
+        <!-- Scope Selection -->
+        <div style="margin-bottom: 25px;">
+            <h3 style="margin: 0 0 12px 0; font-size: 16px; color: #374151;">Alcance de URLs:</h3>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                <label style="display: flex; align-items: center; gap: 10px; padding: 12px; background: #fef3c7; border-radius: 6px; cursor: pointer; border: 2px solid #f59e0b;">
+                    <input type="radio" name="scope" value="priority" checked style="width: 18px; height: 18px; cursor: pointer;">
+                    <span style="font-weight: 600; color: #78350f;">⭐ Solo URLs Priority ({{ url_info.priority_count }} URLs)</span>
+                    <span style="margin-left: auto; font-size: 12px; color: #92400e;">{{ url_info.image_quality_priority_time }}</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 10px; padding: 12px; background: #dbeafe; border-radius: 6px; cursor: pointer; border: 2px solid #3b82f6;">
+                    <input type="radio" name="scope" value="all" style="width: 18px; height: 18px; cursor: pointer;">
+                    <span style="font-weight: 600; color: #1e3a8a;">🌐 Todas las URLs ({{ url_info.total_count }} URLs)</span>
+                    <span style="margin-left: auto; font-size: 12px; color: #1e40af;">{{ url_info.image_quality_all_time }}</span>
+                </label>
+            </div>
+        </div>
+
+        <!-- Progress Bar (hidden initially) -->
+        <div id="progressContainer" style="display: none; margin-bottom: 20px;">
+            <div style="background: #e5e7eb; height: 8px; border-radius: 4px; overflow: hidden;">
+                <div id="progressBar" style="background: #10b981; height: 100%; width: 0%; transition: width 0.3s;"></div>
+            </div>
+            <div id="progressText" style="margin-top: 8px; font-size: 13px; color: #374151; text-align: center;"></div>
+        </div>
+
+        <!-- Buttons -->
+        <div style="display: flex; gap: 12px; justify-content: flex-end;">
+            <button onclick="closeRunTestsModal()" class="btn" style="background: #e5e7eb; color: #374151; padding: 10px 20px; border: none; cursor: pointer; border-radius: 6px;">
+                Cancelar
+            </button>
+            <button onclick="runQualityTests()" id="runButton" class="btn" style="background: #10b981; color: white; padding: 10px 20px; font-weight: 600; border: none; cursor: pointer; border-radius: 6px;">
+                🚀 Ejecutar Tests
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleDetails(detailsId) {
+    const detailsDiv = document.getElementById(detailsId);
+    const button = event.target;
+
+    if (detailsDiv.style.display === 'none') {
+        detailsDiv.style.display = 'block';
+        button.textContent = '🔼 Ocultar imágenes rotas';
+    } else {
+        detailsDiv.style.display = 'none';
+        button.textContent = '🔍 Ver imágenes rotas';
+    }
+}
+
+function openRunTestsModal() {
+    document.getElementById('runTestsModal').style.display = 'flex';
+}
+
+function closeRunTestsModal() {
+    document.getElementById('runTestsModal').style.display = 'none';
+    // Reset progress
+    document.getElementById('progressContainer').style.display = 'none';
+    document.getElementById('progressBar').style.width = '0%';
+    document.getElementById('runButton').disabled = false;
+}
+
+async function runQualityTests() {
+    // Only run image_quality test (this is the image quality page)
+    const checkTypes = ['image_quality'];
+
+    // Get selected scope
+    const scope = document.querySelector('input[name="scope"]:checked').value;
+
+    // Disable button and show progress
+    const runButton = document.getElementById('runButton');
+    runButton.disabled = true;
+    runButton.textContent = '⏳ Ejecutando...';
+
+    const progressContainer = document.getElementById('progressContainer');
+    const progressBar = document.getElementById('progressBar');
+    const progressText = document.getElementById('progressText');
+
+    progressContainer.style.display = 'block';
+    progressText.textContent = 'Iniciando tests...';
+    progressBar.style.width = '10%';
+
+    // Show estimated time based on scope (use values from template)
+    let estimatedTime = '';
+    if (scope === 'priority') {
+        estimatedTime = ' (analizando {{ url_info.priority_count }} URLs, {{ url_info.image_quality_priority_time }}, por favor espere...)';
+    } else {
+        estimatedTime = ' (analizando {{ url_info.total_count }} URLs, {{ url_info.image_quality_all_time }}, por favor espere...)';
+    }
+
+    try {
+        progressBar.style.width = '20%';
+        progressText.textContent = 'Analizando calidad de imágenes' + estimatedTime;
+
+        // Call API endpoint with longer timeout expectation
+        const response = await fetch('/crawler/quality/run', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                check_types: checkTypes,
+                scope: scope
+            })
+        });
+
+        progressBar.style.width = '90%';
+        progressText.textContent = 'Procesando resultados...';
+
+        const data = await response.json();
+
+        progressBar.style.width = '100%';
+
+        if (data.success) {
+            progressText.textContent = '✅ Test completado exitosamente';
+
+            // Get image quality check result
+            const checks = data.results.checks || [];
+            const imageCheck = checks.find(c => c.check_type === 'image_quality') || checks[0];
+
+            // Show results summary
+            let message = 'Test de Calidad de Imágenes completado!\n\n';
+
+            if (imageCheck) {
+                message += `Estado: ${imageCheck.status || 'unknown'}\n`;
+
+                // Access stats object correctly
+                const stats = imageCheck.stats || {};
+                message += `URLs procesadas: ${stats.processed || 0}\n`;
+                message += `Guardadas en BD: ${stats.successful || 0}\n`;
+
+                if (imageCheck.message) {
+                    message += `\nDetalles: ${imageCheck.message}`;
+                }
+            }
+
+            alert(message);
+
+            // Close modal and reload page to show new results
+            closeRunTestsModal();
+            window.location.reload();
+
+        } else {
+            progressText.textContent = '❌ Error al ejecutar test';
+            alert('Error: ' + data.error);
+            runButton.disabled = false;
+            runButton.textContent = '🚀 Ejecutar Tests';
+        }
+
+    } catch (error) {
+        console.error('Error running tests:', error);
+        progressText.textContent = '❌ Error de conexión';
+        alert('Error al ejecutar tests: ' + error.message);
+        runButton.disabled = false;
+        runButton.textContent = '🚀 Ejecutar Tests';
+    }
+}
+</script>
+
+<!-- Load modal utilities -->
+<script src="{{ url_for('static', filename='js/modal-utils.js') }}"></script>
+
+{% endblock %}

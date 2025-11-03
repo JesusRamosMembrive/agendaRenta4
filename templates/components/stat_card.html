@@ -1,0 +1,29 @@
+{#
+  Stat Card Component
+  Reusable macro for displaying statistics cards across the application.
+
+  Usage:
+    {% from 'components/stat_card.html' import stat_card %}
+    {{ stat_card(value=42, label='Total URLs', gradient='purple') }}
+
+  Parameters:
+    - value: The statistic value to display (number or string)
+    - label: The label/description for the stat
+    - gradient: Color gradient theme ('purple', 'pink', 'blue', 'green', 'red', 'orange')
+#}
+
+{% macro stat_card(value, label, gradient='purple') %}
+    {%- set gradients = {
+        'purple': 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        'pink': 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+        'blue': 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+        'green': 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+        'red': 'linear-gradient(135deg, #f5576c 0%, #e63946 100%)',
+        'orange': 'linear-gradient(135deg, #f6c445 0%, #f59e0b 100%)'
+    } -%}
+    {%- set bg_gradient = gradients.get(gradient, gradients['purple']) -%}
+    <div class="stat-card" style="background: {{ bg_gradient }}; color: white; padding: 20px; border-radius: 12px;">
+        <div style="font-size: 2em; font-weight: bold;">{{ value }}</div>
+        <div>{{ label }}</div>
+    </div>
+{% endmacro %}
