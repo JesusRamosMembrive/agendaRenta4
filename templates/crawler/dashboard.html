@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from 'components/stat_card.html' import stat_card %}
 
 {% block title %}Crawler - Dashboard{% endblock %}
 
@@ -9,20 +10,9 @@
 
     <!-- Stats Cards -->
     <div class="stats-row" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin: 30px 0;">
-        <div class="stat-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 12px;">
-            <div style="font-size: 2em; font-weight: bold;">{{ total_urls }}</div>
-            <div>URLs Descubiertas</div>
-        </div>
-
-        <div class="stat-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; padding: 20px; border-radius: 12px;">
-            <div style="font-size: 2em; font-weight: bold;">{{ broken_urls }}</div>
-            <div>Enlaces Rotos</div>
-        </div>
-
-        <div class="stat-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white; padding: 20px; border-radius: 12px;">
-            <div style="font-size: 2em; font-weight: bold;">{{ crawl_runs|length }}</div>
-            <div>Crawls Recientes</div>
-        </div>
+        {{ stat_card(value=total_urls, label='URLs Descubiertas', gradient='purple') }}
+        {{ stat_card(value=broken_urls, label='Enlaces Rotos', gradient='pink') }}
+        {{ stat_card(value=crawl_runs|length, label='Crawls Recientes', gradient='blue') }}
     </div>
 
     <!-- Action Buttons -->

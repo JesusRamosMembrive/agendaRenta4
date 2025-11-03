@@ -6,10 +6,73 @@ All crawler-related routes extracted from app.py
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
 from utils import db_cursor, get_latest_crawl_run, Paginator
-from constants import URLS_PER_PAGE, QUALITY_CHECKS_PER_PAGE
+from constants import URLS_PER_PAGE, QUALITY_CHECKS_PER_PAGE, QualityCheckDefaults
+import math
 
 # Create blueprint
 crawler_bp = Blueprint('crawler', __name__, url_prefix='/crawler')
+
+
+def get_url_counts_and_estimates():
+    """
+    Get URL counts from database and calculate time estimates for quality checks.
+
+    Returns:
+        dict: Contains counts and time estimates for UI display
+            {
+                'priority_count': int,
+                'total_count': int,
+                'broken_links_priority_minutes': str,
+                'broken_links_all_minutes': str,
+                'image_quality_priority_minutes': str,
+                'image_quality_all_minutes': str
+            }
+    """
+    with db_cursor(commit=False) as cursor:
+        # Get priority URLs count
+        cursor.execute("""
+            SELECT COUNT(*) as count
+            FROM discovered_urls
+            WHERE active = TRUE AND is_priority = TRUE
+        """)
+        priority_count = cursor.fetchone()['count']
+
+        # Get total URLs count
+        cursor.execute("""
+            SELECT COUNT(*) as count
+            FROM discovered_urls
+            WHERE active = TRUE
+        """)
+        total_count = cursor.fetchone()['count']
+
+    # Calculate time estimates
+    def format_time_estimate(seconds):
+        """Convert seconds to human-readable format"""
+        minutes = seconds / 60
+        if minutes < 1:
+            return f"{int(seconds)}s"
+        elif minutes < 60:
+            return f"{int(math.ceil(minutes))} min"
+        else:
+            hours = minutes / 60
+            return f"{hours:.1f}h"
+
+    # Broken links estimates
+    bl_priority_seconds = priority_count * QualityCheckDefaults.TIME_PER_URL_BROKEN_LINKS
+    bl_all_seconds = total_count * QualityCheckDefaults.TIME_PER_URL_BROKEN_LINKS
+
+    # Image quality estimates
+    iq_priority_seconds = priority_count * QualityCheckDefaults.TIME_PER_URL_IMAGE_QUALITY
+    iq_all_seconds = total_count * QualityCheckDefaults.TIME_PER_URL_IMAGE_QUALITY
+
+    return {
+        'priority_count': priority_count,
+        'total_count': total_count,
+        'broken_links_priority_time': format_time_estimate(bl_priority_seconds),
+        'broken_links_all_time': format_time_estimate(bl_all_seconds),
+        'image_quality_priority_time': format_time_estimate(iq_priority_seconds),
+        'image_quality_all_time': format_time_estimate(iq_all_seconds)
+    }
 
 
 @crawler_bp.route('')
@@ -215,9 +278,12 @@ def broken():
         crawl_run = cursor.fetchone()
 
     if not crawl_run:
+        # Get URL counts even if no crawl exists
+        url_info = get_url_counts_and_estimates()
         return render_template('crawler/broken.html',
                              crawl_run=None,
                              broken_urls=[],
+                             url_info=url_info,
                              current_user=current_user)
 
     # Get validation statistics
@@ -252,10 +318,14 @@ def broken():
         """, (crawl_run['id'],))
         broken_urls = cursor.fetchall()
 
+    # Get URL counts and time estimates
+    url_info = get_url_counts_and_estimates()
+
     return render_template('crawler/broken.html',
                          crawl_run=crawl_run,
                          broken_urls=broken_urls,
                          stats=stats,
+                         url_info=url_info,
                          current_user=current_user)
 
 
@@ -516,6 +586,9 @@ def quality():
     # Calculate pagination
     total_pages = (total + per_page - 1) // per_page
 
+    # Get URL counts and time estimates
+    url_info = get_url_counts_and_estimates()
+
     return render_template(
         'crawler/quality.html',
         quality_checks=quality_checks,
@@ -523,6 +596,7 @@ def quality():
         status_filter=status_filter,
         page=page,
         total_pages=total_pages,
+        url_info=url_info,
         current_user=current_user
     )
 

@@ -141,6 +141,11 @@ class QualityCheckDefaults:
     IMAGE_CHECK_TIMEOUT = 10
     IMAGE_CHECK_IGNORE_EXTERNAL = True
 
+    # Time estimates (seconds per URL for different check types)
+    # Used for UI progress estimation
+    TIME_PER_URL_BROKEN_LINKS = 0.4      # ~0.4 seconds per URL (139 URLs = ~55s)
+    TIME_PER_URL_IMAGE_QUALITY = 4.0     # ~4 seconds per URL (139 URLs = ~9 min)
+
 
 # ==============================================================================
 # USER AGENT STRINGS

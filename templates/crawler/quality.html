@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from 'components/stat_card.html' import stat_card %}
 
 {% block title %}Calidad de Imágenes{% endblock %}
 
@@ -253,13 +254,13 @@
             <div style="display: flex; flex-direction: column; gap: 10px;">
                 <label style="display: flex; align-items: center; gap: 10px; padding: 12px; background: #fef3c7; border-radius: 6px; cursor: pointer; border: 2px solid #f59e0b;">
                     <input type="radio" name="scope" value="priority" checked style="width: 18px; height: 18px; cursor: pointer;">
-                    <span style="font-weight: 600; color: #78350f;">⭐ Solo URLs Priority (139 URLs)</span>
-                    <span style="margin-left: auto; font-size: 12px; color: #92400e;">~5-10 minutos</span>
+                    <span style="font-weight: 600; color: #78350f;">⭐ Solo URLs Priority ({{ url_info.priority_count }} URLs)</span>
+                    <span style="margin-left: auto; font-size: 12px; color: #92400e;">{{ url_info.image_quality_priority_time }}</span>
                 </label>
                 <label style="display: flex; align-items: center; gap: 10px; padding: 12px; background: #dbeafe; border-radius: 6px; cursor: pointer; border: 2px solid #3b82f6;">
                     <input type="radio" name="scope" value="all" style="width: 18px; height: 18px; cursor: pointer;">
-                    <span style="font-weight: 600; color: #1e3a8a;">🌐 Todas las URLs (~2,827 URLs)</span>
-                    <span style="margin-left: auto; font-size: 12px; color: #1e40af;">~1-2 HORAS</span>
+                    <span style="font-weight: 600; color: #1e3a8a;">🌐 Todas las URLs ({{ url_info.total_count }} URLs)</span>
+                    <span style="margin-left: auto; font-size: 12px; color: #1e40af;">{{ url_info.image_quality_all_time }}</span>
                 </label>
             </div>
         </div>
@@ -330,12 +331,12 @@ async function runQualityTests() {
     progressText.textContent = 'Iniciando tests...';
     progressBar.style.width = '10%';
 
-    // Show estimated time based on scope
+    // Show estimated time based on scope (use values from template)
     let estimatedTime = '';
     if (scope === 'priority') {
-        estimatedTime = ' (analizando 139 URLs, ~5-10 minutos, por favor espere...)';
+        estimatedTime = ' (analizando {{ url_info.priority_count }} URLs, {{ url_info.image_quality_priority_time }}, por favor espere...)';
     } else {
-        estimatedTime = ' (analizando 2,827 URLs, ~1-2 HORAS, por favor espere...)';
+        estimatedTime = ' (analizando {{ url_info.total_count }} URLs, {{ url_info.image_quality_all_time }}, por favor espere...)';
     }
 
     try {
@@ -406,4 +407,8 @@ async function runQualityTests() {
     }
 }
 </script>
+
+<!-- Load modal utilities -->
+<script src="{{ url_for('static', filename='js/modal-utils.js') }}"></script>
+
 {% endblock %}
