@@ -60,6 +60,22 @@ class PostCrawlQualityRunner:
         """
         self.crawl_run_id = crawl_run_id
 
+    def _build_scope_query(self, base_query, scope):
+        """
+        Build SQL query with scope filter applied.
+
+        Args:
+            base_query: Base SQL query (should end with WHERE clause or ready for AND)
+            scope: 'all' or 'priority'
+
+        Returns:
+            str: Complete query with scope filter
+        """
+        query = base_query
+        if scope == 'priority':
+            query += " AND is_priority = TRUE"
+        return query
+
     def get_configured_checks(self, user_id: int) -> List[Dict[str, str]]:
         """
         Get list of checks configured to run automatically for a user.
@@ -216,16 +232,13 @@ class PostCrawlQualityRunner:
         from crawler.validator import URLValidator
 
         # Build query based on scope - include status_code for change tracking
-        query = """
+        base_query = """
             SELECT id, url, status_code
             FROM discovered_urls
             WHERE crawl_run_id = %s
               AND active = TRUE
         """
-
-        if scope == 'priority':
-            query += " AND is_priority = TRUE"
-
+        query = self._build_scope_query(base_query, scope)
         query += " ORDER BY depth ASC"
 
         # Get URLs from this crawl run
@@ -272,17 +285,14 @@ class PostCrawlQualityRunner:
         import json
 
         # Build query based on scope
-        query = """
+        base_query = """
             SELECT id, url, depth
             FROM discovered_urls
             WHERE crawl_run_id = %s
               AND active = TRUE
               AND is_broken = FALSE
         """
-
-        if scope == 'priority':
-            query += " AND is_priority = TRUE"
-
+        query = self._build_scope_query(base_query, scope)
         query += " ORDER BY depth ASC"
 
         # Get URLs from this crawl run

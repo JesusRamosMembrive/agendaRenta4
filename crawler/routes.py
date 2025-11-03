@@ -5,7 +5,7 @@ All crawler-related routes extracted from app.py
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
-from utils import db_cursor
+from utils import db_cursor, get_latest_crawl_run, Paginator
 from constants import URLS_PER_PAGE, QUALITY_CHECKS_PER_PAGE
 
 # Create blueprint
@@ -203,10 +203,11 @@ def results_by_run(crawl_run_id):
 def broken():
     """Show broken links from latest crawl"""
 
-    # Get latest crawl run
+    # Get latest crawl run (any status)
     with db_cursor() as cursor:
+        # Get latest crawl run regardless of status
         cursor.execute("""
-            SELECT id, started_at, finished_at, urls_discovered
+            SELECT id, started_at, finished_at, urls_discovered, status
             FROM crawl_runs
             ORDER BY id DESC
             LIMIT 1
@@ -846,14 +847,7 @@ def run_quality_checks_manual():
 
         # Get latest completed crawl run to use as reference
         with db_cursor(commit=False) as cursor:
-            cursor.execute("""
-                SELECT id, root_url, finished_at
-                FROM crawl_runs
-                WHERE status = 'completed'
-                ORDER BY id DESC
-                LIMIT 1
-            """)
-            latest_crawl = cursor.fetchone()
+            latest_crawl = get_latest_crawl_run(cursor, status='completed')
 
         if not latest_crawl:
             return jsonify({
