@@ -226,25 +226,13 @@
   </div>
 
   <!-- Lista de URLs existentes -->
-  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-    <div>
-      <span id="selected-count" style="color: var(--muted); font-size: 14px;">0 URLs seleccionadas</span>
-    </div>
-    <button id="batch-check-btn" class="btn primary" onclick="runBatchQualityCheck()" disabled style="display: flex; align-items: center; gap: 8px;">
-      <span>🖼️</span>
-      <span>Comprobar Seleccionadas</span>
-    </button>
-  </div>
 
   <div class="table">
     <table id="urls-table">
       <thead>
         <tr>
-          <th style="width: 5%; text-align: center;">
-            <input type="checkbox" id="select-all-urls" onchange="toggleSelectAll()" title="Seleccionar todas">
-          </th>
-          <th style="width: 23%">Nombre</th>
-          <th style="width: 37%">URL</th>
+          <th style="width: 25%">Nombre</th>
+          <th style="width: 40%">URL</th>
           <th style="width: 12%; text-align: center;">Estado</th>
           <th style="width: 23%; text-align: right;">Acciones</th>
         </tr>
@@ -252,9 +240,6 @@
       <tbody>
         {% for section in sections %}
         <tr data-url-id="{{ section.id }}" class="url-row">
-          <td style="text-align: center;">
-            <input type="checkbox" class="url-checkbox" data-section-id="{{ section.id }}" onchange="updateSelectedCount()">
-          </td>
           <td>
             <span class="url-name">{{ section.name }}</span>
             <input
@@ -286,9 +271,6 @@
               </button>
               <button class="btn ghost btn-delete" onclick="deleteUrl({{ section.id }})" title="Eliminar" style="color: var(--danger);">
                 🗑️
-              </button>
-              <button class="btn ghost" onclick="runQualityCheck({{ section.id }})" title="Check Calidad de Imágenes">
-                🖼️
               </button>
               <button class="btn primary btn-save" onclick="saveUrl({{ section.id }})" style="display: none;">
                 💾 Guardar
@@ -653,119 +635,6 @@ function deleteUrl(urlId) {
   .catch(error => {
     console.error('Error:', error);
     alert('❌ Error al eliminar la URL');
-  });
-}
-
-// Ejecutar Check de Calidad de Imágenes
-function runQualityCheck(sectionId) {
-  if (!confirm('¿Ejecutar check de calidad de imágenes para esta URL?\n\nEsto puede tardar unos segundos.')) {
-    return;
-  }
-
-  // Deshabilitar botón temporalmente
-  const btn = event.target;
-  btn.disabled = true;
-  btn.textContent = '⏳';
-
-  fetch(`/crawler/quality/check/${sectionId}`, {
-    method: 'POST'
-  })
-  .then(response => response.json())
-  .then(data => {
-    if (data.success) {
-      alert(`✅ Check completado!\n\nEstado: ${data.status}\nPuntuación: ${data.score}/100\nProblemas encontrados: ${data.issues_found}`);
-    } else {
-      alert('❌ Error: ' + data.error);
-    }
-    // Re-habilitar botón
-    btn.disabled = false;
-    btn.textContent = '🖼️';
-  })
-  .catch(error => {
-    console.error('Error:', error);
-    alert('❌ Error al ejecutar el check de calidad');
-    btn.disabled = false;
-    btn.textContent = '🖼️';
-  });
-}
-
-// ============================================================
-// BATCH QUALITY CHECK FUNCTIONS
-// ============================================================
-
-function toggleSelectAll() {
-  const selectAllCheckbox = document.getElementById('select-all-urls');
-  const checkboxes = document.querySelectorAll('.url-checkbox');
-
-  checkboxes.forEach(checkbox => {
-    checkbox.checked = selectAllCheckbox.checked;
-  });
-
-  updateSelectedCount();
-}
-
-function updateSelectedCount() {
-  const checkboxes = document.querySelectorAll('.url-checkbox:checked');
-  const count = checkboxes.length;
-  const countSpan = document.getElementById('selected-count');
-  const batchBtn = document.getElementById('batch-check-btn');
-
-  countSpan.textContent = `${count} URL${count !== 1 ? 's' : ''} seleccionada${count !== 1 ? 's' : ''}`;
-  batchBtn.disabled = count === 0;
-}
-
-function runBatchQualityCheck() {
-  const checkboxes = document.querySelectorAll('.url-checkbox:checked');
-  const sectionIds = Array.from(checkboxes).map(cb => parseInt(cb.dataset.sectionId));
-
-  if (sectionIds.length === 0) {
-    alert('Por favor selecciona al menos una URL');
-    return;
-  }
-
-  if (!confirm(`¿Ejecutar check de calidad de imágenes en ${sectionIds.length} URL${sectionIds.length !== 1 ? 's' : ''}?\n\nEsto puede tardar varios minutos.`)) {
-    return;
-  }
-
-  // Deshabilitar botón y mostrar progreso
-  const batchBtn = document.getElementById('batch-check-btn');
-  const originalHTML = batchBtn.innerHTML;
-  batchBtn.disabled = true;
-  batchBtn.innerHTML = '<span>⏳</span><span>Procesando...</span>';
-
-  // Iniciar batch
-  fetch('/crawler/quality/batch', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({ section_ids: sectionIds })
-  })
-  .then(response => response.json())
-  .then(data => {
-    if (data.success) {
-      const batchId = data.batch_id;
-
-      // Mostrar resumen
-      alert(`✅ Batch completado!\n\nTotal: ${data.total}\nProcesadas: ${data.processed}\nExitosas: ${data.successful}\nFallidas: ${data.failed}`);
-
-      // Desmarcar checkboxes
-      document.querySelectorAll('.url-checkbox:checked').forEach(cb => cb.checked = false);
-      document.getElementById('select-all-urls').checked = false;
-      updateSelectedCount();
-    } else {
-      alert('❌ Error: ' + data.error);
-    }
-
-    // Re-habilitar botón
-    batchBtn.disabled = false;
-    batchBtn.innerHTML = originalHTML;
-  })
-  .catch(error => {
-    console.error('Error:', error);
-    alert('❌ Error al ejecutar el batch de checks');
-    batchBtn.disabled = false;
-    batchBtn.innerHTML = originalHTML;
   });
 }
 
