@@ -96,9 +96,9 @@
     {% endif %}
 
     {% else %}
-    <div style="padding: 40px; text-align: center; background: #f3f4f6; border-radius: 8px;">
-        <p>No hay URLs descubiertas todavía.</p>
-        <p><a href="{{ url_for('crawler.dashboard') }}">Iniciar un crawl</a> para comenzar.</p>
+    <div style="padding: 40px; text-align: center; background: #f3f4f6; border-radius: 8px; color: #374151;">
+        <p style="margin: 0 0 10px 0; font-size: 16px; font-weight: 600;">No hay URLs descubiertas todavía.</p>
+        <p style="margin: 0; font-size: 14px;"><a href="{{ url_for('crawler.dashboard') }}" style="color: #2563eb; text-decoration: underline;">Iniciar un crawl</a> para comenzar.</p>
     </div>
     {% endif %}
 </div>

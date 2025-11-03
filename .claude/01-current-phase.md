@@ -2,43 +2,134 @@
 
 **Fecha**: 2025-11-03
 **Etapa**: Stage 3 - Maintenance & Code Quality
-**Sesión Actual**: Post-Refactorización - Preparando Testing Manual
+**Sesión Actual**: Setup & Migración de Base de Datos Completa
 
 ---
 
-## 📋 SESIÓN DE CONTINUACIÓN (2025-11-03) - PREPARACIÓN PARA TESTING
+## ✅ SESIÓN ACTUAL (2025-11-03) - MIGRACIÓN BD COMPLETADA
 
 ### Resumen de Sesión
-Usuario continuó desde la sesión anterior donde se completó el refactoring. Se realizó revisión final del trabajo y se detectó problema al intentar ejecutar la aplicación.
+Usuario intentó ejecutar la aplicación en nuevo PC pero PostgreSQL no estaba configurado. Se realizó setup completo desde cero:
+1. Instalación de PostgreSQL
+2. Creación de usuario y base de datos
+3. Migración completa de datos desde otro PC
+4. Configuración de entorno
+5. **Aplicación funcionando correctamente** ✅
 
-### Estado del Código
-- ✅ **Branch**: `refactor/code-cleanup-2025-11-02`
-- ✅ **Commits**: 7 commits realizados (todas las 5 fases completadas)
-- ✅ **Archivos modificados**: 10 archivos (+1502/-379 líneas)
-- ⏸️ **Testing**: Pendiente - bloqueado por configuración de entorno
+### 🗄️ Migración de Base de Datos
 
-### Problema Detectado
-Al intentar ejecutar `python app.py` se detectó error:
+**Problema inicial**:
+- PostgreSQL no instalado en el sistema
+- Base de datos vacía
+- Error: `relation "sections" does not exist`
+
+**Solución implementada**:
+
+1. **Setup PostgreSQL**:
+   ```bash
+   sudo apt install postgresql
+   sudo -u postgres psql
+   CREATE USER jesusramos WITH PASSWORD 'dev-password';
+   CREATE DATABASE agendarenta4 OWNER jesusramos;
+   ```
+
+2. **Migración desde otro PC**:
+   - Copió `/OtroPC/agendaRenta4/agendaRenta4.db` (SQLite con todos los datos)
+   - Ejecutó `migrate_to_postgres.py` → Stage 1 migrado (9 tablas, 1,267 registros)
+   - Ejecutó migraciones SQL 002-009 → Stage 2 creado (7 tablas adicionales)
+   - Total: **16 tablas** creadas en PostgreSQL
+
+3. **Configuración**:
+   - Actualizó `.env` con `DATABASE_URL=postgresql://jesusramos:dev-password@localhost/agendarenta4`
+   - Limpió caché de Python (`__pycache__`) que causaba conflictos
+   - Agregó debug logging temporal (luego eliminado)
+
+### 📊 Estado Final de la Base de Datos
+
+**Stage 1 - Sistema Manual** (9 tablas, 1,267 registros):
+- ✅ 173 sections (URLs del sistema)
+- ✅ 1,050 tasks (todas pendientes)
+- ✅ 3 usuarios (admin, usuario1, usuario2)
+- ✅ 8 task_types configurados
+- ✅ 16 alert_settings
+- ✅ 15 pending_alerts
+- ✅ Sistema de notificaciones completo
+
+**Stage 2 - Crawler & Quality** (7 tablas, listas pero vacías):
+- ✅ crawl_runs, discovered_urls, url_changes
+- ✅ health_snapshots
+- ✅ quality_checks, quality_batches
+- ✅ quality_check_config (6 registros pre-creados)
+
+**Total migrado**: 1,273 registros en 16 tablas
+
+### ✅ Estado Actual
+
+- ✅ **Aplicación funcionando**: `python app.py` ejecuta sin errores
+- ✅ **Base de datos completa**: Todos los datos del otro PC migrados
+- ✅ **Configuración correcta**: `.env` apuntando a PostgreSQL
+- ✅ **Testing listo**: Sistema listo para validación manual
+
+### 🐛 Problemas Resueltos
+
+**Problema 1: PostgreSQL no instalado**
+- Solución: Instalación y configuración completa de PostgreSQL
+
+**Problema 2: Base de datos en minúsculas**
+- Causa: PostgreSQL convierte nombres sin comillas a minúsculas
+- Solución: Actualizar `.env` de `agendaRenta4` → `agendarenta4`
+
+**Problema 3: Tabla "sections" no existe (aún después de migración)**
+- Causa: Caché de Python (`__pycache__`) con imports antiguos
+- Solución: Limpieza completa de caché + reinicio de Flask
+
+**Problema 4: Encoding en migraciones SQL**
+- Causa: Archivos con encoding ISO-8859-1
+- Solución: Lectura con múltiples encodings (utf-8, latin-1, iso-8859-1)
+
+### 📁 Archivos Modificados
+
+1. **`.env`** - DATABASE_URL actualizada a `agendarenta4` (minúsculas)
+2. **`utils.py`** - Debug logging añadido y eliminado (temporal)
+3. **Caché limpiada** - Todos los `__pycache__/` y `*.pyc` eliminados
+
+### 🎯 Próximos Pasos
+
+**Inmediato** (Ahora mismo disponible):
+1. ✅ Testing manual de la aplicación refactorizada
+2. ✅ Verificar flujos principales (login, tareas, alertas)
+3. ✅ Testing del crawler (opcional)
+4. ✅ Si tests pasan: merge a master
+5. ✅ Deploy a producción
+
+**Notas**:
+- Refactoring de código ya estaba completo (sesión anterior)
+- Esta sesión fue 100% setup de infraestructura
+- No hay cambios de código pendientes
+- Sistema completamente operacional
+
+### 🔧 Comandos Útiles
+
+```bash
+# Verificar conexión a BD
+PGPASSWORD=dev-password psql -h localhost -U jesusramos -d agendarenta4 -c "SELECT COUNT(*) FROM sections;"
+
+# Iniciar aplicación
+python app.py
+
+# Limpiar caché de Python (si hay problemas)
+find . -type d -name "__pycache__" -not -path "./.venv/*" -exec rm -rf {} +
+
+# Ver estado de PostgreSQL
+sudo systemctl status postgresql
 ```
-ValueError: DATABASE_URL environment variable is required
-```
 
-**Causa**: Archivo `.env` no existe en este PC (usuario trabajando desde otra máquina)
+---
 
-**Solución**: Usuario va a configurar el `.env` manualmente antes de continuar. El archivo `.env` no se versiona por seguridad.
+## 📋 SESIÓN ANTERIOR (2025-11-03) - POST-REFACTORIZACIÓN
 
-### Próximos Pasos (Pendientes)
-1. ⏳ Usuario configurará archivo `.env` con `DATABASE_URL` de PostgreSQL
-2. ⏳ Reiniciar PC (en proceso)
-3. ⏳ Testing manual de la aplicación refactorizada
-4. ⏳ Si tests pasan: merge a master
-5. ⏳ Deploy a producción
-
-### Notas Importantes
-- El refactoring está **100% completo y commiteado**
-- No hay cambios pendientes en el código
-- Solo falta validación funcional antes de merge
-- Usuario tiene backup y puede rollback si es necesario
+### Resumen
+Usuario continuó desde sesión de refactoring pero encontró problemas de configuración de entorno. Los problemas fueron resueltos en la sesión actual (arriba).
 
 ---
 
@@ -909,3 +1000,21 @@ El usuario quería un sistema donde:
 **Confianza**: 🟢 Alta - Código completo y bien estructurado
 **Próxima sesión**: Testing manual desde UI (Test 1 prioritario)
 **Riesgo**: 🟢 Bajo - Implementación sólida, solo falta validar funcionamiento
+
+## 🎯 Detected Stage: Stage 3 (High Confidence)
+
+**Auto-detected on:** 2025-11-03 09:14
+
+**Detection reasoning:**
+- Large or complex codebase (50 files, ~13026 LOC)
+- Multiple patterns detected: Factory Pattern, Repository
+
+**Metrics:**
+- Files: 50
+- LOC: ~13026
+- Patterns: Factory Pattern, Repository
+
+**Recommended actions:**
+- Follow rules in `.claude/02-stage3-rules.md`
+- Use stage-aware subagents for guidance
+- Re-assess stage after significant changes

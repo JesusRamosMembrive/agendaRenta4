@@ -410,7 +410,7 @@ def tree():
                 COUNT(*) as total,
                 COUNT(CASE WHEN is_broken THEN 1 END) as broken,
                 COUNT(CASE WHEN status_code >= 200 AND status_code < 300 THEN 1 END) as ok,
-                MAX(depth) as max_depth_value
+                COALESCE(MAX(depth), 0) as max_depth_value
             FROM discovered_urls
             WHERE active = TRUE
         """)

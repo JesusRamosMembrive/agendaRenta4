@@ -29,7 +29,9 @@
       "Bash(pip freeze:*)",
       "Bash(pytest:*)",
       "Bash(PGPASSWORD=dev-password psql:*)",
-      "Bash(pgrep:*)"
+      "Bash(pgrep:*)",
+      "Bash(systemctl status:*)",
+      "Bash(cat:*)"
     ],
     "deny": [],
     "ask": []
