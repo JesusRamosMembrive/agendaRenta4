@@ -13,14 +13,20 @@ from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
 from typing import Optional, Dict, Any
 from calidad.base import QualityCheck, QualityCheckResult
+from constants import (
+    HTTP_FORBIDDEN,
+    HTTP_CLIENT_ERROR_MIN,
+    QualityCheckDefaults,
+    USER_AGENT_IMAGE_CHECKER,
+)
 
 
 class ImagenesChecker(QualityCheck):
     """Checker for image quality on web pages"""
 
     DEFAULT_CONFIG = {
-        "timeout": 10,
-        "ignore_external": True,  # By default, only check same-domain images
+        "timeout": QualityCheckDefaults.IMAGE_CHECK_TIMEOUT,
+        "ignore_external": QualityCheckDefaults.IMAGE_CHECK_IGNORE_EXTERNAL,
     }
 
     def __init__(self, config: Optional[Dict[str, Any]] = None):
@@ -118,15 +124,15 @@ class ImagenesChecker(QualityCheck):
                     )
 
                     # Special handling for 403 (likely hotlink protection, not a real error)
-                    if img_response.status_code == 403:
+                    if img_response.status_code == HTTP_FORBIDDEN:
                         result_data["hotlink_protected"] += 1
                         result_data["hotlink_protected_list"].append({
                             "url": img_url,
-                            "status": 403,
+                            "status": HTTP_FORBIDDEN,
                             "note": "Hotlink protection (not a real error)"
                         })
                     # Check if broken (other 4xx or 5xx status)
-                    elif img_response.status_code >= 400:
+                    elif img_response.status_code >= HTTP_CLIENT_ERROR_MIN:
                         result_data["broken_images"] += 1
                         result_data["broken_images_list"].append({
                             "url": img_url,

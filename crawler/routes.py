@@ -6,6 +6,7 @@ All crawler-related routes extracted from app.py
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
 from utils import db_cursor
+from constants import URLS_PER_PAGE, QUALITY_CHECKS_PER_PAGE
 
 # Create blueprint
 crawler_bp = Blueprint('crawler', __name__, url_prefix='/crawler')
@@ -132,7 +133,7 @@ def results():
     """
     # Get page number
     page = request.args.get('page', 1, type=int)
-    per_page = 50
+    per_page = URLS_PER_PAGE
 
     with db_cursor(commit=False) as cursor:
         # Get total count
@@ -450,7 +451,7 @@ def quality():
     # Get filter parameters
     status_filter = request.args.get('status', '')  # 'ok', 'warning', 'error'
     page = request.args.get('page', 1, type=int)
-    per_page = 20
+    per_page = QUALITY_CHECKS_PER_PAGE
 
     with db_cursor(commit=False) as cursor:
         # Build WHERE clause

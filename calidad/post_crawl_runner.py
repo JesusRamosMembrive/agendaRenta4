@@ -8,6 +8,7 @@ Integrates with existing checkers (ImagenesChecker, URLValidator).
 import logging
 from typing import List, Dict, Any, Optional
 from utils import db_cursor
+from constants import QualityCheckDefaults
 
 logger = logging.getLogger(__name__)
 
@@ -242,9 +243,9 @@ class PostCrawlQualityRunner:
 
         # Run validator - pass (id, url, previous_status_code) tuples
         validator_config = {
-            'timeout': 15,
-            'max_retries': 2,
-            'delay': 0.1
+            'timeout': QualityCheckDefaults.BROKEN_LINKS_TIMEOUT,
+            'max_retries': QualityCheckDefaults.BROKEN_LINKS_MAX_RETRIES,
+            'delay': QualityCheckDefaults.BROKEN_LINKS_RETRY_DELAY
         }
         validator = URLValidator(validator_config)
         url_list = [(row['id'], row['url'], row['status_code']) for row in urls]

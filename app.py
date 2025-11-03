@@ -36,7 +36,17 @@ load_dotenv()
 from utils import db_cursor, format_date, format_period, generate_available_periods
 
 # Import constants
-from constants import TASK_STATUS_OK, TASK_STATUS_PROBLEM, DEFAULT_PORT
+from constants import (
+    TASK_STATUS_OK,
+    TASK_STATUS_PROBLEM,
+    DEFAULT_PORT,
+    DEFAULT_SMTP_PORT,
+    DEFAULT_EMAIL_SENDER,
+    QUARTERLY_MONTHS,
+    SEMIANNUAL_MONTHS,
+    ANNUAL_MONTH,
+    LOGIN_SESSION_DAYS,
+)
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -52,13 +62,13 @@ app.secret_key = secret_key
 
 # Email Configuration
 app.config["MAIL_SERVER"] = os.getenv("MAIL_SERVER", "smtp.gmail.com")
-app.config["MAIL_PORT"] = int(os.getenv("MAIL_PORT", 587))
+app.config["MAIL_PORT"] = int(os.getenv("MAIL_PORT", DEFAULT_SMTP_PORT))
 app.config["MAIL_USE_TLS"] = os.getenv("MAIL_USE_TLS", "True") == "True"
 app.config["MAIL_USE_SSL"] = os.getenv("MAIL_USE_SSL", "False") == "True"
 app.config["MAIL_USERNAME"] = os.getenv("MAIL_USERNAME")
 app.config["MAIL_PASSWORD"] = os.getenv("MAIL_PASSWORD")
 app.config["MAIL_DEFAULT_SENDER"] = os.getenv(
-    "MAIL_DEFAULT_SENDER", "Agenda Renta4 <noreply@renta4.com>"
+    "MAIL_DEFAULT_SENDER", DEFAULT_EMAIL_SENDER
 )
 app.config["MAIL_DEBUG"] = os.getenv("MAIL_DEBUG", "True") == "True"
 
@@ -342,15 +352,15 @@ def check_alert_day(reference_date, frequency, alert_day):
         # Additional checks for quarterly/semiannual/annual
         if frequency == "quarterly":
             # Alert only in Jan, Apr, Jul, Oct
-            return reference_date.month in [1, 4, 7, 10]
+            return reference_date.month in QUARTERLY_MONTHS
 
         if frequency == "semiannual":
             # Alert only in Jan and Jul
-            return reference_date.month in [1, 7]
+            return reference_date.month in SEMIANNUAL_MONTHS
 
         if frequency == "annual":
             # Alert only in January
-            return reference_date.month == 1
+            return reference_date.month == ANNUAL_MONTH
 
         # Monthly: always true if day matches
         return True
@@ -590,7 +600,7 @@ def login():
                 username=user_data["username"],
                 full_name=user_data["full_name"],
             )
-            login_user(user, remember=True, duration=timedelta(days=30))
+            login_user(user, remember=True, duration=timedelta(days=LOGIN_SESSION_DAYS))
             flash(f"¡Bienvenido/a, {user_data['full_name']}!", "success")
 
             # Redirect to next page or inicio
