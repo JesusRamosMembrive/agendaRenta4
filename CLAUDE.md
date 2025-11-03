@@ -47,6 +47,39 @@ The codebase intentionally follows a "Stage-based" evolution approach:
 
 **Philosophy**: Simplicity > Completeness. Only add structure when there's clear evidence of pain.
 
+### Architectural Vision: Separation of Concerns (2025-11-03)
+
+The system follows a clear separation between **URL discovery** and **quality validation**:
+
+```
+📦 discovered_urls (central data store)
+    ↑                           ↓
+    │                           │
+🕷️ CRAWLER                   🧪 QUALITY CHECKS
+Discovery Module            Validation Module
+├─ Web crawling             ├─ Broken links
+├─ URL detection            ├─ Image quality
+├─ Tree structure           ├─ CTAs validation
+├─ Health monitoring        ├─ SEO checks
+└─ Scheduling               └─ Future tests...
+
+Responsibility:              Responsibility:
+"What URLs exist?"          "What problems exist?"
+```
+
+**Key Principles**:
+1. **Crawler is URL-agnostic**: Its only job is discovering and maintaining the URL inventory
+2. **Quality checks are source-agnostic**: They operate on `discovered_urls` regardless of how URLs were obtained (crawler, manual import, API, etc.)
+3. **Loose coupling**: Crawler and quality modules don't depend on each other
+4. **Extensibility**: New quality checks can be added without touching the crawler
+5. **Clear boundaries**: Each module has a single, well-defined responsibility
+
+**UI Organization** (templates/base.html):
+- **📋 Gestor Manual de Tareas**: Stage 1 manual task management
+- **🕷️ Crawler**: URL discovery and monitoring
+- **🧪 Control de Calidad**: Quality validation modules (extensible)
+- **⚙️ Configuración**: System configuration
+
 ### Current File Structure
 
 ```
