@@ -31,7 +31,11 @@
 
       <div class="divider"></div>
 
+      <!-- Gestor Manual de Tareas -->
       <nav class="nav">
+        <div style="padding: 10px 20px; color: var(--text-muted); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">
+          📋 Gestor Manual de Tareas
+        </div>
         <a href="{{ url_for('inicio') }}" class="{% if request.endpoint == 'inicio' %}active{% endif %}">
           Inicio
         </a>
@@ -53,37 +57,62 @@
           Realizadas
           <span class="nav-counter">{{ task_counts.completed }}</span>
         </a>
-        <a href="{{ url_for('configuracion') }}" class="{% if request.endpoint == 'configuracion' %}active{% endif %}">
-          Configuración
+      </nav>
+
+      <div class="divider"></div>
+
+      <!-- Crawler -->
+      <nav class="nav">
+        <div style="padding: 10px 20px; color: var(--text-muted); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">
+          🕷️ Crawler
+        </div>
+        <a href="{{ url_for('crawler.dashboard') }}" class="{% if request.endpoint == 'crawler.dashboard' %}active{% endif %}">
+          📊 Dashboard
+        </a>
+        <a href="{{ url_for('crawler.tree') }}" class="{% if request.endpoint == 'crawler.tree' %}active{% endif %}">
+          🌳 Vista de Árbol
+        </a>
+        <a href="{{ url_for('crawler.results') }}" class="{% if request.endpoint == 'crawler.results' %}active{% endif %}">
+          🌐 URLs Descubiertas
+        </a>
+        <a href="{{ url_for('crawler.health') }}" class="{% if request.endpoint == 'crawler.health' %}active{% endif %}">
+          💚 Health
+        </a>
+        <a href="{{ url_for('crawler.scheduler') }}" class="{% if request.endpoint == 'crawler.scheduler' %}active{% endif %}">
+          ⚙️ Scheduler
         </a>
       </nav>
 
       <div class="divider"></div>
 
+      <!-- Control de Calidad -->
       <nav class="nav">
         <div style="padding: 10px 20px; color: var(--text-muted); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">
-          Crawler
+          🧪 Control de Calidad
         </div>
-        <a href="{{ url_for('crawler_dashboard') }}" class="{% if request.endpoint == 'crawler_dashboard' %}active{% endif %}">
-          📊 Dashboard
-        </a>
-        <a href="{{ url_for('crawler_tree') }}" class="{% if request.endpoint == 'crawler_tree' %}active{% endif %}">
-          🌳 Vista de Árbol
-        </a>
-        <a href="{{ url_for('crawler_results') }}" class="{% if request.endpoint == 'crawler_results' %}active{% endif %}">
-          🌐 URLs Descubiertas
-        </a>
-        <a href="{{ url_for('crawler_broken') }}" class="{% if request.endpoint == 'crawler_broken' %}active{% endif %}">
-          🔍 Validación
+        <a href="{{ url_for('crawler.broken') }}" class="{% if request.endpoint == 'crawler.broken' %}active{% endif %}">
+          🔗 Enlaces Rotos
           {% if broken_count is defined and broken_count > 0 %}
             <span class="nav-counter alert-counter">{{ broken_count }}</span>
           {% endif %}
         </a>
-        <a href="{{ url_for('crawler_health') }}" class="{% if request.endpoint == 'crawler_health' %}active{% endif %}">
-          💚 Health
+        <a href="{{ url_for('crawler.quality') }}" class="{% if request.endpoint == 'crawler.quality' %}active{% endif %}">
+          🖼️ Calidad de Imágenes
         </a>
-        <a href="{{ url_for('crawler_scheduler') }}" class="{% if request.endpoint == 'crawler_scheduler' %}active{% endif %}">
-          ⚙️ Scheduler
+        <a href="{{ url_for('crawler.test_runner') }}" class="{% if request.endpoint == 'crawler.test_runner' %}active{% endif %}">
+          🎯 Test Runner
+        </a>
+      </nav>
+
+      <div class="divider"></div>
+
+      <!-- Configuración -->
+      <nav class="nav">
+        <div style="padding: 10px 20px; color: var(--text-muted); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">
+          ⚙️ Configuración
+        </div>
+        <a href="{{ url_for('config.index') }}" class="{% if request.endpoint == 'config.index' %}active{% endif %}">
+          General
         </a>
       </nav>
     </aside>

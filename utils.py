@@ -5,11 +5,16 @@ Shared functions for database, dates, and common operations
 """
 
 import os
+import logging
 from contextlib import contextmanager
 from datetime import datetime
+from functools import wraps
+from flask import jsonify
 from dotenv import load_dotenv
 import psycopg2
 import psycopg2.extras
+
+logger = logging.getLogger(__name__)
 
 # Load environment variables
 load_dotenv()
@@ -137,3 +142,133 @@ def generate_available_periods():
         periods.append(future_date.strftime('%Y-%m'))
 
     return periods
+
+
+# ==============================================================================
+# CRAWLER UTILITIES
+# ==============================================================================
+
+def get_latest_crawl_run(cursor, status='completed'):
+    """
+    Get the most recent crawl run with the specified status.
+
+    Args:
+        cursor: DB cursor
+        status: Status of the crawl ('completed', 'running', 'failed', 'cancelled')
+
+    Returns:
+        dict: Crawl run data or None if no matching crawl found
+    """
+    cursor.execute("""
+        SELECT id, started_at, finished_at, urls_discovered, status
+        FROM crawl_runs
+        WHERE status = %s
+        ORDER BY id DESC
+        LIMIT 1
+    """, (status,))
+    return cursor.fetchone()
+
+
+# ==============================================================================
+# PAGINATION UTILITIES
+# ==============================================================================
+
+class Paginator:
+    """
+    Helper for calculating pagination of results.
+
+    Usage:
+        paginator = Paginator(page=1, per_page=20)
+        query = f"SELECT * FROM items LIMIT {paginator.per_page} OFFSET {paginator.offset}"
+        pagination_info = paginator.page_info(total_items)
+    """
+
+    def __init__(self, page=1, per_page=20):
+        """
+        Initialize paginator.
+
+        Args:
+            page: Current page number (1-indexed)
+            per_page: Items per page
+        """
+        self.page = max(1, page)  # Ensure page >= 1
+        self.per_page = per_page
+
+    @property
+    def offset(self):
+        """
+        Calculate offset for LIMIT/OFFSET in SQL.
+
+        Returns:
+            int: Offset value
+        """
+        return (self.page - 1) * self.per_page
+
+    def total_pages(self, total_items):
+        """
+        Calculate total number of pages given total items.
+
+        Args:
+            total_items: Total number of items
+
+        Returns:
+            int: Total pages
+        """
+        return (total_items + self.per_page - 1) // self.per_page
+
+    def page_info(self, total_items):
+        """
+        Return dict with pagination info for templates.
+
+        Args:
+            total_items: Total number of items
+
+        Returns:
+            dict: Pagination info with keys: page, per_page, total_pages,
+                  total_items, has_prev, has_next
+        """
+        return {
+            'page': self.page,
+            'per_page': self.per_page,
+            'total_pages': self.total_pages(total_items),
+            'total_items': total_items,
+            'has_prev': self.page > 1,
+            'has_next': self.page < self.total_pages(total_items)
+        }
+
+
+# ==============================================================================
+# API ERROR HANDLING
+# ==============================================================================
+
+def handle_api_errors(f):
+    """
+    Decorator for consistent error handling in API endpoints.
+
+    Captures exceptions, logs them, and returns appropriate JSON error responses.
+
+    Usage:
+        @app.route('/api/endpoint')
+        @login_required
+        @handle_api_errors
+        def my_endpoint():
+            # Your logic here
+            return jsonify({'success': True})
+
+    Error Handling:
+        - ValueError: 400 Bad Request (validation errors)
+        - Other Exception: 500 Internal Server Error
+    """
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        try:
+            return f(*args, **kwargs)
+        except ValueError as e:
+            # Validation errors (400 Bad Request)
+            logger.warning(f"Validation error in {f.__name__}: {str(e)}")
+            return jsonify({'success': False, 'error': str(e)}), 400
+        except Exception as e:
+            # Unexpected errors (500 Internal Server Error)
+            logger.error(f"Unexpected error in {f.__name__}: {str(e)}", exc_info=True)
+            return jsonify({'success': False, 'error': 'Internal server error'}), 500
+    return decorated_function

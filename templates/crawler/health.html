@@ -58,7 +58,7 @@
     {% else %}
     <div style="background: #fef3c7; padding: 20px; border-radius: 8px; margin-bottom: 40px; text-align: center; color: #78350f;">
         <p style="color: #78350f;"><strong>No hay datos de salud disponibles.</strong></p>
-        <p style="color: #78350f;">Ejecuta una <a href="{{ url_for('crawler_scheduler') }}" style="color: #9a3412; text-decoration: underline;">revalidación</a> para generar el primer snapshot.</p>
+        <p style="color: #78350f;">Ejecuta una <a href="{{ url_for('crawler.scheduler') }}" style="color: #9a3412; text-decoration: underline;">revalidación</a> para generar el primer snapshot.</p>
     </div>
     {% endif %}
 
@@ -190,9 +190,9 @@
 
     <!-- Actions -->
     <div style="display: flex; gap: 10px; margin-top: 40px;">
-        <a href="{{ url_for('crawler_scheduler') }}" class="btn">⚙️ Configurar Scheduler</a>
-        <a href="{{ url_for('crawler_broken') }}" class="btn">🔍 Ver Enlaces Rotos</a>
-        <a href="{{ url_for('crawler_dashboard') }}" class="btn">← Volver al Dashboard</a>
+        <a href="{{ url_for('crawler.scheduler') }}" class="btn">⚙️ Configurar Scheduler</a>
+        <a href="{{ url_for('crawler.broken') }}" class="btn">🔍 Ver Enlaces Rotos</a>
+        <a href="{{ url_for('crawler.dashboard') }}" class="btn">← Volver al Dashboard</a>
     </div>
 </div>
 {% endblock %}

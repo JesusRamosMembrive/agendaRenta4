@@ -10,9 +10,9 @@ CRAWLER_CONFIG = {
     'root_url': 'https://www.r4.com',
     'allowed_domains': ['www.r4.com', 'r4.com'],
 
-    # Limits (Phase 2.1 MVP - restricted for testing)
-    'max_depth': 3,  # Only 3 levels deep for testing
-    'max_urls': 50,  # LIMIT: 50 URLs for Phase 2.1 MVP
+    # Limits (Full crawl - no URL limit)
+    'max_depth': 10,  # Deep crawl (10 levels)
+    'max_urls': None,  # NO LIMIT - discover all URLs
     'timeout': 10,  # seconds per request
 
     # Rate limiting
