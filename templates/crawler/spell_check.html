@@ -1,0 +1,442 @@
+{% extends "base.html" %}
+{% from 'components/stat_card.html' import stat_card %}
+
+{% block title %}Corrección Ortográfica - Crawler{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>📝 Corrección Ortográfica</h1>
+    <p class="subtitle">Errores ortográficos detectados en el contenido de las páginas</p>
+
+    {% if not crawl_run %}
+    <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 20px; margin: 20px 0; border-radius: 8px; color: #78350f;">
+        <strong style="font-size: 16px;">⚠️ No hay resultados disponibles</strong>
+        <p style="margin: 10px 0 15px 0; font-size: 14px;">Ejecuta el spell checker desde el Test Runner para analizar las páginas.</p>
+        <a href="{{ url_for('crawler.test_runner') }}" class="btn" style="display: inline-block; margin-top: 5px; background: #2563eb; color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none;">Ir al Test Runner</a>
+    </div>
+    {% else %}
+
+    <!-- Stats Cards -->
+    <div class="stats-row" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin: 30px 0;">
+        {{ stat_card(value=stats.total_checked|default(0), label='URLs Analizadas', gradient='blue') }}
+        {{ stat_card(value='%d%%'|format(stats.avg_score|default(0)|round|int), label='Puntuación Media', gradient='purple') }}
+        {{ stat_card(value=stats.total_issues|default(0), label='Errores Totales', gradient='red') }}
+        {{ stat_card(value=stats.ok_count|default(0), label='✅ Sin Errores', gradient='green') }}
+    </div>
+
+    <!-- Action Button -->
+    <div style="margin: 30px 0; text-align: center;">
+        <button onclick="openSpellCheckModal()" class="btn" style="background: #8b5cf6; color: white; padding: 16px 24px; font-size: 16px; font-weight: 600; border: none; cursor: pointer; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: all 0.2s;">
+            ⚡ Ejecutar Análisis Ahora
+        </button>
+    </div>
+
+    {% if spell_results %}
+    <!-- Filter Buttons -->
+    <div style="margin: 20px 0;">
+        <button onclick="filterTable('all')" class="btn btn-primary" id="filter-all">Todas ({{ spell_results|length }})</button>
+        <button onclick="filterTable('error')" class="btn" id="filter-error">❌ Con Errores ({{ stats.error_count + stats.warning_count }})</button>
+        <button onclick="filterTable('ok')" class="btn" id="filter-ok">✅ Sin Errores ({{ stats.ok_count }})</button>
+        <button onclick="filterTable('priority')" class="btn" id="filter-priority">⭐ Prioritarias</button>
+    </div>
+
+    <!-- Results Table -->
+    <div class="table-container" style="margin: 20px 0;">
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 50px;">#</th>
+                    <th style="width: 50px;">⭐</th>
+                    <th style="width: 500px;">URL</th>
+                    <th style="width: 80px;">Estado</th>
+                    <th style="width: 100px;">Puntuación</th>
+                    <th style="width: 100px;">Errores</th>
+                    <th style="width: 80px;">Detalles</th>
+                    <th style="width: 180px;">Última Revisión</th>
+                </tr>
+            </thead>
+            <tbody id="spell-check-table">
+                {% for result in spell_results %}
+                <tr class="result-row" data-status="{{ result.status }}" data-priority="{{ result.is_priority|lower }}">
+                    <td>{{ loop.index }}</td>
+                    <td style="text-align: center;">
+                        {% if result.is_priority %}
+                            <span style="font-size: 1.2em;">⭐</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="{{ result.url }}" target="_blank" style="color: #3b82f6; text-decoration: none; word-break: break-all;">
+                            {{ result.url }}
+                        </a>
+                    </td>
+                    <td>
+                        {% if result.status == 'ok' %}
+                            <span class="status-badge" style="background: #d1fae5; color: #065f46; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">✅ OK</span>
+                        {% elif result.status == 'warning' %}
+                            <span class="status-badge" style="background: #fef3c7; color: #92400e; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">⚠️ Warning</span>
+                        {% else %}
+                            <span class="status-badge" style="background: #fee2e2; color: #991b1b; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">❌ Error</span>
+                        {% endif %}
+                    </td>
+                    <td style="text-align: center;">
+                        <span style="font-weight: 600; font-size: 16px;
+                            {% if result.score >= 80 %}color: #10b981;
+                            {% elif result.score >= 50 %}color: #f59e0b;
+                            {% else %}color: #dc2626;{% endif %}">
+                            {{ result.score }}%
+                        </span>
+                    </td>
+                    <td style="text-align: center;">
+                        {% if result.issues_found > 0 %}
+                            <span style="color: #dc2626; font-weight: 600;">{{ result.issues_found }}</span>
+                        {% else %}
+                            <span style="color: #10b981;">0</span>
+                        {% endif %}
+                    </td>
+                    <td style="text-align: center;">
+                        {% if result.issues_found > 0 %}
+                            <button onclick="toggleDetails({{ loop.index }})" class="btn" style="padding: 4px 12px; font-size: 12px; background: #3b82f6; color: white;">
+                                Ver
+                            </button>
+                        {% else %}
+                            <span style="color: #9ca3af;">-</span>
+                        {% endif %}
+                    </td>
+                    <td style="font-size: 13px; color: #6b7280;">
+                        {{ result.checked_at.strftime('%d/%m/%Y %H:%M') if result.checked_at else 'N/A' }}
+                    </td>
+                </tr>
+                <!-- Details Row (hidden by default) -->
+                {% if result.issues_found > 0 %}
+                <tr id="details-{{ loop.index }}" style="display: none;" class="details-row">
+                    <td colspan="8" style="background: #f9fafb; padding: 20px;">
+                        <div style="max-width: 100%;">
+                            <h4 style="margin: 0 0 15px 0; color: #1f2937; font-size: 14px; font-weight: 600;">
+                                📝 Errores Ortográficos Detectados ({{ result.details.spelling_errors|length if result.details.spelling_errors else 0 }})
+                            </h4>
+
+                            <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 15px; margin-bottom: 15px;">
+                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 15px;">
+                                    <div>
+                                        <div style="font-size: 12px; color: #6b7280; margin-bottom: 4px;">Total de Palabras</div>
+                                        <div style="font-size: 18px; font-weight: 600; color: #1f2937;">{{ result.details.total_words }}</div>
+                                    </div>
+                                    <div>
+                                        <div style="font-size: 12px; color: #6b7280; margin-bottom: 4px;">Idioma</div>
+                                        <div style="font-size: 18px; font-weight: 600; color: #1f2937;">{{ result.details.language|upper }}</div>
+                                    </div>
+                                    <div>
+                                        <div style="font-size: 12px; color: #6b7280; margin-bottom: 4px;">Longitud de Texto</div>
+                                        <div style="font-size: 18px; font-weight: 600; color: #1f2937;">{{ result.details.text_length }} chars</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {% if result.details.spelling_errors %}
+                            <div style="max-height: 400px; overflow-y: auto;">
+                                {% for error in result.details.spelling_errors[:20] %}
+                                <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 12px; margin-bottom: 10px; border-radius: 4px;">
+                                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
+                                        <span style="background: #dc2626; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">Error</span>
+                                        <span style="font-weight: 600; color: #991b1b; font-size: 14px;">{{ error.word }}</span>
+                                    </div>
+                                    <div style="font-size: 13px; color: #78350f; font-family: monospace; background: white; padding: 8px; border-radius: 4px; margin-top: 8px;">
+                                        {{ error.context|replace('**' + error.word + '**', '<span style="background: #fee2e2; color: #991b1b; padding: 2px 4px; border-radius: 2px; font-weight: 600;">' + error.word + '</span>')|safe }}
+                                    </div>
+                                    {% if error.sentence and error.sentence != error.context %}
+                                    <div style="font-size: 12px; color: #6b7280; margin-top: 6px; font-style: italic;">
+                                        Oración completa: {{ error.sentence }}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                {% endfor %}
+
+                                {% if result.details.spelling_errors|length > 20 %}
+                                <div style="text-align: center; padding: 10px; color: #6b7280; font-size: 13px; background: #f3f4f6; border-radius: 4px;">
+                                    ... y {{ result.details.spelling_errors|length - 20 }} errores más
+                                </div>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+
+                            <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e5e7eb;">
+                                <p style="margin: 0; font-size: 13px; color: #6b7280;">
+                                    <strong>Mensaje:</strong> {{ result.message }}
+                                </p>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+                {% endif %}
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div style="background: #d1fae5; border-left: 4px solid #10b981; padding: 20px; margin: 20px 0; border-radius: 8px; color: #000000;">
+        <strong style="color: #000000;">✅ ¡Excelente!</strong>
+        <p style="margin: 10px 0 0 0; color: #000000;">No hay resultados de spell check disponibles aún. Ejecuta el análisis desde el Test Runner.</p>
+    </div>
+    {% endif %}
+
+    {% endif %}
+
+    <!-- Modal for Running Spell Check -->
+    <div id="spellCheckModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
+        <div style="background: white; padding: 30px; border-radius: 12px; max-width: 500px; width: 90%;">
+            <h2 style="margin: 0 0 20px 0; color: #1f2937;">📝 Análisis Ortográfico</h2>
+
+            <p style="color: #374151; margin-bottom: 25px; font-size: 14px;">
+                Selecciona el alcance del análisis. El spell checker revisará el contenido de las páginas en busca de errores ortográficos.
+            </p>
+
+            <!-- Scope Selection -->
+            <div style="margin-bottom: 25px;">
+                <label style="display: block; font-weight: 600; margin-bottom: 10px; color: #374151;">Alcance del análisis:</label>
+
+                <label style="display: block; padding: 12px; border: 2px solid #e5e7eb; border-radius: 6px; margin-bottom: 10px; cursor: pointer;">
+                    <input type="radio" name="spellCheckScope" value="priority" checked style="margin-right: 8px;">
+                    <strong style="color: #1f2937;">⭐ URLs Prioritarias</strong>
+                    <span style="display: block; margin-left: 24px; font-size: 13px; color: #374151;">
+                        {{ url_info.priority_count }} URLs • Tiempo estimado: {{ url_info.spell_check_priority_time }}
+                    </span>
+                </label>
+
+                <label style="display: block; padding: 12px; border: 2px solid #e5e7eb; border-radius: 6px; cursor: pointer;">
+                    <input type="radio" name="spellCheckScope" value="all" style="margin-right: 8px;">
+                    <strong style="color: #1f2937;">🌐 Todas las URLs</strong>
+                    <span style="display: block; margin-left: 24px; font-size: 13px; color: #374151;">
+                        {{ url_info.total_count }} URLs • Tiempo estimado: {{ url_info.spell_check_all_time }}
+                    </span>
+                </label>
+            </div>
+
+            <!-- Progress (hidden initially) -->
+            <div id="spellCheckProgress" style="display: none; margin: 20px 0;">
+                <div style="background: #e5e7eb; border-radius: 8px; height: 8px; overflow: hidden; position: relative;">
+                    <div id="spellCheckProgressBar" style="background: linear-gradient(90deg, #3b82f6 0%, #10b981 100%); height: 100%; width: 0%; transition: width 0.3s ease;"></div>
+                </div>
+                <p id="spellCheckProgressText" style="text-align: center; margin-top: 10px; color: #374151; font-size: 14px;">
+                    Preparando análisis...
+                </p>
+            </div>
+
+            <!-- Actions -->
+            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 25px;">
+                <button onclick="closeSpellCheckModal()" id="spellCheckCancelBtn" class="btn" style="background: #e5e7eb; color: #374151; padding: 10px 20px; border: none; cursor: pointer; border-radius: 6px;">
+                    Cancelar
+                </button>
+                <button onclick="runSpellCheck()" id="spellCheckRunBtn" class="btn" style="background: #8b5cf6; color: white; padding: 10px 20px; font-weight: 600; border: none; cursor: pointer; border-radius: 6px;">
+                    🚀 Ejecutar Análisis
+                </button>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+// ========== Modal Functions ==========
+
+function openSpellCheckModal() {
+    const modal = document.getElementById('spellCheckModal');
+    modal.style.display = 'flex';
+}
+
+function closeSpellCheckModal() {
+    const modal = document.getElementById('spellCheckModal');
+    modal.style.display = 'none';
+
+    // Reset progress
+    const progressBar = document.getElementById('spellCheckProgressBar');
+    document.getElementById('spellCheckProgress').style.display = 'none';
+    progressBar.style.width = '0%';
+    progressBar.style.animation = 'none';
+    progressBar.style.background = 'linear-gradient(90deg, #3b82f6 0%, #10b981 100%)';
+    document.getElementById('spellCheckProgressText').textContent = 'Preparando análisis...';
+
+    // Re-enable buttons
+    document.getElementById('spellCheckRunBtn').disabled = false;
+    document.getElementById('spellCheckRunBtn').textContent = '🚀 Ejecutar Análisis';
+    document.getElementById('spellCheckCancelBtn').disabled = false;
+}
+
+async function runSpellCheck() {
+    // Get selected scope
+    const scopeRadios = document.getElementsByName('spellCheckScope');
+    let scope = 'priority';
+    for (const radio of scopeRadios) {
+        if (radio.checked) {
+            scope = radio.value;
+            break;
+        }
+    }
+
+    // Disable buttons
+    const runButton = document.getElementById('spellCheckRunBtn');
+    const cancelButton = document.getElementById('spellCheckCancelBtn');
+    runButton.disabled = true;
+    runButton.textContent = '⏳ Analizando...';
+    cancelButton.disabled = true;
+
+    // Show progress
+    const progressDiv = document.getElementById('spellCheckProgress');
+    const progressBar = document.getElementById('spellCheckProgressBar');
+    const progressText = document.getElementById('spellCheckProgressText');
+    progressDiv.style.display = 'block';
+
+    // Show estimated time
+    let estimatedTime = '';
+    if (scope === 'priority') {
+        estimatedTime = 'Analizando {{ url_info.priority_count }} URLs ({{ url_info.spell_check_priority_time }})';
+    } else {
+        estimatedTime = 'Analizando {{ url_info.total_count }} URLs ({{ url_info.spell_check_all_time }})';
+    }
+    progressText.textContent = estimatedTime + '...';
+
+    // Indeterminate animation (like test_runner)
+    progressBar.style.width = '40%';
+    progressBar.style.animation = 'progressSlide 2s ease-in-out infinite';
+
+    try {
+        // Call API endpoint
+        const response = await fetch('/crawler/quality/run', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                check_types: ['spell_check'],
+                scope: scope
+            })
+        });
+
+        const data = await response.json();
+
+        // Stop progress animation
+        progressBar.style.animation = 'none';
+        progressBar.style.width = '100%';
+
+        if (data.success) {
+            // Get the spell_check result from the checks array
+            const checks = data.results.checks || [];
+            const spellCheckResult = checks.find(c => c.check_type === 'spell_check') || checks[0];
+
+            progressText.textContent = '✅ Análisis completado';
+
+            // Show results
+            let message = `Análisis ortográfico completado!\n\n`;
+
+            if (spellCheckResult) {
+                message += `Estado: ${spellCheckResult.status || 'unknown'}\n`;
+                message += `Mensaje: ${spellCheckResult.message || 'N/A'}\n\n`;
+
+                if (spellCheckResult.stats) {
+                    message += `URLs procesadas: ${spellCheckResult.stats.processed || 0}\n`;
+                    message += `URLs exitosas: ${spellCheckResult.stats.successful || 0}\n`;
+                    message += `URLs fallidas: ${spellCheckResult.stats.failed || 0}\n`;
+                }
+            }
+
+            // Show alert
+            setTimeout(() => {
+                alert(message);
+                // Reload page to show new results
+                window.location.reload();
+            }, 500);
+        } else {
+            progressText.textContent = '❌ Error en el análisis';
+            alert('Error: ' + (data.message || 'Error desconocido'));
+            closeSpellCheckModal();
+        }
+    } catch (error) {
+        progressBar.style.animation = 'none';
+        progressBar.style.width = '100%';
+        progressBar.style.background = '#dc2626';
+        progressText.textContent = '❌ Error de conexión';
+        alert('Error de conexión: ' + error.message);
+        closeSpellCheckModal();
+    }
+}
+
+// ========== Filter Functions ==========
+
+function filterTable(filter) {
+    const rows = document.querySelectorAll('.result-row');
+    const detailsRows = document.querySelectorAll('.details-row');
+
+    // Hide all details first
+    detailsRows.forEach(row => row.style.display = 'none');
+
+    // Update button styles
+    document.querySelectorAll('[id^="filter-"]').forEach(btn => {
+        btn.classList.remove('btn-primary');
+    });
+    document.getElementById(`filter-${filter}`).classList.add('btn-primary');
+
+    // Filter rows
+    rows.forEach(row => {
+        if (filter === 'all') {
+            row.style.display = '';
+        } else if (filter === 'ok') {
+            row.style.display = row.dataset.status === 'ok' ? '' : 'none';
+        } else if (filter === 'error') {
+            row.style.display = (row.dataset.status === 'warning' || row.dataset.status === 'error') ? '' : 'none';
+        } else if (filter === 'priority') {
+            row.style.display = row.dataset.priority === 'true' ? '' : 'none';
+        }
+    });
+}
+
+function toggleDetails(index) {
+    const detailsRow = document.getElementById(`details-${index}`);
+    if (detailsRow.style.display === 'none') {
+        detailsRow.style.display = '';
+    } else {
+        detailsRow.style.display = 'none';
+    }
+}
+</script>
+
+<style>
+.result-row {
+    transition: background-color 0.2s;
+}
+
+.result-row:hover {
+    background-color: #f9fafb;
+}
+
+.details-row td {
+    border-top: none !important;
+}
+
+.btn {
+    transition: all 0.2s;
+}
+
+.btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.btn-primary {
+    background: #3b82f6;
+    color: white;
+}
+
+/* Progress bar animation */
+@keyframes progressSlide {
+    0% {
+        left: -40%;
+    }
+    100% {
+        left: 100%;
+    }
+}
+
+#spellCheckProgressBar {
+    position: relative;
+}
+</style>
+{% endblock %}

@@ -99,6 +99,9 @@
         <a href="{{ url_for('crawler.quality') }}" class="{% if request.endpoint == 'crawler.quality' %}active{% endif %}">
           🖼️ Calidad de Imágenes
         </a>
+        <a href="{{ url_for('crawler.spell_check') }}" class="{% if request.endpoint == 'crawler.spell_check' %}active{% endif %}">
+          📝 Corrección Ortográfica
+        </a>
         <a href="{{ url_for('crawler.test_runner') }}" class="{% if request.endpoint == 'crawler.test_runner' %}active{% endif %}">
           🎯 Test Runner
         </a>

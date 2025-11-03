@@ -31,6 +31,11 @@ class PostCrawlQualityRunner:
             'description': 'Analiza alt text, tamaño, formato y carga de imágenes',
             'icon': '🖼️'
         },
+        'spell_check': {
+            'name': 'Corrección Ortográfica',
+            'description': 'Detecta errores ortográficos en el contenido de la página',
+            'icon': '📝'
+        },
         'seo': {
             'name': 'Análisis SEO',
             'description': 'Verifica meta tags, títulos y estructura SEO (próximamente)',
@@ -204,6 +209,9 @@ class PostCrawlQualityRunner:
         elif check_type == 'image_quality':
             return self._run_image_quality_check(scope)
 
+        elif check_type == 'spell_check':
+            return self._run_spell_check(scope)
+
         else:
             raise ValueError(f"Check type '{check_type}' not implemented")
 
@@ -354,6 +362,100 @@ class PostCrawlQualityRunner:
 
         return {
             'check_type': 'image_quality',
+            'status': 'completed',
+            'message': f"Checked {processed} URLs (scope: {scope}), {successful} saved to database",
+            'stats': {
+                'total': total,
+                'processed': processed,
+                'successful': successful,
+                'failed': failed
+            }
+        }
+
+    def _run_spell_check(self, scope: str = 'priority') -> Dict[str, Any]:
+        """
+        Run spell check on URLs.
+
+        Args:
+            scope: 'all' for all URLs, 'priority' for is_priority=TRUE only
+
+        Returns:
+            Dictionary with check results
+        """
+        from calidad.spell import SpellChecker
+        import json
+
+        # Build query based on scope
+        base_query = """
+            SELECT id, url, depth
+            FROM discovered_urls
+            WHERE crawl_run_id = %s
+              AND active = TRUE
+              AND is_broken = FALSE
+        """
+        query = self._build_scope_query(base_query, scope)
+        query += " ORDER BY depth ASC"
+
+        # Get URLs from this crawl run
+        with db_cursor(commit=False) as cursor:
+            cursor.execute(query, (self.crawl_run_id,))
+            urls = cursor.fetchall()
+
+        if not urls:
+            return {
+                'check_type': 'spell_check',
+                'status': 'completed',
+                'message': f'No URLs to check (scope: {scope})',
+                'stats': {'total': 0, 'processed': 0, 'successful': 0, 'failed': 0}
+            }
+
+        # Run spell checks on each URL
+        logger.info(f"Initializing spell checker for {len(urls)} URLs...")
+        checker = SpellChecker()
+        logger.info("Spell checker ready, starting to process URLs...")
+
+        total = len(urls)
+        processed = 0
+        successful = 0
+        failed = 0
+
+        for url_row in urls:
+            try:
+                # Log every 5 URLs or first 3
+                if processed < 3 or processed % 5 == 0:
+                    logger.info(f"[{processed + 1}/{total}] Checking: {url_row['url'][:60]}...")
+
+                result = checker.check(url_row['url'])
+
+                # Save result to quality_checks table with discovered_url_id
+                with db_cursor() as cursor:
+                    cursor.execute("""
+                        INSERT INTO quality_checks (
+                            discovered_url_id, check_type, status, score, message,
+                            details, issues_found, execution_time_ms, checked_at
+                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                    """, (
+                        url_row['id'],
+                        'spell_check',
+                        result.status,
+                        result.score,
+                        result.message,
+                        json.dumps(result.details),
+                        result.issues_found,
+                        result.execution_time_ms
+                    ))
+                successful += 1
+                processed += 1
+
+            except Exception as e:
+                logger.error(f"Error checking {url_row['url']}: {e}")
+                failed += 1
+                processed += 1
+
+        logger.info(f"Spell check complete: {processed}/{total} processed, {successful} successful, {failed} failed")
+
+        return {
+            'check_type': 'spell_check',
             'status': 'completed',
             'message': f"Checked {processed} URLs (scope: {scope}), {successful} saved to database",
             'stats': {

@@ -65,13 +65,19 @@ def get_url_counts_and_estimates():
     iq_priority_seconds = priority_count * QualityCheckDefaults.TIME_PER_URL_IMAGE_QUALITY
     iq_all_seconds = total_count * QualityCheckDefaults.TIME_PER_URL_IMAGE_QUALITY
 
+    # Spell check estimates
+    sc_priority_seconds = priority_count * QualityCheckDefaults.TIME_PER_URL_SPELL_CHECK
+    sc_all_seconds = total_count * QualityCheckDefaults.TIME_PER_URL_SPELL_CHECK
+
     return {
         'priority_count': priority_count,
         'total_count': total_count,
         'broken_links_priority_time': format_time_estimate(bl_priority_seconds),
         'broken_links_all_time': format_time_estimate(bl_all_seconds),
         'image_quality_priority_time': format_time_estimate(iq_priority_seconds),
-        'image_quality_all_time': format_time_estimate(iq_all_seconds)
+        'image_quality_all_time': format_time_estimate(iq_all_seconds),
+        'spell_check_priority_time': format_time_estimate(sc_priority_seconds),
+        'spell_check_all_time': format_time_estimate(sc_all_seconds)
     }
 
 
@@ -383,6 +389,79 @@ def health():
         trend=trend,
         recent_changes=recent_changes
     )
+
+
+@crawler_bp.route('/spell-check')
+@login_required
+def spell_check():
+    """Show spell check results from latest quality checks"""
+
+    # Get latest crawl run
+    with db_cursor() as cursor:
+        cursor.execute("""
+            SELECT id, started_at, finished_at, urls_discovered, status
+            FROM crawl_runs
+            ORDER BY id DESC
+            LIMIT 1
+        """)
+        crawl_run = cursor.fetchone()
+
+    if not crawl_run:
+        url_info = get_url_counts_and_estimates()
+        return render_template('crawler/spell_check.html',
+                             crawl_run=None,
+                             spell_results=[],
+                             stats={},
+                             url_info=url_info,
+                             current_user=current_user)
+
+    # Get spell check statistics
+    with db_cursor() as cursor:
+        cursor.execute("""
+            SELECT
+                COUNT(*) as total_checked,
+                COUNT(*) FILTER (WHERE qc.status = 'ok') as ok_count,
+                COUNT(*) FILTER (WHERE qc.status = 'warning') as warning_count,
+                COUNT(*) FILTER (WHERE qc.status = 'error') as error_count,
+                COALESCE(AVG(qc.score), 0) as avg_score,
+                SUM(qc.issues_found) as total_issues
+            FROM quality_checks qc
+            JOIN discovered_urls du ON qc.discovered_url_id = du.id
+            WHERE du.crawl_run_id = %s
+              AND qc.check_type = 'spell_check'
+        """, (crawl_run['id'],))
+        stats = cursor.fetchone()
+
+    # Get spell check results with details
+    with db_cursor() as cursor:
+        cursor.execute("""
+            SELECT
+                qc.id,
+                du.url,
+                du.is_priority,
+                qc.status,
+                qc.score,
+                qc.message,
+                qc.details,
+                qc.issues_found,
+                qc.checked_at
+            FROM quality_checks qc
+            JOIN discovered_urls du ON qc.discovered_url_id = du.id
+            WHERE du.crawl_run_id = %s
+              AND qc.check_type = 'spell_check'
+            ORDER BY qc.issues_found DESC, du.is_priority DESC, du.url ASC
+        """, (crawl_run['id'],))
+        spell_results = cursor.fetchall()
+
+    # Get URL counts and time estimates
+    url_info = get_url_counts_and_estimates()
+
+    return render_template('crawler/spell_check.html',
+                         crawl_run=crawl_run,
+                         spell_results=spell_results,
+                         stats=stats,
+                         url_info=url_info,
+                         current_user=current_user)
 
 
 @crawler_bp.route('/scheduler', methods=['GET', 'POST'])

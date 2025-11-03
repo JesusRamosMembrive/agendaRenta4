@@ -22194,7 +22194,7 @@
   {
     "path": "calidad/post_crawl_runner.py",
     "relative": true,
-    "modified_at": "2025-11-03T04:43:33.121421+00:00",
+    "modified_at": "2025-11-03T20:43:30.780404+00:00",
     "symbols": [
       {
         "name": "PostCrawlQualityRunner",
@@ -22206,86 +22206,186 @@
       {
         "name": "__init__",
         "kind": "method",
-        "lineno": 54,
+        "lineno": 59,
         "parent": "PostCrawlQualityRunner",
         "docstring": "Initialize runner for a specific crawl.\n\nArgs:\n    crawl_run_id: ID of the crawl run to analyze"
       },
       {
         "name": "_build_scope_query",
         "kind": "method",
-        "lineno": 63,
+        "lineno": 68,
         "parent": "PostCrawlQualityRunner",
         "docstring": "Build SQL query with scope filter applied.\n\nArgs:\n    base_query: Base SQL query (should end with WHERE clause or ready for AND)\n    scope: 'all' or 'priority'\n\nReturns:\n    str: Complete query with scope filter"
       },
       {
         "name": "get_configured_checks",
         "kind": "method",
-        "lineno": 79,
+        "lineno": 84,
         "parent": "PostCrawlQualityRunner",
         "docstring": "Get list of checks configured to run automatically for a user.\n\nArgs:\n    user_id: User ID to check configuration\n\nReturns:\n    List of dicts with check_type and scope (e.g., [{'check_type': 'broken_links', 'scope': 'all'}])"
       },
       {
         "name": "run_configured_checks",
         "kind": "method",
-        "lineno": 101,
+        "lineno": 106,
         "parent": "PostCrawlQualityRunner",
         "docstring": "Run all checks configured for automatic execution.\n\nArgs:\n    user_id: User ID whose configuration to use\n\nReturns:\n    Dictionary with execution results for each check"
       },
       {
         "name": "run_checks",
         "kind": "method",
-        "lineno": 124,
+        "lineno": 129,
         "parent": "PostCrawlQualityRunner",
         "docstring": "Run specified quality checks with their configured scopes.\n\nArgs:\n    check_configs: List of dicts with check_type and scope\n\nReturns:\n    Dictionary with results for each check executed"
       },
       {
         "name": "run_selected_checks",
         "kind": "method",
-        "lineno": 176,
+        "lineno": 181,
         "parent": "PostCrawlQualityRunner",
         "docstring": "Run specified quality checks (legacy method - defaults to 'priority' scope).\n\nArgs:\n    check_types: List of check types to run\n\nReturns:\n    Dictionary with results for each check executed"
       },
       {
         "name": "_execute_check_with_scope",
         "kind": "method",
-        "lineno": 190,
+        "lineno": 195,
         "parent": "PostCrawlQualityRunner",
         "docstring": "Execute a specific check type with a given scope.\n\nArgs:\n    check_type: Type of check to execute\n    scope: Scope of URLs to check ('all' or 'priority')\n\nReturns:\n    Dictionary with check execution results"
       },
       {
         "name": "_execute_check",
         "kind": "method",
-        "lineno": 210,
+        "lineno": 218,
         "parent": "PostCrawlQualityRunner",
         "docstring": "Execute a specific check type (legacy - defaults to 'priority' scope).\n\nArgs:\n    check_type: Type of check to execute\n\nReturns:\n    Dictionary with check execution results"
       },
       {
         "name": "_run_broken_links_check",
         "kind": "method",
-        "lineno": 222,
+        "lineno": 230,
         "parent": "PostCrawlQualityRunner",
         "docstring": "Run broken links validation.\n\nArgs:\n    scope: 'all' for all URLs, 'priority' for is_priority=TRUE only\n\nReturns:\n    Dictionary with validation results"
       },
       {
         "name": "_run_image_quality_check",
         "kind": "method",
-        "lineno": 274,
+        "lineno": 282,
         "parent": "PostCrawlQualityRunner",
         "docstring": "Run image quality checks.\n\nArgs:\n    scope: 'all' for all URLs, 'priority' for is_priority=TRUE only\n\nReturns:\n    Dictionary with check results"
       },
       {
+        "name": "_run_spell_check",
+        "kind": "method",
+        "lineno": 375,
+        "parent": "PostCrawlQualityRunner",
+        "docstring": "Run spell check on URLs.\n\nArgs:\n    scope: 'all' for all URLs, 'priority' for is_priority=TRUE only\n\nReturns:\n    Dictionary with check results"
+      },
+      {
         "name": "get_user_check_config",
         "kind": "function",
-        "lineno": 360,
+        "lineno": 469,
         "parent": null,
         "docstring": "Get quality check configuration for a user.\n\nArgs:\n    user_id: User ID\n\nReturns:\n    List of check configurations with metadata"
       },
       {
         "name": "update_user_check_config",
         "kind": "function",
-        "lineno": 404,
+        "lineno": 513,
         "parent": null,
         "docstring": "Update quality check configuration for a user.\n\nArgs:\n    user_id: User ID\n    check_type: Type of check to configure\n    enabled: Whether check is enabled\n    run_after_crawl: Whether to run automatically after crawl\n    scope: Scope of URLs to check ('all' or 'priority')\n\nReturns:\n    True if successful"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "path": "calidad/spell.py",
+    "relative": true,
+    "modified_at": "2025-11-03T20:42:22.416718+00:00",
+    "symbols": [
+      {
+        "name": "SpellChecker",
+        "kind": "class",
+        "lineno": 21,
+        "parent": null,
+        "docstring": "Checks for spelling errors in page content using spaCy.\n\nThis checker:\n- Extracts visible text from HTML\n- Filters out technical elements (code, scripts, styles)\n- Excludes URLs, emails, numbers, and short words\n- Uses whitelist for domain-specific terms\n- Provides detailed error reports with context"
+      },
+      {
+        "name": "__init__",
+        "kind": "method",
+        "lineno": 47,
+        "parent": "SpellChecker",
+        "docstring": "Initialize spell checker with configuration."
+      },
+      {
+        "name": "nlp",
+        "kind": "method",
+        "lineno": 58,
+        "parent": "SpellChecker",
+        "docstring": "Lazy load spaCy model to avoid loading at import time."
+      },
+      {
+        "name": "_get_check_type",
+        "kind": "method",
+        "lineno": 71,
+        "parent": "SpellChecker",
+        "docstring": "Return check type identifier."
+      },
+      {
+        "name": "check",
+        "kind": "method",
+        "lineno": 75,
+        "parent": "SpellChecker",
+        "docstring": "Check a URL for spelling errors.\n\nArgs:\n    url: URL to check\n    html_content: Optional pre-fetched HTML content\n\nReturns:\n    QualityCheckResult with spelling errors found"
+      },
+      {
+        "name": "_extract_text",
+        "kind": "method",
+        "lineno": 177,
+        "parent": "SpellChecker",
+        "docstring": "Extract visible text from HTML, excluding technical elements.\n\nArgs:\n    html_content: HTML content\n\nReturns:\n    Extracted text string"
+      },
+      {
+        "name": "_count_words",
+        "kind": "method",
+        "lineno": 201,
+        "parent": "SpellChecker",
+        "docstring": "Count meaningful words in text.\n\nArgs:\n    text: Text to count words in\n\nReturns:\n    Number of words"
+      },
+      {
+        "name": "_check_spelling",
+        "kind": "method",
+        "lineno": 220,
+        "parent": "SpellChecker",
+        "docstring": "Check spelling in text using spaCy.\n\nArgs:\n    text: Text to check\n\nReturns:\n    List of spelling errors with context"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "path": "calidad/whitelist_terms.py",
+    "relative": true,
+    "modified_at": "2025-11-03T20:24:49.464524+00:00",
+    "symbols": [
+      {
+        "name": "is_whitelisted",
+        "kind": "function",
+        "lineno": 69,
+        "parent": null,
+        "docstring": "Verifica si una palabra est\u00e1 en la whitelist.\n\nArgs:\n    word: Palabra a verificar (case-insensitive)\n\nReturns:\n    True si la palabra est\u00e1 en la whitelist"
+      },
+      {
+        "name": "add_custom_term",
+        "kind": "function",
+        "lineno": 82,
+        "parent": null,
+        "docstring": "A\u00f1ade un t\u00e9rmino personalizado a la whitelist.\n\nArgs:\n    term: T\u00e9rmino a a\u00f1adir"
+      },
+      {
+        "name": "remove_custom_term",
+        "kind": "function",
+        "lineno": 92,
+        "parent": null,
+        "docstring": "Elimina un t\u00e9rmino de la whitelist.\n\nArgs:\n    term: T\u00e9rmino a eliminar"
       }
     ],
     "errors": []
@@ -22357,7 +22457,7 @@
   {
     "path": "constants.py",
     "relative": true,
-    "modified_at": "2025-11-03T04:29:51.193325+00:00",
+    "modified_at": "2025-11-03T20:42:43.803265+00:00",
     "symbols": [
       {
         "name": "QualityCheckDefaults",
@@ -22585,138 +22685,152 @@
   {
     "path": "crawler/routes.py",
     "relative": true,
-    "modified_at": "2025-11-03T08:32:42.609098+00:00",
+    "modified_at": "2025-11-03T20:57:33.794268+00:00",
     "symbols": [
+      {
+        "name": "get_url_counts_and_estimates",
+        "kind": "function",
+        "lineno": 16,
+        "parent": null,
+        "docstring": "Get URL counts from database and calculate time estimates for quality checks.\n\nReturns:\n    dict: Contains counts and time estimates for UI display\n        {\n            'priority_count': int,\n            'total_count': int,\n            'broken_links_priority_minutes': str,\n            'broken_links_all_minutes': str,\n            'image_quality_priority_minutes': str,\n            'image_quality_all_minutes': str\n        }"
+      },
       {
         "name": "dashboard",
         "kind": "function",
-        "lineno": 17,
+        "lineno": 86,
         "parent": null,
         "docstring": "Crawler dashboard - shows crawler runs and discovered URLs."
       },
       {
         "name": "start",
         "kind": "function",
-        "lineno": 49,
+        "lineno": 118,
         "parent": null,
         "docstring": "Start a new crawl run manually.\nRuns crawler in background thread to avoid blocking."
       },
       {
         "name": "progress",
         "kind": "function",
-        "lineno": 100,
+        "lineno": 169,
         "parent": null,
         "docstring": "Get current crawl progress (real-time status).\nReturns JSON with progress metrics."
       },
       {
         "name": "cancel",
         "kind": "function",
-        "lineno": 112,
+        "lineno": 181,
         "parent": null,
         "docstring": "Request cancellation of current crawl."
       },
       {
         "name": "results",
         "kind": "function",
-        "lineno": 130,
+        "lineno": 199,
         "parent": null,
         "docstring": "Show list of discovered URLs (simple table)."
       },
       {
         "name": "results_by_run",
         "kind": "function",
-        "lineno": 168,
+        "lineno": 237,
         "parent": null,
         "docstring": "Show URLs discovered in a specific crawl run."
       },
       {
         "name": "broken",
         "kind": "function",
-        "lineno": 203,
+        "lineno": 272,
         "parent": null,
         "docstring": "Show broken links from latest crawl"
       },
       {
         "name": "health",
         "kind": "function",
-        "lineno": 264,
+        "lineno": 340,
         "parent": null,
         "docstring": "Health dashboard with historical tracking.\nShows health score evolution over time."
       },
       {
+        "name": "spell_check",
+        "kind": "function",
+        "lineno": 396,
+        "parent": null,
+        "docstring": "Show spell check results from latest quality checks"
+      },
+      {
         "name": "scheduler",
         "kind": "function",
-        "lineno": 320,
+        "lineno": 469,
         "parent": null,
         "docstring": "Configure automatic revalidation scheduler."
       },
       {
         "name": "tree",
         "kind": "function",
-        "lineno": 369,
+        "lineno": 518,
         "parent": null,
         "docstring": "Tree view of discovered URLs with hierarchical structure.\nShows parent-child relationships with expand/collapse functionality."
       },
       {
         "name": "quality",
         "kind": "function",
-        "lineno": 448,
+        "lineno": 597,
         "parent": null,
         "docstring": "Quality checks dashboard - shows image quality results for discovered URLs."
       },
       {
         "name": "test_runner",
         "kind": "function",
-        "lineno": 532,
+        "lineno": 685,
         "parent": null,
         "docstring": "Test Runner page - configure and run all quality checks from one place.\nSingle source of truth with quality_check_config table."
       },
       {
         "name": "run_quality_check",
         "kind": "function",
-        "lineno": 561,
+        "lineno": 714,
         "parent": null,
         "docstring": "Run image quality check on a specific URL."
       },
       {
         "name": "run_batch_quality_check",
         "kind": "function",
-        "lineno": 624,
+        "lineno": 777,
         "parent": null,
         "docstring": "Run quality checks on multiple URLs in batch.\nExpects JSON with list of section_ids."
       },
       {
         "name": "get_batch_quality_status",
         "kind": "function",
-        "lineno": 670,
+        "lineno": 823,
         "parent": null,
         "docstring": "Get status of a batch quality check."
       },
       {
         "name": "get_quality_check_config",
         "kind": "function",
-        "lineno": 699,
+        "lineno": 852,
         "parent": null,
         "docstring": "Get quality check configuration for current user.\nReturns list of available checks with their settings."
       },
       {
         "name": "update_quality_check_config",
         "kind": "function",
-        "lineno": 724,
+        "lineno": 877,
         "parent": null,
         "docstring": "Update quality check configuration for current user.\n\nExpects JSON: {\n    \"check_type\": \"image_quality\",\n    \"enabled\": true,\n    \"run_after_crawl\": true,\n    \"scope\": \"priority\"  # 'all' or 'priority'\n}"
       },
       {
         "name": "run_crawl_quality_checks",
         "kind": "function",
-        "lineno": 770,
+        "lineno": 923,
         "parent": null,
         "docstring": "Manually run quality checks on a completed crawl.\n\nExpects JSON: {\n    \"check_types\": [\"broken_links\", \"image_quality\"]\n}"
       },
       {
         "name": "run_quality_checks_manual",
         "kind": "function",
-        "lineno": 819,
+        "lineno": 972,
         "parent": null,
         "docstring": "Run quality checks manually on-demand (without crawl).\n\nWorks on discovered_urls already in database.\nUser can select which checks to run and scope (all/priority).\n\nExpects JSON: {\n    \"check_types\": [\"broken_links\", \"image_quality\"],\n    \"scope\": \"priority\"  # 'all' or 'priority'\n}"
       }
@@ -22975,7 +23089,7 @@
   {
     "path": "debug_broken_links.py",
     "relative": true,
-    "modified_at": "2025-11-03T04:03:30.377010+00:00",
+    "modified_at": "2025-11-03T10:34:55.725569+00:00",
     "symbols": [
       {
         "name": "main",
@@ -22990,7 +23104,7 @@
   {
     "path": "debug_image_quality.py",
     "relative": true,
-    "modified_at": "2025-11-03T04:03:30.377010+00:00",
+    "modified_at": "2025-11-03T10:35:12.446869+00:00",
     "symbols": [
       {
         "name": "main",
@@ -23378,6 +23492,13 @@
     "errors": []
   },
   {
+    "path": "static/js/modal-utils.js",
+    "relative": true,
+    "modified_at": "2025-11-03T12:01:18.710854+00:00",
+    "symbols": [],
+    "errors": []
+  },
+  {
     "path": "sync_postgres_to_postgres.py",
     "relative": true,
     "modified_at": "2025-11-03T04:03:25.426054+00:00",
@@ -23423,7 +23544,7 @@
   {
     "path": "templates/base.html",
     "relative": true,
-    "modified_at": "2025-11-03T04:03:30.377023+00:00",
+    "modified_at": "2025-11-03T20:53:45.683089+00:00",
     "symbols": [
       {
         "name": "period-form",
@@ -23450,9 +23571,16 @@
     "errors": []
   },
   {
+    "path": "templates/components/stat_card.html",
+    "relative": true,
+    "modified_at": "2025-11-03T12:01:44.854202+00:00",
+    "symbols": [],
+    "errors": []
+  },
+  {
     "path": "templates/configuracion.html",
     "relative": true,
-    "modified_at": "2025-11-03T04:03:30.377023+00:00",
+    "modified_at": "2025-11-03T14:39:58.607082+00:00",
     "symbols": [
       {
         "name": "form-alerts",
@@ -23525,31 +23653,10 @@
         "docstring": null
       },
       {
-        "name": "selected-count",
-        "kind": "element",
-        "lineno": 0,
-        "parent": "span",
-        "docstring": null
-      },
-      {
-        "name": "batch-check-btn",
-        "kind": "element",
-        "lineno": 0,
-        "parent": "button",
-        "docstring": null
-      },
-      {
         "name": "urls-table",
         "kind": "element",
         "lineno": 0,
         "parent": "table",
-        "docstring": null
-      },
-      {
-        "name": "select-all-urls",
-        "kind": "element",
-        "lineno": 0,
-        "parent": "input",
         "docstring": null
       },
       {
@@ -23572,7 +23679,7 @@
   {
     "path": "templates/crawler/broken.html",
     "relative": true,
-    "modified_at": "2025-11-03T10:29:27.037698+00:00",
+    "modified_at": "2025-11-03T12:02:27.357774+00:00",
     "symbols": [
       {
         "name": "filter-all",
@@ -23650,7 +23757,7 @@
   {
     "path": "templates/crawler/dashboard.html",
     "relative": true,
-    "modified_at": "2025-11-03T08:54:43.359173+00:00",
+    "modified_at": "2025-11-03T18:32:32.140165+00:00",
     "symbols": [
       {
         "name": "crawlBtn",
@@ -23743,7 +23850,7 @@
   {
     "path": "templates/crawler/quality.html",
     "relative": true,
-    "modified_at": "2025-11-03T08:40:21.358570+00:00",
+    "modified_at": "2025-11-03T12:03:00.437225+00:00",
     "symbols": [
       {
         "name": "details-{{ loop.index }}",
@@ -23757,20 +23864,6 @@
         "kind": "element",
         "lineno": 0,
         "parent": "div",
-        "docstring": null
-      },
-      {
-        "name": "check_broken_links",
-        "kind": "element",
-        "lineno": 0,
-        "parent": "input",
-        "docstring": null
-      },
-      {
-        "name": "check_image_quality",
-        "kind": "element",
-        "lineno": 0,
-        "parent": "input",
         "docstring": null
       },
       {
@@ -23814,7 +23907,7 @@
   {
     "path": "templates/crawler/scheduler.html",
     "relative": true,
-    "modified_at": "2025-11-03T04:03:30.378347+00:00",
+    "modified_at": "2025-11-03T18:32:32.140165+00:00",
     "symbols": [
       {
         "name": "frequency",
@@ -23841,9 +23934,59 @@
     "errors": []
   },
   {
+    "path": "templates/crawler/spell_check.html",
+    "relative": true,
+    "modified_at": "2025-11-03T20:57:01.810988+00:00",
+    "symbols": [
+      {
+        "name": "filter-all",
+        "kind": "element",
+        "lineno": 0,
+        "parent": "button",
+        "docstring": null
+      },
+      {
+        "name": "filter-error",
+        "kind": "element",
+        "lineno": 0,
+        "parent": "button",
+        "docstring": null
+      },
+      {
+        "name": "filter-ok",
+        "kind": "element",
+        "lineno": 0,
+        "parent": "button",
+        "docstring": null
+      },
+      {
+        "name": "filter-priority",
+        "kind": "element",
+        "lineno": 0,
+        "parent": "button",
+        "docstring": null
+      },
+      {
+        "name": "spell-check-table",
+        "kind": "element",
+        "lineno": 0,
+        "parent": "tbody",
+        "docstring": null
+      },
+      {
+        "name": "details-{{ loop.index }}",
+        "kind": "element",
+        "lineno": 0,
+        "parent": "tr",
+        "docstring": null
+      }
+    ],
+    "errors": []
+  },
+  {
     "path": "templates/crawler/test_runner.html",
     "relative": true,
-    "modified_at": "2025-11-03T04:03:30.378347+00:00",
+    "modified_at": "2025-11-03T20:45:36.562085+00:00",
     "symbols": [
       {
         "name": "{{ check_type }}_enabled",
@@ -23928,7 +24071,7 @@
   {
     "path": "templates/crawler/tree.html",
     "relative": true,
-    "modified_at": "2025-11-03T04:03:30.378347+00:00",
+    "modified_at": "2025-11-03T18:32:32.140165+00:00",
     "symbols": [
       {
         "name": "tree-container",

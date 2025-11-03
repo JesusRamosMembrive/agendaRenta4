@@ -141,10 +141,16 @@ class QualityCheckDefaults:
     IMAGE_CHECK_TIMEOUT = 10
     IMAGE_CHECK_IGNORE_EXTERNAL = True
 
+    # Spell checker
+    SPELL_CHECK_TIMEOUT = 10
+    SPELL_CHECK_MAX_TEXT_LENGTH = 50000    # Max characters to analyze per page
+    SPELL_CHECK_MIN_WORD_LENGTH = 3        # Minimum word length to check
+
     # Time estimates (seconds per URL for different check types)
     # Used for UI progress estimation
     TIME_PER_URL_BROKEN_LINKS = 0.4      # ~0.4 seconds per URL (139 URLs = ~55s)
     TIME_PER_URL_IMAGE_QUALITY = 4.0     # ~4 seconds per URL (139 URLs = ~9 min)
+    TIME_PER_URL_SPELL_CHECK = 1.5       # ~1.5 seconds per URL (117 URLs = ~3 min)
 
 
 # ==============================================================================

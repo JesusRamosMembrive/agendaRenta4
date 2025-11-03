@@ -152,8 +152,8 @@
 
             <!-- Progress (hidden initially) -->
             <div id="validateProgress" style="display: none; margin: 20px 0;">
-                <div style="background: #e5e7eb; border-radius: 8px; height: 8px; overflow: hidden;">
-                    <div id="validateProgressBar" style="background: #10b981; height: 100%; width: 0%; transition: width 0.3s;"></div>
+                <div style="background: #e5e7eb; border-radius: 8px; height: 8px; overflow: hidden; position: relative;">
+                    <div id="validateProgressBar" style="background: linear-gradient(90deg, #3b82f6 0%, #10b981 100%); height: 100%; width: 0%; transition: width 0.3s ease;"></div>
                 </div>
                 <p id="validateProgressText" style="text-align: center; margin-top: 10px; color: #374151; font-size: 14px;">
                     Preparando validación...
@@ -205,6 +205,20 @@
 
 .url-row.hidden {
     display: none;
+}
+
+/* Progress bar animation */
+@keyframes progressSlide {
+    0% {
+        left: -40%;
+    }
+    100% {
+        left: 100%;
+    }
+}
+
+#validateProgressBar {
+    position: relative;
 }
 </style>
 
@@ -265,8 +279,11 @@ function closeValidateModal() {
     modal.style.display = 'none';
 
     // Reset progress
+    const progressBar = document.getElementById('validateProgressBar');
     document.getElementById('validateProgress').style.display = 'none';
-    document.getElementById('validateProgressBar').style.width = '0%';
+    progressBar.style.width = '0%';
+    progressBar.style.animation = 'none';
+    progressBar.style.background = 'linear-gradient(90deg, #3b82f6 0%, #10b981 100%)';
     document.getElementById('validateProgressText').textContent = 'Preparando validación...';
 
     // Re-enable buttons
@@ -308,12 +325,9 @@ async function runValidation() {
     }
     progressText.textContent = estimatedTime + '...';
 
-    // Simulate progress (indeterminate)
-    let progress = 0;
-    const progressInterval = setInterval(() => {
-        progress = (progress + 5) % 100;
-        progressBar.style.width = progress + '%';
-    }, 200);
+    // Indeterminate animation (like test_runner)
+    progressBar.style.width = '40%';
+    progressBar.style.animation = 'progressSlide 2s ease-in-out infinite';
 
     try {
         // Call API endpoint
@@ -331,7 +345,7 @@ async function runValidation() {
         const data = await response.json();
 
         // Stop progress animation
-        clearInterval(progressInterval);
+        progressBar.style.animation = 'none';
         progressBar.style.width = '100%';
 
         if (data.success) {
@@ -366,7 +380,9 @@ async function runValidation() {
             window.location.reload();
 
         } else {
-            clearInterval(progressInterval);
+            progressBar.style.animation = 'none';
+            progressBar.style.width = '100%';
+            progressBar.style.background = '#dc2626';
             progressText.textContent = '❌ Error al ejecutar validación';
             alert('Error: ' + (data.error || 'Error desconocido'));
             runButton.disabled = false;
@@ -375,7 +391,9 @@ async function runValidation() {
         }
 
     } catch (error) {
-        clearInterval(progressInterval);
+        progressBar.style.animation = 'none';
+        progressBar.style.width = '100%';
+        progressBar.style.background = '#dc2626';
         console.error('Error:', error);
         progressText.textContent = '❌ Error de conexión';
         alert('Error al ejecutar validación: ' + error.message);

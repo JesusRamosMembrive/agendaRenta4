@@ -31,7 +31,10 @@
       "Bash(PGPASSWORD=dev-password psql:*)",
       "Bash(pgrep:*)",
       "Bash(systemctl status:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(.venv/bin/python:*)",
+      "Bash(.venv/bin/pip show:*)",
+      "Bash(.venv/bin/pip install:*)"
     ],
     "deny": [],
     "ask": []
