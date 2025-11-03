@@ -119,9 +119,9 @@ class PostCrawlQualityRunner:
             }
 
         logger.info(f"Running {len(check_configs)} automatic checks for crawl {self.crawl_run_id}")
-        return self.run_selected_checks_with_scope(check_configs)
+        return self.run_checks(check_configs)
 
-    def run_selected_checks_with_scope(self, check_configs: List[Dict[str, str]]) -> Dict[str, Any]:
+    def run_checks(self, check_configs: List[Dict[str, str]]) -> Dict[str, Any]:
         """
         Run specified quality checks with their configured scopes.
 
@@ -185,7 +185,7 @@ class PostCrawlQualityRunner:
         """
         # Convert to new format with default scope
         check_configs = [{'check_type': ct, 'scope': 'priority'} for ct in check_types]
-        return self.run_selected_checks_with_scope(check_configs)
+        return self.run_checks(check_configs)
 
     def _execute_check_with_scope(self, check_type: str, scope: str) -> Dict[str, Any]:
         """

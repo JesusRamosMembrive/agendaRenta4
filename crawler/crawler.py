@@ -50,7 +50,7 @@ class Crawler:
         # Crawler state
         self.queue = []  # URLs to visit
         self.visited = set()  # URLs already visited
-        self.discovered = {}  # url -> {parent, depth, ...}
+        self.url_metadata_map = {}  # url -> {parent, depth, ...} metadata
         self.crawl_run_id = None
 
         # Statistics

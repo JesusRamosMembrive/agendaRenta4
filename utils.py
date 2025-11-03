@@ -5,11 +5,16 @@ Shared functions for database, dates, and common operations
 """
 
 import os
+import logging
 from contextlib import contextmanager
 from datetime import datetime
+from functools import wraps
+from flask import jsonify
 from dotenv import load_dotenv
 import psycopg2
 import psycopg2.extras
+
+logger = logging.getLogger(__name__)
 
 # Load environment variables
 load_dotenv()
@@ -230,3 +235,40 @@ class Paginator:
             'has_prev': self.page > 1,
             'has_next': self.page < self.total_pages(total_items)
         }
+
+
+# ==============================================================================
+# API ERROR HANDLING
+# ==============================================================================
+
+def handle_api_errors(f):
+    """
+    Decorator for consistent error handling in API endpoints.
+
+    Captures exceptions, logs them, and returns appropriate JSON error responses.
+
+    Usage:
+        @app.route('/api/endpoint')
+        @login_required
+        @handle_api_errors
+        def my_endpoint():
+            # Your logic here
+            return jsonify({'success': True})
+
+    Error Handling:
+        - ValueError: 400 Bad Request (validation errors)
+        - Other Exception: 500 Internal Server Error
+    """
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        try:
+            return f(*args, **kwargs)
+        except ValueError as e:
+            # Validation errors (400 Bad Request)
+            logger.warning(f"Validation error in {f.__name__}: {str(e)}")
+            return jsonify({'success': False, 'error': str(e)}), 400
+        except Exception as e:
+            # Unexpected errors (500 Internal Server Error)
+            logger.error(f"Unexpected error in {f.__name__}: {str(e)}", exc_info=True)
+            return jsonify({'success': False, 'error': 'Internal server error'}), 500
+    return decorated_function

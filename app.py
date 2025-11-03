@@ -330,9 +330,113 @@ def generate_alerts(reference_date=None):
     return stats
 
 
+# ==============================================================================
+# ALERT DAY CHECKERS (Strategy Pattern)
+# ==============================================================================
+
+# Weekday mapping for alert configuration
+WEEKDAY_MAP = {
+    "monday": 0,
+    "tuesday": 1,
+    "wednesday": 2,
+    "thursday": 3,
+    "friday": 4,
+    "saturday": 5,
+    "sunday": 6,
+}
+
+
+def _check_daily_alert(reference_date, alert_day):
+    """Daily alerts always trigger."""
+    return True
+
+
+def _check_weekly_alert(reference_date, alert_day):
+    """Check if today is the configured weekday."""
+    target_weekday = WEEKDAY_MAP.get(alert_day)
+    if target_weekday is None:
+        return False
+    return reference_date.weekday() == target_weekday
+
+
+def _check_biweekly_alert(reference_date, alert_day):
+    """Check if today is the configured weekday in an even week."""
+    target_weekday = WEEKDAY_MAP.get(alert_day)
+    if target_weekday is None:
+        return False
+
+    # Check if today is the correct weekday
+    if reference_date.weekday() != target_weekday:
+        return False
+
+    # Check if it's an even week number
+    week_number = reference_date.isocalendar()[1]
+    return week_number % 2 == 0
+
+
+def _check_monthly_alert(reference_date, alert_day):
+    """Check if today is the configured day of the month."""
+    try:
+        target_day = int(alert_day)
+    except (ValueError, TypeError):
+        return False
+
+    # Get last day of current month
+    last_day = calendar.monthrange(reference_date.year, reference_date.month)[1]
+
+    # Adjust target day if month doesn't have enough days (e.g., Feb 30 -> Feb 28)
+    effective_day = min(target_day, last_day)
+
+    return reference_date.day == effective_day
+
+
+def _check_quarterly_alert(reference_date, alert_day):
+    """Check if today is the configured day in a quarterly month (Jan/Apr/Jul/Oct)."""
+    # First check if we're in a quarterly month
+    if reference_date.month not in QUARTERLY_MONTHS:
+        return False
+
+    # Then check if it's the configured day
+    return _check_monthly_alert(reference_date, alert_day)
+
+
+def _check_semiannual_alert(reference_date, alert_day):
+    """Check if today is the configured day in a semiannual month (Jan/Jul)."""
+    # First check if we're in a semiannual month
+    if reference_date.month not in SEMIANNUAL_MONTHS:
+        return False
+
+    # Then check if it's the configured day
+    return _check_monthly_alert(reference_date, alert_day)
+
+
+def _check_annual_alert(reference_date, alert_day):
+    """Check if today is the configured day in January."""
+    # First check if we're in January
+    if reference_date.month != ANNUAL_MONTH:
+        return False
+
+    # Then check if it's the configured day
+    return _check_monthly_alert(reference_date, alert_day)
+
+
+# Strategy mapping: frequency -> checker function
+ALERT_CHECKERS = {
+    'daily': _check_daily_alert,
+    'weekly': _check_weekly_alert,
+    'biweekly': _check_biweekly_alert,
+    'monthly': _check_monthly_alert,
+    'quarterly': _check_quarterly_alert,
+    'semiannual': _check_semiannual_alert,
+    'annual': _check_annual_alert,
+}
+
+
 def check_alert_day(reference_date, frequency, alert_day):
     """
-    Check if the reference_date matches the alert configuration.
+    Check if the reference_date matches the alert configuration (Strategy Pattern).
+
+    Uses a strategy pattern to delegate to specific checker functions based on frequency.
 
     Args:
         reference_date: date object to check
@@ -342,71 +446,15 @@ def check_alert_day(reference_date, frequency, alert_day):
     Returns:
         bool: True if alert should be generated for this date
     """
-    if frequency == "daily":
-        return True
+    checker = ALERT_CHECKERS.get(frequency)
 
-    if frequency in ["weekly", "biweekly"]:
-        # Map weekday names to numbers (monday=0, sunday=6)
-        weekday_map = {
-            "monday": 0,
-            "tuesday": 1,
-            "wednesday": 2,
-            "thursday": 3,
-            "friday": 4,
-            "saturday": 5,
-            "sunday": 6,
-        }
-        target_weekday = weekday_map.get(alert_day)
+    if not checker:
+        # Unknown frequency - log warning and return False
+        import logging
+        logging.getLogger(__name__).warning(f"Unknown alert frequency: {frequency}")
+        return False
 
-        if target_weekday is None:
-            return False
-
-        # Check if today is the configured weekday
-        if reference_date.weekday() != target_weekday:
-            return False
-
-        # For biweekly, also check if it's an even/odd week
-        # Simple implementation: alert on weeks where week_number % 2 == 0
-        if frequency == "biweekly":
-            week_number = reference_date.isocalendar()[1]
-            return week_number % 2 == 0
-
-        return True
-
-    if frequency in ["monthly", "quarterly", "semiannual", "annual"]:
-        # Get target day (handle edge case for months with fewer days)
-        try:
-            target_day = int(alert_day)
-        except (ValueError, TypeError):
-            return False
-
-        # Get last day of current month
-        last_day = calendar.monthrange(reference_date.year, reference_date.month)[1]
-
-        # Adjust target day if month doesn't have enough days
-        effective_day = min(target_day, last_day)
-
-        # Check if today is the target day
-        if reference_date.day != effective_day:
-            return False
-
-        # Additional checks for quarterly/semiannual/annual
-        if frequency == "quarterly":
-            # Alert only in Jan, Apr, Jul, Oct
-            return reference_date.month in QUARTERLY_MONTHS
-
-        if frequency == "semiannual":
-            # Alert only in Jan and Jul
-            return reference_date.month in SEMIANNUAL_MONTHS
-
-        if frequency == "annual":
-            # Alert only in January
-            return reference_date.month == ANNUAL_MONTH
-
-        # Monthly: always true if day matches
-        return True
-
-    return False
+    return checker(reference_date, alert_day)
 
 
 def _get_email_recipients(user_name):
@@ -430,8 +478,8 @@ def _get_email_recipients(user_name):
             (user_name,),
         )
 
-        email_enabled = cursor.fetchone()
-        if not email_enabled:
+        email_prefs_row = cursor.fetchone()
+        if not email_prefs_row:
             return None, "Email notifications not enabled"
 
         # Get active email addresses
@@ -835,16 +883,16 @@ def pendientes():
         completed_tasks = cursor.fetchall()
 
         # Create a set of (section_id, task_type_id) tuples that are already done
-        completed_set = {
+        completed_task_keys = {
             (task["section_id"], task["task_type_id"]) for task in completed_tasks
         }
 
-        # Generate all pending tasks (combinations not in completed_set)
+        # Generate all pending tasks (combinations not in completed_task_keys)
         pending_tasks = []
         for section in sections:
             for task_type in task_types:
                 task_key = (section["id"], task_type["id"])
-                if task_key not in completed_set:
+                if task_key not in completed_task_keys:
                     pending_tasks.append(
                         {
                             "id": None,

@@ -65,8 +65,8 @@ def start():
     # Capture current user name (can't access current_user in thread context)
     created_by = current_user.full_name
 
-    def run_crawler_in_background():
-        """Background task to run crawler."""
+    def _crawl_worker():
+        """Background worker task to run crawler."""
         try:
             logger.info("Starting background crawler task...")
             crawler = Crawler(CRAWLER_CONFIG)
@@ -78,7 +78,7 @@ def start():
 
     try:
         # Start crawler in background thread
-        thread = threading.Thread(target=run_crawler_in_background, daemon=True)
+        thread = threading.Thread(target=_crawl_worker, daemon=True)
         thread.start()
 
         logger.info("Crawler thread started successfully")
