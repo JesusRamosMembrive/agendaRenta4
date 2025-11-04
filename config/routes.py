@@ -16,7 +16,7 @@ config_bp = Blueprint('config', __name__, url_prefix='/configuracion')
 @login_required
 def index():
     """
-    Configuration page - CRUD for URLs, Alerts and Notification preferences
+    Configuration page - Alerts and Notification preferences
     """
     with db_cursor(commit=False) as cursor:
         # Get all task types
@@ -57,6 +57,25 @@ def index():
             'enable_in_app': True
         }
 
+    # Generate available periods
+    available_periods = generate_available_periods()
+
+    return render_template(
+        'configuracion.html',
+        task_types=task_types,
+        notification_prefs=notification_prefs,
+        available_periods=available_periods,
+        current_user=current_user
+    )
+
+
+@config_bp.route('/urls')
+@login_required
+def urls():
+    """
+    URL management page (CRUD operations)
+    """
+    with db_cursor(commit=False) as cursor:
         # Get all sections (URLs)
         cursor.execute("""
             SELECT id, name, url, active, created_at
@@ -65,13 +84,11 @@ def index():
         """)
         sections = [dict(row) for row in cursor.fetchall()]
 
-    # Generate available periods
+    # Generate available periods for consistency
     available_periods = generate_available_periods()
 
     return render_template(
-        'configuracion.html',
-        task_types=task_types,
-        notification_prefs=notification_prefs,
+        'configuracion_urls.html',
         sections=sections,
         available_periods=available_periods,
         current_user=current_user

@@ -669,6 +669,9 @@ def inject_task_counts():
     """
     # Get broken links count for crawler
     broken_count = 0
+    image_issues_count = 0
+    spell_issues_count = 0
+
     try:
         with db_cursor(commit=False) as cursor:
             # Get latest crawl run
@@ -691,11 +694,42 @@ def inject_task_counts():
                 )
                 result = cursor.fetchone()
                 broken_count = result["count"] if result else 0
+
+                # Count image quality issues (status = 'error')
+                cursor.execute("""
+                    SELECT COUNT(*) as count
+                    FROM quality_checks qc
+                    JOIN discovered_urls du ON qc.discovered_url_id = du.id
+                    WHERE du.crawl_run_id = %s
+                      AND qc.check_type = 'image_quality'
+                      AND qc.status = 'error'
+                """, (crawl_run["id"],))
+                result = cursor.fetchone()
+                image_issues_count = result["count"] if result else 0
+
+                # Count spelling issues (status = 'warning')
+                cursor.execute("""
+                    SELECT COUNT(*) as count
+                    FROM quality_checks qc
+                    JOIN discovered_urls du ON qc.discovered_url_id = du.id
+                    WHERE du.crawl_run_id = %s
+                      AND qc.check_type = 'spell_check'
+                      AND qc.status = 'warning'
+                """, (crawl_run["id"],))
+                result = cursor.fetchone()
+                spell_issues_count = result["count"] if result else 0
     except Exception:
         # If crawler tables don't exist yet, just return 0
         broken_count = 0
+        image_issues_count = 0
+        spell_issues_count = 0
 
-    return {"task_counts": get_task_counts(), "broken_count": broken_count}
+    return {
+        "task_counts": get_task_counts(),
+        "broken_count": broken_count,
+        "image_issues_count": image_issues_count,
+        "spell_issues_count": spell_issues_count
+    }
 
 
 # ==============================================================================
