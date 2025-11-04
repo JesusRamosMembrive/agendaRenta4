@@ -84,9 +84,11 @@ login_manager.login_message = None  # Disable automatic flash messages to preven
 # Register Blueprints
 from crawler.routes import crawler_bp
 from config.routes import config_bp
+from dev.routes import dev_bp
 
 app.register_blueprint(crawler_bp)
 app.register_blueprint(config_bp)
+app.register_blueprint(dev_bp)
 
 
 # ==============================================================================

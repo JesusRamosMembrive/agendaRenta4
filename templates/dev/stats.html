@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+
+{% block title %}Estadísticas de Base de Datos - Dev Tools{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 1400px; margin: 0 auto; padding: 20px;">
+    <div style="margin-bottom: 30px;">
+        <h1 style="font-size: 28px; font-weight: 700; color: var(--text-primary); margin-bottom: 10px;">
+            📊 Estadísticas de Base de Datos
+        </h1>
+        <p style="color: var(--text-muted); font-size: 14px;">
+            Información detallada sobre el estado y tamaño de la base de datos.
+        </p>
+    </div>
+
+    <!-- Database Size -->
+    <div style="margin-bottom: 30px; padding: 20px; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px;">
+        <h2 style="font-size: 20px; font-weight: 600; color: var(--text-primary); margin-bottom: 15px;">
+            💾 Tamaño de Base de Datos
+        </h2>
+        <p style="font-size: 24px; font-weight: 700; color: var(--primary-color);">
+            {{ stats.database_size.db_size }}
+        </p>
+    </div>
+
+    <!-- Table Sizes -->
+    <div style="margin-bottom: 30px;">
+        <h2 style="font-size: 20px; font-weight: 600; color: var(--text-primary); margin-bottom: 15px;">
+            📁 Tamaño de Tablas
+        </h2>
+        <div style="overflow-x: auto; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px;">
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="background: var(--bg-secondary); border-bottom: 2px solid var(--border-color);">
+                        <th style="padding: 12px 20px; text-align: left; font-weight: 600; color: var(--text-primary);">Tabla</th>
+                        <th style="padding: 12px 20px; text-align: right; font-weight: 600; color: var(--text-primary);">Tamaño</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for table in stats.table_sizes %}
+                    <tr style="border-bottom: 1px solid var(--border-color);">
+                        <td style="padding: 12px 20px; color: var(--text-primary);">{{ table.tablename }}</td>
+                        <td style="padding: 12px 20px; text-align: right; font-weight: 600; color: var(--text-muted);">{{ table.size }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Quality Checks Detailed -->
+    <div style="margin-bottom: 30px;">
+        <h2 style="font-size: 20px; font-weight: 600; color: var(--text-primary); margin-bottom: 15px;">
+            🧪 Quality Checks Detallados
+        </h2>
+        <div style="overflow-x: auto; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px;">
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="background: var(--bg-secondary); border-bottom: 2px solid var(--border-color);">
+                        <th style="padding: 12px 20px; text-align: left; font-weight: 600; color: var(--text-primary);">Tipo</th>
+                        <th style="padding: 12px 20px; text-align: center; font-weight: 600; color: var(--text-primary);">Estado</th>
+                        <th style="padding: 12px 20px; text-align: right; font-weight: 600; color: var(--text-primary);">Cantidad</th>
+                        <th style="padding: 12px 20px; text-align: right; font-weight: 600; color: var(--text-primary);">Tiempo Avg (ms)</th>
+                        <th style="padding: 12px 20px; text-align: right; font-weight: 600; color: var(--text-primary);">Último Check</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for check in stats.quality_checks_detailed %}
+                    <tr style="border-bottom: 1px solid var(--border-color);">
+                        <td style="padding: 12px 20px; color: var(--text-primary);">{{ check.check_type }}</td>
+                        <td style="padding: 12px 20px; text-align: center;">
+                            <span style="padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;
+                                background: {% if check.status == 'ok' %}#dcfce7{% elif check.status == 'warning' %}#fef3c7{% else %}#fee2e2{% endif %};
+                                color: {% if check.status == 'ok' %}#166534{% elif check.status == 'warning' %}#92400e{% else %}#991b1b{% endif %};">
+                                {{ check.status }}
+                            </span>
+                        </td>
+                        <td style="padding: 12px 20px; text-align: right; font-weight: 600; color: var(--text-primary);">{{ check.count }}</td>
+                        <td style="padding: 12px 20px; text-align: right; color: var(--text-muted);">{{ check.avg_time_ms|round(2) if check.avg_time_ms else '-' }}</td>
+                        <td style="padding: 12px 20px; text-align: right; color: var(--text-muted);">
+                            {{ check.last_check.strftime('%Y-%m-%d %H:%M') if check.last_check else '-' }}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" style="padding: 20px; text-align: center; color: var(--text-muted);">
+                            No hay quality checks registrados
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Recent Crawls -->
+    <div style="margin-bottom: 30px;">
+        <h2 style="font-size: 20px; font-weight: 600; color: var(--text-primary); margin-bottom: 15px;">
+            🕷️ Crawls Recientes (Últimos 10)
+        </h2>
+        <div style="overflow-x: auto; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px;">
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="background: var(--bg-secondary); border-bottom: 2px solid var(--border-color);">
+                        <th style="padding: 12px 20px; text-align: left; font-weight: 600; color: var(--text-primary);">ID</th>
+                        <th style="padding: 12px 20px; text-align: center; font-weight: 600; color: var(--text-primary);">Estado</th>
+                        <th style="padding: 12px 20px; text-align: right; font-weight: 600; color: var(--text-primary);">URLs</th>
+                        <th style="padding: 12px 20px; text-align: right; font-weight: 600; color: var(--text-primary);">Rotas</th>
+                        <th style="padding: 12px 20px; text-align: right; font-weight: 600; color: var(--text-primary);">Duración</th>
+                        <th style="padding: 12px 20px; text-align: right; font-weight: 600; color: var(--text-primary);">Inicio</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for crawl in stats.recent_crawls %}
+                    <tr style="border-bottom: 1px solid var(--border-color);">
+                        <td style="padding: 12px 20px; color: var(--text-primary); font-weight: 600;">{{ crawl.id }}</td>
+                        <td style="padding: 12px 20px; text-align: center;">
+                            <span style="padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;
+                                background: {% if crawl.status == 'completed' %}#dcfce7{% elif crawl.status == 'running' %}#dbeafe{% else %}#fee2e2{% endif %};
+                                color: {% if crawl.status == 'completed' %}#166534{% elif crawl.status == 'running' %}#1e40af{% else %}#991b1b{% endif %};">
+                                {{ crawl.status }}
+                            </span>
+                        </td>
+                        <td style="padding: 12px 20px; text-align: right; color: var(--text-primary);">{{ crawl.urls_discovered or 0 }}</td>
+                        <td style="padding: 12px 20px; text-align: right; color: #ef4444; font-weight: 600;">{{ crawl.urls_broken or 0 }}</td>
+                        <td style="padding: 12px 20px; text-align: right; color: var(--text-muted);">
+                            {{ (crawl.duration_seconds|round(2))|string + 's' if crawl.duration_seconds else '-' }}
+                        </td>
+                        <td style="padding: 12px 20px; text-align: right; color: var(--text-muted);">
+                            {{ crawl.started_at.strftime('%Y-%m-%d %H:%M') if crawl.started_at else '-' }}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" style="padding: 20px; text-align: center; color: var(--text-muted);">
+                            No hay crawls registrados
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- URLs by Depth -->
+    <div style="margin-bottom: 30px;">
+        <h2 style="font-size: 20px; font-weight: 600; color: var(--text-primary); margin-bottom: 15px;">
+            🌳 URLs por Profundidad
+        </h2>
+        <div style="overflow-x: auto; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px;">
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="background: var(--bg-secondary); border-bottom: 2px solid var(--border-color);">
+                        <th style="padding: 12px 20px; text-align: center; font-weight: 600; color: var(--text-primary);">Profundidad</th>
+                        <th style="padding: 12px 20px; text-align: right; font-weight: 600; color: var(--text-primary);">Total URLs</th>
+                        <th style="padding: 12px 20px; text-align: right; font-weight: 600; color: var(--text-primary);">URLs Rotas</th>
+                        <th style="padding: 12px 20px; text-align: right; font-weight: 600; color: var(--text-primary);">% Rotas</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for depth_stat in stats.urls_by_depth %}
+                    <tr style="border-bottom: 1px solid var(--border-color);">
+                        <td style="padding: 12px 20px; text-align: center; font-weight: 600; color: var(--primary-color);">{{ depth_stat.depth }}</td>
+                        <td style="padding: 12px 20px; text-align: right; color: var(--text-primary);">{{ depth_stat.count }}</td>
+                        <td style="padding: 12px 20px; text-align: right; color: #ef4444; font-weight: 600;">{{ depth_stat.broken or 0 }}</td>
+                        <td style="padding: 12px 20px; text-align: right; color: var(--text-muted);">
+                            {{ ((depth_stat.broken or 0) / depth_stat.count * 100)|round(2) }}%
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="4" style="padding: 20px; text-align: center; color: var(--text-muted);">
+                            No hay URLs descubiertas
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Quick Links -->
+    <div style="margin-top: 30px; padding: 20px; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px;">
+        <h3 style="font-size: 16px; font-weight: 600; color: var(--text-primary); margin-bottom: 15px;">
+            🔗 Enlaces Rápidos
+        </h3>
+        <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+            <a href="{{ url_for('dev.cleanup_page') }}"
+               style="padding: 8px 16px; background: var(--primary-color); color: white; border-radius: 6px; text-decoration: none; font-weight: 500;">
+                🗑️ Ir a Limpiar BD
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

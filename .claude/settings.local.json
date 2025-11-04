@@ -35,7 +35,16 @@
       "Bash(.venv/bin/python:*)",
       "Bash(.venv/bin/pip show:*)",
       "Bash(.venv/bin/pip install:*)",
-      "Bash(source .venv/bin/activate)"
+      "Bash(source .venv/bin/activate)",
+      "mcp__firecrawl__firecrawl_search",
+      "mcp__firecrawl__firecrawl_scrape",
+      "Bash(for f in migrations/*.sql)",
+      "Bash(do echo \"Ejecutando: $f\")",
+      "Bash(done)",
+      "Bash(pg_dump:*)",
+      "Bash(/tmp/render_backup.sql)",
+      "Bash(PGPASSWORD=\"cp6ZcGTJWL1FDUCkaXijmSzFhnUlo4Nm\" pg_dump:*)",
+      "Bash(.gitignore)"
     ],
     "deny": [],
     "ask": []

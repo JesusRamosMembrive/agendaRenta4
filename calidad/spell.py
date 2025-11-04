@@ -59,23 +59,88 @@ class SpellChecker(QualityCheck):
         logger.debug("Initializing Spanish spell checker with pyspellchecker...")
         self.spell = PySpellChecker(language='es')
 
-        # Add common Spanish words that might be missing from dictionary
+        # Load whitelist terms into spell checker dictionary
+        from calidad.whitelist_terms import WHITELIST_TERMS
+        self.spell.word_frequency.load_words(WHITELIST_TERMS)
+        logger.debug(f"Loaded {len(WHITELIST_TERMS)} whitelist terms into spell checker")
+
+        # Add common Spanish words that are missing from pyspellchecker's dictionary
+        # These were identified from real website content analysis
         common_words = {
-            # Plurals and conjugations
+            # Basic verbs and conjugations
             'servicios', 'clientes', 'fondos', 'disponibles', 'oportunidades',
             'tenemos', 'ofrecemos', 'contáctenos', 'también', 'están', 'nuestros',
             'podrá', 'podrás', 'pueden', 'puedes', 'deberá', 'deberás',
-            # Common business/finance terms
+            'sabes', 'sabe', 'sabemos', 'saben', 'sabía', 'sabías', 'sabían',
+            'tienes', 'tiene', 'tienen', 'años', 'datos', 'todos', 'todas',
+            # Finance/investment terms
             'inversión', 'inversiones', 'inversionistas', 'mercados', 'evolución', 'evoluciona',
             'acciones', 'bonos', 'divisas', 'bróker', 'trading', 'información',
             'financiero', 'financiera', 'financieros', 'financieras',
             'rentabilidad', 'rentable', 'cotización', 'operaciones', 'constantemente',
-            # Web/tech common words
+            'fiscalidad', 'fiscal', 'fiscales', 'tributación', 'tributaria',
+            'rentabilidades', 'rentabilizado', 'fluctuaciones', 'capitales',
+            # Participios y formas verbales
+            'gestionadas', 'gestionada', 'gestionados', 'gestionado',
+            'invertirán', 'invertirá', 'invertirás', 'invertiremos', 'invirtiendo',
+            'hacerse', 'hacerlo', 'hacerla', 'hacerlos', 'hacerlas', 'hacemos',
+            # Adjectives
+            'principales', 'principal', 'superiores', 'superior', 'inferiores', 'inferior',
+            'apalancados', 'apalancado', 'apalancadas', 'apalancada',
+            'personalizadas', 'personalizada', 'personalizados', 'personalizado',
+            'diversificadas', 'diversificada', 'diversificados', 'diversificado',
+            'mayores', 'diferentes', 'activos', 'mixtos', 'grandes', 'pequeñas',
+            'competitivas', 'claras', 'periódicas', 'emergentes', 'correctos',
+            # Verbs - first person plural
+            'ayudamos', 'ofrecemos', 'brindamos', 'proporcionamos', 'garantizamos',
+            'analizamos', 'evaluamos', 'recomendamos', 'sugerimos', 'gestionamos',
+            'queremos', 'somos', 'haremos', 'creamos', 'ponemos', 'contamos',
+            # Common verbs in various forms
+            'prefieres', 'recomienda', 'recuerda', 'asume', 'ofrecen', 'buscan',
+            'necesitan', 'necesitas', 'necesites', 'quieres', 'quieras', 'puede',
+            'pueda', 'conoce', 'elige', 'comienza', 'realiza', 'opera',
+            'adapta', 'adapte', 'adapten', 'atienda', 'contacta', 'contactar',
+            'ayudará', 'ayudarán', 'ayudándote', 'ayudarte',
+            # Web/tech terms
             'online', 'web', 'app', 'click', 'email', 'página', 'páginas',
             'usuario', 'usuarios', 'contraseña', 'descargar', 'archivo', 'archivos',
-            # Common verbs
-            'registrarse', 'iniciar', 'acceder', 'consultar', 'enviar',
-            'permite', 'ofrece', 'incluye', 'proporciona', 'garantiza'
+            'mail', 'captcha', 'videoconferencia', 'bizum',
+            # Common nouns
+            'carteras', 'cartera', 'patrimonio', 'ahorros', 'ahorradores',
+            'inversores', 'inversor', 'invierte', 'inviertes', 'invierten',
+            'tarifas', 'honorarios', 'euros', 'meses', 'estrategias',
+            'objetivos', 'beneficios', 'ventajas', 'dudas', 'preguntas',
+            'soluciones', 'productos', 'valores', 'riesgos', 'condiciones',
+            'necesidades', 'posibilidades', 'alternativas', 'recomendaciones',
+            'movimientos', 'cambios', 'transferencias', 'emisiones', 'plazos',
+            # Adjectives - website content
+            'favoritas', 'máximas', 'mínimas', 'mínimos', 'futuras', 'pasadas',
+            'distribuidas', 'elegidos', 'escogidos', 'adecuados', 'ajustadas',
+            'adaptadas', 'sencillas', 'gratuitas', 'privadas', 'respectivas',
+            'propias', 'propios', 'inherentes', 'fundamentales', 'frecuentes',
+            'distintos', 'internacionales', 'nacionales', 'comercial',
+            # Financial instrument terms
+            'gestoras', 'gestores', 'asesores', 'expertos', 'profesionales',
+            'conservadores', 'tolerantes', 'prometedores', 'temáticos',
+            'perfilados', 'selectores', 'cortos', 'inversos', 'monetarios',
+            'megatendencias', 'disruptivas', 'sectores', 'categorías',
+            # Other common words
+            'cuál', 'cuáles', 'cómo', 'según', 'quién', 'quienes',
+            'siguientes', 'siguiendo', 'dependiendo', 'asumiendo', 'sabiendo',
+            'incluyamos', 'tantas', 'unas', 'otros', 'aquellos', 'terceros',
+            'garantizan', 'requiere', 'pienses', 'estás', 'hace',
+            'descubre', 'conocimientos', 'hábitos', 'decisiones', 'circunstancias',
+            'cantidades', 'formas', 'canales', 'oficinas', 'marcas',
+            # Brand names (common ones)
+            'blackrock', 'fidelity', 'vanguard', 'morgan', 'foncuenta', 'fondotop',
+            'easy', 'criptomonedas', 'criptoactivos', 'letras',
+            # Additional common words from analysis
+            'apoyadas', 'aúna', 'minutos', 'hará', 'adaptada',
+            'cumplimenta', 'introducidos', 'producido', 'ofrece', 'planteemos',
+            'asentadas', 'comprensivos', 'beneficiados', 'compañías', 'empiezas',
+            'busques', 'tendrás', 'encuentras', 'interesa', 'sepas',
+            'gracias', 'informa', 'trimestral', 'podrás', 'harás',
+            'contarás', 'recibirás', 'dónde', 'cuándo', 'porqué'
         }
         self.spell.word_frequency.load_words(common_words)
 
@@ -123,6 +188,11 @@ class SpellChecker(QualityCheck):
 
             # 3. Extract text from HTML
             text = self._extract_text(html_content)
+
+            # LOG: Debug extracted text
+            logger.info(f"[SPELL CHECK] URL: {url}")
+            logger.info(f"[SPELL CHECK] Text preview (first 500 chars): {text[:500]}")
+            logger.info(f"[SPELL CHECK] Total text length: {len(text)} characters")
 
             # 4. Limit text length if needed
             max_length = self.config.get("max_text_length", 50000)
@@ -190,7 +260,12 @@ class SpellChecker(QualityCheck):
 
     def _extract_text(self, html_content: str) -> str:
         """
-        Extract visible text from HTML, excluding technical elements.
+        Extract main content text from HTML, excluding navigation and structural elements.
+
+        Strategy:
+        1. Remove non-content elements first (scripts, styles, navigation, etc.)
+        2. Try to find main content area in priority order
+        3. Extract and clean text from selected content
 
         Args:
             html_content: HTML content
@@ -200,14 +275,46 @@ class SpellChecker(QualityCheck):
         """
         soup = BeautifulSoup(html_content, "html.parser")
 
-        # Remove technical elements
-        for tag in soup(['script', 'style', 'code', 'pre', 'kbd', 'var', 'samp']):
+        # 1. Remove non-content elements FIRST
+        for tag in soup(['script', 'style', 'code', 'pre', 'kbd', 'var', 'samp',
+                         'nav', 'header', 'footer', 'aside', 'menu']):
             tag.decompose()
 
-        # Get text
-        text = soup.get_text(separator=' ', strip=True)
+        # 2. Try to find main content area (priority order)
+        main_content = None
 
-        # Clean up multiple spaces
+        # Option A: Look for <main> tag
+        main_content = soup.find('main')
+
+        # Option B: Look for <article> tags
+        if not main_content:
+            articles = soup.find_all('article')
+            if articles:
+                main_content = soup.new_tag('div')
+                for article in articles:
+                    main_content.append(article)
+
+        # Option C: Look for content divs (common patterns)
+        if not main_content:
+            main_content = soup.find('div', class_=['content', 'main-content', 'page-content',
+                                                     'article-content', 'post-content'])
+
+        # Option D: Fallback to body but exclude common non-content areas
+        if not main_content:
+            main_content = soup.find('body')
+            if main_content:
+                # Remove additional structural elements from body
+                for tag in main_content.find_all(['nav', 'header', 'footer', 'aside']):
+                    tag.decompose()
+
+        # 3. Extract text from selected content
+        if main_content:
+            text = main_content.get_text(separator=' ', strip=True)
+        else:
+            # Last resort: use all remaining text
+            text = soup.get_text(separator=' ', strip=True)
+
+        # 4. Clean up text
         text = re.sub(r'\s+', ' ', text)
 
         return text

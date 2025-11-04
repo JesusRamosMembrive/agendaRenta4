@@ -130,6 +130,21 @@
           Herramientas de Análisis Automático
         </a>
       </nav>
+
+      <div class="divider"></div>
+
+      <!-- Dev Tools -->
+      <nav class="nav">
+        <div style="padding: 10px 20px; color: var(--text-muted); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">
+          🛠️ Dev
+        </div>
+        <a href="{{ url_for('dev.cleanup_page') }}" class="{% if request.endpoint == 'dev.cleanup_page' %}active{% endif %}">
+          🗑️ Limpiar BD
+        </a>
+        <a href="{{ url_for('dev.database_stats') }}" class="{% if request.endpoint == 'dev.database_stats' %}active{% endif %}">
+          📊 Estadísticas
+        </a>
+      </nav>
     </aside>
 
     <!-- ===============================================================

@@ -26,6 +26,23 @@ FINANCIAL_TERMS = {
     'scalping', 'hedging', 'apalancado',
     'bull', 'bullish', 'bear', 'bearish',
     'ipo', 'opa', 'opv',
+    # Verbos y participios comunes financieros
+    'obtenidos', 'obtenidas', 'obtenido', 'obtenida',
+    'invertidos', 'invertidas', 'invertido', 'invertida',
+    'adquiridos', 'adquiridas', 'adquirido', 'adquirida',
+    'realizados', 'realizadas', 'realizado', 'realizada',
+    'emitidos', 'emitidas', 'emitido', 'emitida',
+    'cotizados', 'cotizadas', 'cotizado', 'cotizada',
+    'negociados', 'negociadas', 'negociado', 'negociada',
+    'reembolsados', 'reembolsadas', 'reembolsado', 'reembolsada',
+    'suscritos', 'suscritas', 'suscrito', 'suscrita',
+    # Sustantivos financieros adicionales
+    'diversificación', 'amortización', 'plusvalías', 'minusvalías',
+    'comisiones', 'subyacente', 'strike', 'vencimiento',
+    # Términos de inversión
+    'inversión', 'inversiones', 'inversionista', 'inversionistas',
+    'rendimiento', 'rendimientos', 'renta', 'rentas',
+    'mercado', 'mercados', 'evolución', 'variación', 'variaciones',
 }
 
 # Términos técnicos

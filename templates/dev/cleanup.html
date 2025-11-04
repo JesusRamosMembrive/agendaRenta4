@@ -1,0 +1,522 @@
+{% extends "base.html" %}
+
+{% block title %}Limpieza de Base de Datos - Dev Tools{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 1400px; margin: 0 auto; padding: 20px;">
+    <div style="margin-bottom: 30px;">
+        <h1 style="font-size: 28px; font-weight: 700; color: var(--text-primary); margin-bottom: 10px;">
+            🗑️ Limpieza de Base de Datos
+        </h1>
+        <p style="color: var(--text-muted); font-size: 14px;">
+            Herramientas de desarrollo para limpiar datos de la base de datos de forma selectiva y segura.
+        </p>
+    </div>
+
+    <!-- Alert Messages -->
+    <div id="alert-container" style="margin-bottom: 20px;"></div>
+
+    <!-- Quality Checks Section -->
+    <div style="margin-bottom: 30px;">
+        <h2 style="font-size: 20px; font-weight: 600; color: var(--text-primary); margin-bottom: 15px;">
+            🧪 Quality Checks
+        </h2>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+            <!-- Broken Links -->
+            <div class="card" style="padding: 20px; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px;">
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
+                    <span style="font-size: 24px;">🔗</span>
+                    <h3 style="font-size: 16px; font-weight: 600; color: var(--text-primary); margin: 0;">
+                        Enlaces Rotos
+                    </h3>
+                </div>
+
+                {% set broken_links_stats = stats.quality_checks | selectattr('check_type', 'equalto', 'broken_links') | first %}
+                <div style="margin-bottom: 15px;">
+                    {% if broken_links_stats %}
+                    <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 5px;">
+                        Total: <strong>{{ broken_links_stats.total }}</strong>
+                    </p>
+                    <p style="color: #ef4444; font-size: 14px; margin-bottom: 5px;">
+                        Errores: <strong>{{ broken_links_stats.errors }}</strong>
+                    </p>
+                    {% else %}
+                    <p style="color: var(--text-muted); font-size: 14px;">
+                        No hay registros
+                    </p>
+                    {% endif %}
+                </div>
+
+                <button onclick="deleteQualityChecks('broken_links')"
+                        class="btn btn-danger"
+                        style="width: 100%; padding: 8px 16px; background: #ef4444; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500;">
+                    Borrar Enlaces Rotos
+                </button>
+            </div>
+
+            <!-- Image Quality -->
+            <div class="card" style="padding: 20px; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px;">
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
+                    <span style="font-size: 24px;">🖼️</span>
+                    <h3 style="font-size: 16px; font-weight: 600; color: var(--text-primary); margin: 0;">
+                        Calidad de Imágenes
+                    </h3>
+                </div>
+
+                {% set image_quality_stats = stats.quality_checks | selectattr('check_type', 'equalto', 'image_quality') | first %}
+                <div style="margin-bottom: 15px;">
+                    {% if image_quality_stats %}
+                    <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 5px;">
+                        Total: <strong>{{ image_quality_stats.total }}</strong>
+                    </p>
+                    <p style="color: #ef4444; font-size: 14px; margin-bottom: 5px;">
+                        Errores: <strong>{{ image_quality_stats.errors }}</strong>
+                    </p>
+                    {% else %}
+                    <p style="color: var(--text-muted); font-size: 14px;">
+                        No hay registros
+                    </p>
+                    {% endif %}
+                </div>
+
+                <button onclick="deleteQualityChecks('image_quality')"
+                        class="btn btn-danger"
+                        style="width: 100%; padding: 8px 16px; background: #ef4444; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500;">
+                    Borrar Calidad de Imágenes
+                </button>
+            </div>
+
+            <!-- Spell Check -->
+            <div class="card" style="padding: 20px; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px;">
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
+                    <span style="font-size: 24px;">📝</span>
+                    <h3 style="font-size: 16px; font-weight: 600; color: var(--text-primary); margin: 0;">
+                        Corrección Ortográfica
+                    </h3>
+                </div>
+
+                {% set spell_check_stats = stats.quality_checks | selectattr('check_type', 'equalto', 'spell_check') | first %}
+                <div style="margin-bottom: 15px;">
+                    {% if spell_check_stats %}
+                    <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 5px;">
+                        Total: <strong>{{ spell_check_stats.total }}</strong>
+                    </p>
+                    <p style="color: #ef4444; font-size: 14px; margin-bottom: 5px;">
+                        Errores: <strong>{{ spell_check_stats.errors }}</strong>
+                    </p>
+                    {% else %}
+                    <p style="color: var(--text-muted); font-size: 14px;">
+                        No hay registros
+                    </p>
+                    {% endif %}
+                </div>
+
+                <button onclick="deleteQualityChecks('spell_check')"
+                        class="btn btn-danger"
+                        style="width: 100%; padding: 8px 16px; background: #ef4444; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500;">
+                    Borrar Corrección Ortográfica
+                </button>
+            </div>
+
+            <!-- All Quality Checks -->
+            <div class="card" style="padding: 20px; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px;">
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
+                    <span style="font-size: 24px;">🧹</span>
+                    <h3 style="font-size: 16px; font-weight: 600; color: var(--text-primary); margin: 0;">
+                        Todos los Checks
+                    </h3>
+                </div>
+
+                <div style="margin-bottom: 15px;">
+                    <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 5px;">
+                        Total: <strong>{{ stats.total_quality_checks }}</strong>
+                    </p>
+                </div>
+
+                <button onclick="deleteQualityChecks('all')"
+                        class="btn btn-danger"
+                        style="width: 100%; padding: 8px 16px; background: #dc2626; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">
+                    ⚠️ Borrar TODOS los Quality Checks
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Crawl Runs Section -->
+    <div style="margin-bottom: 30px;">
+        <h2 style="font-size: 20px; font-weight: 600; color: var(--text-primary); margin-bottom: 15px;">
+            🕷️ Crawl Runs
+        </h2>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+            <!-- Crawl Stats -->
+            <div class="card" style="padding: 20px; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px;">
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
+                    <span style="font-size: 24px;">📊</span>
+                    <h3 style="font-size: 16px; font-weight: 600; color: var(--text-primary); margin: 0;">
+                        Estadísticas
+                    </h3>
+                </div>
+
+                <div style="margin-bottom: 15px;">
+                    <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 5px;">
+                        Total: <strong>{{ stats.crawl_runs.total }}</strong>
+                    </p>
+                    <p style="color: #10b981; font-size: 14px; margin-bottom: 5px;">
+                        Completados: <strong>{{ stats.crawl_runs.completed }}</strong>
+                    </p>
+                    <p style="color: #ef4444; font-size: 14px; margin-bottom: 5px;">
+                        Fallidos: <strong>{{ stats.crawl_runs.failed }}</strong>
+                    </p>
+                </div>
+            </div>
+
+            <!-- Delete Old Crawls -->
+            <div class="card" style="padding: 20px; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px;">
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
+                    <span style="font-size: 24px;">🗑️</span>
+                    <h3 style="font-size: 16px; font-weight: 600; color: var(--text-primary); margin: 0;">
+                        Borrar Crawls Antiguos
+                    </h3>
+                </div>
+
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; color: var(--text-muted); font-size: 14px; margin-bottom: 5px;">
+                        Más antiguos de (días):
+                    </label>
+                    <input type="number" id="crawl-days" value="30" min="1" max="365"
+                           style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-primary); color: var(--text-primary);">
+                </div>
+
+                <button onclick="deleteCrawlRuns()"
+                        class="btn btn-danger"
+                        style="width: 100%; padding: 8px 16px; background: #ef4444; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500;">
+                    Borrar Crawls Antiguos
+                </button>
+
+                <p style="color: #f59e0b; font-size: 12px; margin-top: 10px; font-style: italic;">
+                    ⚠️ Se borrarán también las URLs y quality checks asociados (CASCADE)
+                </p>
+            </div>
+
+            <!-- Delete Failed Batches -->
+            <div class="card" style="padding: 20px; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px;">
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
+                    <span style="font-size: 24px;">❌</span>
+                    <h3 style="font-size: 16px; font-weight: 600; color: var(--text-primary); margin: 0;">
+                        Batches Fallidos
+                    </h3>
+                </div>
+
+                <div style="margin-bottom: 15px;">
+                    <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 5px;">
+                        Fallidos: <strong>{{ stats.batches.failed }}</strong>
+                    </p>
+                </div>
+
+                <button onclick="deleteFailedBatches()"
+                        class="btn btn-danger"
+                        style="width: 100%; padding: 8px 16px; background: #ef4444; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500;">
+                    Borrar Batches Fallidos
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Database Backup Section -->
+    <div style="margin-bottom: 30px;">
+        <h2 style="font-size: 20px; font-weight: 600; color: var(--text-primary); margin-bottom: 15px;">
+            💾 Backup de Base de Datos
+        </h2>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+            <!-- Backup Database -->
+            <div class="card" style="padding: 20px; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px;">
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
+                    <span style="font-size: 24px;">💾</span>
+                    <h3 style="font-size: 16px; font-weight: 600; color: var(--text-primary); margin: 0;">
+                        Crear Backup Completo
+                    </h3>
+                </div>
+
+                <div style="margin-bottom: 15px;">
+                    <p style="color: var(--text-muted); font-size: 14px; line-height: 1.6;">
+                        Descarga un backup completo de la base de datos en formato SQL.
+                        El archivo incluye todas las tablas, datos y estructura.
+                    </p>
+                    <p style="color: #10b981; font-size: 13px; margin-top: 10px; font-weight: 500;">
+                        ✓ Incluye estructura completa de tablas<br>
+                        ✓ Todos los datos actuales<br>
+                        ✓ Listo para restaurar con psql
+                    </p>
+                </div>
+
+                <a href="{{ url_for('dev.backup_database') }}"
+                   class="btn btn-primary"
+                   style="display: block; text-align: center; width: 100%; padding: 12px 16px; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; text-decoration: none;">
+                    💾 Descargar Backup
+                </a>
+
+                <p style="color: #6b7280; font-size: 12px; margin-top: 10px; font-style: italic;">
+                    📁 El archivo se descargará con el formato: agendaRenta4_backup_YYYYMMDD_HHMMSS.sql
+                </p>
+            </div>
+
+            <!-- Local Backup -->
+            <div class="card" style="padding: 20px; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px;">
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
+                    <span style="font-size: 24px;">📂</span>
+                    <h3 style="font-size: 16px; font-weight: 600; color: var(--text-primary); margin: 0;">
+                        Backup Local (PostgreSQL)
+                    </h3>
+                </div>
+
+                <div style="margin-bottom: 15px;">
+                    <p style="color: var(--text-muted); font-size: 14px; line-height: 1.6;">
+                        Guarda un backup completo en el servidor local (carpeta backups/).
+                        Ideal para respaldos rápidos y frecuentes.
+                    </p>
+                    <p style="color: #10b981; font-size: 13px; margin-top: 10px; font-weight: 500;">
+                        ✓ Se guarda en <code style="background: var(--bg-secondary); padding: 2px 6px; border-radius: 3px;">backups/</code><br>
+                        ✓ No requiere descarga<br>
+                        ✓ Acceso rápido desde servidor
+                    </p>
+                </div>
+
+                <button onclick="createLocalBackup()"
+                        class="btn btn-success"
+                        id="local-backup-btn"
+                        style="width: 100%; padding: 12px 16px; background: #10b981; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">
+                    📂 Crear Backup Local
+                </button>
+
+                <div id="local-backup-result" style="margin-top: 10px; display: none;">
+                    <p id="local-backup-message" style="font-size: 12px; font-weight: 500;"></p>
+                </div>
+
+                <p style="color: #6b7280; font-size: 12px; margin-top: 10px; font-style: italic;">
+                    📁 Archivo: local_backup_YYYYMMDD_HHMMSS.sql
+                </p>
+            </div>
+
+            <!-- Backup Info -->
+            <div class="card" style="padding: 20px; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px;">
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
+                    <span style="font-size: 24px;">ℹ️</span>
+                    <h3 style="font-size: 16px; font-weight: 600; color: var(--text-primary); margin: 0;">
+                        Información de Backup
+                    </h3>
+                </div>
+
+                <div style="margin-bottom: 15px;">
+                    <p style="color: var(--text-muted); font-size: 14px; line-height: 1.6; margin-bottom: 10px;">
+                        <strong>¿Cómo restaurar un backup?</strong>
+                    </p>
+                    <pre style="background: var(--bg-secondary); padding: 10px; border-radius: 4px; font-size: 12px; overflow-x: auto; color: var(--text-primary);">
+# Local
+psql -U jesusramos -d agendaRenta4 &lt; backup.sql
+
+# Con password
+PGPASSWORD=tu_pass psql -h host -U user -d db &lt; backup.sql</pre>
+
+                    <p style="color: #f59e0b; font-size: 13px; margin-top: 12px; font-weight: 500;">
+                        ⚠️ Recomendación: Hacer backups antes de borrar datos importantes
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Links -->
+    <div style="margin-top: 30px; padding: 20px; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px;">
+        <h3 style="font-size: 16px; font-weight: 600; color: var(--text-primary); margin-bottom: 15px;">
+            🔗 Enlaces Rápidos
+        </h3>
+        <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+            <a href="{{ url_for('crawler.dashboard') }}"
+               style="padding: 8px 16px; background: var(--primary-color); color: white; border-radius: 6px; text-decoration: none; font-weight: 500;">
+                🕷️ Ir al Crawler
+            </a>
+            <a href="{{ url_for('crawler.quality') }}"
+               style="padding: 8px 16px; background: var(--primary-color); color: white; border-radius: 6px; text-decoration: none; font-weight: 500;">
+                🧪 Control de Calidad
+            </a>
+            <a href="{{ url_for('dev.database_stats') }}"
+               style="padding: 8px 16px; background: var(--primary-color); color: white; border-radius: 6px; text-decoration: none; font-weight: 500;">
+                📊 Ver Estadísticas Detalladas
+            </a>
+        </div>
+    </div>
+</div>
+
+<script>
+function showAlert(message, type = 'success') {
+    const container = document.getElementById('alert-container');
+    const alertDiv = document.createElement('div');
+    alertDiv.style.cssText = `
+        padding: 12px 20px;
+        border-radius: 6px;
+        margin-bottom: 10px;
+        font-size: 14px;
+        font-weight: 500;
+        background: ${type === 'success' ? '#dcfce7' : '#fee2e2'};
+        color: ${type === 'success' ? '#166534' : '#991b1b'};
+        border: 1px solid ${type === 'success' ? '#86efac' : '#fca5a5'};
+    `;
+    alertDiv.textContent = message;
+    container.appendChild(alertDiv);
+
+    setTimeout(() => {
+        alertDiv.remove();
+    }, 5000);
+}
+
+function deleteQualityChecks(checkType) {
+    const checkNames = {
+        'broken_links': 'Enlaces Rotos',
+        'image_quality': 'Calidad de Imágenes',
+        'spell_check': 'Corrección Ortográfica',
+        'all': 'TODOS los Quality Checks'
+    };
+
+    const message = checkType === 'all'
+        ? '⚠️ ¿Estás seguro de que quieres borrar TODOS los quality checks?\n\nEsta acción no se puede deshacer.'
+        : `¿Estás seguro de que quieres borrar los quality checks de ${checkNames[checkType]}?`;
+
+    if (!confirm(message)) {
+        return;
+    }
+
+    fetch('/dev/cleanup/quality-checks', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ check_type: checkType })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert(data.message, 'success');
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            showAlert(data.error, 'error');
+        }
+    })
+    .catch(error => {
+        showAlert('Error al conectar con el servidor: ' + error, 'error');
+    });
+}
+
+function deleteCrawlRuns() {
+    const days = document.getElementById('crawl-days').value;
+
+    if (!confirm(`⚠️ ¿Estás seguro de que quieres borrar los crawl runs de más de ${days} días?\n\nEsta acción también borrará las URLs descubiertas y quality checks asociados (CASCADE).\n\nEsta acción no se puede deshacer.`)) {
+        return;
+    }
+
+    fetch('/dev/cleanup/crawl-runs', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ older_than_days: parseInt(days) })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert(data.message, 'success');
+            if (data.warning) {
+                showAlert(data.warning, 'error');
+            }
+            setTimeout(() => location.reload(), 2000);
+        } else {
+            showAlert(data.error, 'error');
+        }
+    })
+    .catch(error => {
+        showAlert('Error al conectar con el servidor: ' + error, 'error');
+    });
+}
+
+function deleteFailedBatches() {
+    if (!confirm('¿Estás seguro de que quieres borrar los batches fallidos?')) {
+        return;
+    }
+
+    fetch('/dev/cleanup/batches', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert(data.message, 'success');
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            showAlert(data.error, 'error');
+        }
+    })
+    .catch(error => {
+        showAlert('Error al conectar con el servidor: ' + error, 'error');
+    });
+}
+
+function createLocalBackup() {
+    const button = document.getElementById('local-backup-btn');
+    const resultDiv = document.getElementById('local-backup-result');
+    const messageP = document.getElementById('local-backup-message');
+
+    // Disable button and show loading
+    button.disabled = true;
+    button.textContent = '⏳ Creando backup...';
+    button.style.opacity = '0.6';
+
+    fetch('/dev/backup/local', {
+        method: 'GET'
+    })
+    .then(response => response.json())
+    .then(data => {
+        // Re-enable button
+        button.disabled = false;
+        button.textContent = '📂 Crear Backup Local';
+        button.style.opacity = '1';
+
+        // Show result
+        resultDiv.style.display = 'block';
+
+        if (data.success) {
+            messageP.style.color = '#10b981';
+            messageP.innerHTML = `
+                ✅ Backup creado exitosamente<br>
+                📁 Archivo: ${data.filename}<br>
+                💾 Tamaño: ${data.size_mb} MB<br>
+                📂 Ubicación: ${data.path}
+            `;
+            showAlert(`Backup local creado: ${data.filename} (${data.size_mb} MB)`, 'success');
+        } else {
+            messageP.style.color = '#ef4444';
+            messageP.textContent = `❌ Error: ${data.error}`;
+            showAlert(data.error, 'error');
+        }
+
+        // Hide result after 10 seconds
+        setTimeout(() => {
+            resultDiv.style.display = 'none';
+        }, 10000);
+    })
+    .catch(error => {
+        // Re-enable button
+        button.disabled = false;
+        button.textContent = '📂 Crear Backup Local';
+        button.style.opacity = '1';
+
+        showAlert('Error al conectar con el servidor: ' + error, 'error');
+    });
+}
+</script>
+{% endblock %}
