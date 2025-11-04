@@ -1,0 +1,328 @@
+{% extends "base.html" %}
+
+{% block title %}Herramientas de Análisis Automático - Agenda Renta4{% endblock %}
+
+{% block content %}
+<div class="h1">Herramientas de Análisis Automático</div>
+
+<!-- ============================================================
+     HERRAMIENTAS DE ANÁLISIS AUTOMÁTICAS
+     ============================================================ -->
+<div class="panel" style="margin-bottom: 24px;">
+  <h2 style="margin: 0 0 16px; font-size: 18px; color: var(--text); font-weight: 600;">
+    🔧 Configuración de Análisis Automáticos
+  </h2>
+  <p style="color: var(--muted); margin-bottom: 20px; font-size: 14px;">
+    Configura qué análisis se ejecutarán automáticamente después de cada crawl.
+  </p>
+
+  <div id="quality-checks-config">
+    <!-- Checks will be loaded dynamically -->
+    <div style="text-align: center; padding: 20px; color: var(--muted);">
+      <div style="font-size: 24px; margin-bottom: 8px;">⏳</div>
+      Cargando configuración...
+    </div>
+  </div>
+
+  <div style="text-align: right; margin-top: 20px;">
+    <button id="save-checks-config" class="btn primary" onclick="saveQualityChecksConfig()" style="display: none;">
+      💾 Guardar Configuración de Análisis
+    </button>
+  </div>
+
+  <div class="panel" style="margin-top: 14px; color: var(--muted); background: transparent; border: none; padding: 0;">
+    <strong>💡 Nota:</strong>
+    <ul style="margin: 8px 0; padding-left: 20px; font-size: 0.9em;">
+      <li>Los análisis automáticos se ejecutan en segundo plano después de cada crawl</li>
+      <li>También puedes ejecutar análisis manualmente desde los resultados del crawl</li>
+      <li>Los análisis pueden tardar varios minutos según la cantidad de URLs</li>
+    </ul>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ============================================================
+// QUALITY CHECKS CONFIGURATION
+// ============================================================
+
+// Load quality checks configuration on page load
+document.addEventListener('DOMContentLoaded', function() {
+  loadQualityChecksConfig();
+});
+
+function loadQualityChecksConfig() {
+  fetch('/crawler/config/checks')
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        renderQualityChecksConfig(data.checks);
+      } else {
+        document.getElementById('quality-checks-config').innerHTML =
+          '<div style="color: var(--danger); padding: 20px; text-align: center;">❌ Error al cargar configuración</div>';
+      }
+    })
+    .catch(error => {
+      console.error('Error loading quality checks config:', error);
+      document.getElementById('quality-checks-config').innerHTML =
+        '<div style="color: var(--danger); padding: 20px; text-align: center;">❌ Error al cargar configuración</div>';
+    });
+}
+
+function renderQualityChecksConfig(checks) {
+  const container = document.getElementById('quality-checks-config');
+
+  if (!checks || checks.length === 0) {
+    container.innerHTML = '<div style="color: var(--muted); padding: 20px; text-align: center;">No hay checks disponibles</div>';
+    return;
+  }
+
+  let html = '<div style="display: flex; flex-direction: column; gap: 16px;">';
+
+  checks.forEach(check => {
+    const unavailableClass = !check.available ? ' style="opacity: 0.5;"' : '';
+    const disabledAttr = !check.available ? ' disabled' : '';
+
+    html += `
+      <div class="notification-option"${unavailableClass}>
+        <div style="display: flex; justify-content: space-between; align-items: start; gap: 16px;">
+          <div style="flex: 1;">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+              <span style="font-size: 20px;">${check.icon}</span>
+              <span style="font-weight: 600; color: var(--text);">${check.name}</span>
+              ${!check.available ? '<span style="font-size: 0.85em; color: var(--warning); background: rgba(245, 158, 11, 0.1); padding: 2px 8px; border-radius: 4px;">Próximamente</span>' : ''}
+            </div>
+            <div style="color: var(--muted); font-size: 0.9em; margin-bottom: 12px;">
+              ${check.description}
+            </div>
+
+            <!-- Auto-run checkbox -->
+            <label style="display: flex; align-items: center; gap: 8px; cursor: ${check.enabled ? 'pointer' : 'not-allowed'}; opacity: ${check.enabled ? '1' : '0.5'}; margin-bottom: 12px;">
+              <input
+                type="checkbox"
+                class="check-auto-run"
+                data-check-type="${check.check_type}"
+                ${check.run_after_crawl ? 'checked' : ''}
+                ${!check.enabled || !check.available ? 'disabled' : ''}
+                style="width: 18px; height: 18px; cursor: pointer;">
+              <span style="font-size: 0.9em; color: var(--text);">Ejecutar automáticamente después de cada crawl</span>
+            </label>
+
+            <!-- Scope radio buttons -->
+            <div class="check-scope-selector" data-check-type="${check.check_type}" style="display: flex; gap: 16px; padding-left: 26px; opacity: ${check.enabled ? '1' : '0.5'};">
+              <label style="display: flex; align-items: center; gap: 6px; cursor: ${check.enabled ? 'pointer' : 'not-allowed'}; font-size: 0.9em;">
+                <input
+                  type="radio"
+                  name="scope_${check.check_type}"
+                  value="priority"
+                  class="check-scope"
+                  data-check-type="${check.check_type}"
+                  ${check.scope === 'priority' ? 'checked' : ''}
+                  ${!check.enabled || !check.available ? 'disabled' : ''}
+                  style="width: 16px; height: 16px; cursor: pointer;">
+                <span style="color: var(--text);">Solo URLs Priority (117)</span>
+              </label>
+              <label style="display: flex; align-items: center; gap: 6px; cursor: ${check.enabled ? 'pointer' : 'not-allowed'}; font-size: 0.9em;">
+                <input
+                  type="radio"
+                  name="scope_${check.check_type}"
+                  value="all"
+                  class="check-scope"
+                  data-check-type="${check.check_type}"
+                  ${check.scope === 'all' ? 'checked' : ''}
+                  ${!check.enabled || !check.available ? 'disabled' : ''}
+                  style="width: 16px; height: 16px; cursor: pointer;">
+                <span style="color: var(--text);">Todas las URLs (~2,800)</span>
+              </label>
+            </div>
+          </div>
+          <label class="toggle-switch">
+            <input
+              type="checkbox"
+              class="check-enabled"
+              data-check-type="${check.check_type}"
+              ${check.enabled ? 'checked' : ''}
+              ${disabledAttr}
+              onchange="toggleCheckEnabled('${check.check_type}', this.checked)">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+    `;
+  });
+
+  html += '</div>';
+  container.innerHTML = html;
+
+  // Show save button
+  document.getElementById('save-checks-config').style.display = 'inline-block';
+}
+
+function toggleCheckEnabled(checkType, enabled) {
+  // Enable/disable auto-run checkbox based on toggle state
+  const autoRunCheckbox = document.querySelector(`.check-auto-run[data-check-type="${checkType}"]`);
+  if (autoRunCheckbox) {
+    if (enabled) {
+      // Enable the auto-run checkbox
+      autoRunCheckbox.disabled = false;
+      autoRunCheckbox.parentElement.style.opacity = '1';
+      autoRunCheckbox.parentElement.style.cursor = 'pointer';
+    } else {
+      // Disable and uncheck auto-run checkbox
+      autoRunCheckbox.disabled = true;
+      autoRunCheckbox.checked = false;
+      autoRunCheckbox.parentElement.style.opacity = '0.5';
+      autoRunCheckbox.parentElement.style.cursor = 'not-allowed';
+    }
+  }
+
+  // Enable/disable scope radio buttons
+  const scopeSelector = document.querySelector(`.check-scope-selector[data-check-type="${checkType}"]`);
+  const scopeRadios = document.querySelectorAll(`.check-scope[data-check-type="${checkType}"]`);
+
+  if (scopeSelector && scopeRadios.length > 0) {
+    if (enabled) {
+      // Enable scope selection
+      scopeSelector.style.opacity = '1';
+      scopeRadios.forEach(radio => {
+        radio.disabled = false;
+        radio.parentElement.style.cursor = 'pointer';
+      });
+    } else {
+      // Disable scope selection
+      scopeSelector.style.opacity = '0.5';
+      scopeRadios.forEach(radio => {
+        radio.disabled = true;
+        radio.parentElement.style.cursor = 'not-allowed';
+      });
+    }
+  }
+}
+
+function saveQualityChecksConfig() {
+  const button = document.getElementById('save-checks-config');
+  const originalText = button.textContent;
+  button.disabled = true;
+  button.textContent = '💾 Guardando...';
+
+  // Collect all check configurations
+  const enabledCheckboxes = document.querySelectorAll('.check-enabled');
+  const autoRunCheckboxes = document.querySelectorAll('.check-auto-run');
+  const scopeRadios = document.querySelectorAll('.check-scope:checked');
+
+  const configs = [];
+  enabledCheckboxes.forEach((checkbox, index) => {
+    const checkType = checkbox.dataset.checkType;
+    const enabled = checkbox.checked;
+    const autoRunCheckbox = Array.from(autoRunCheckboxes).find(cb => cb.dataset.checkType === checkType);
+    const runAfterCrawl = autoRunCheckbox ? autoRunCheckbox.checked : false;
+
+    // Get scope for this check type
+    const scopeRadio = Array.from(scopeRadios).find(r => r.dataset.checkType === checkType);
+    const scope = scopeRadio ? scopeRadio.value : 'priority';
+
+    configs.push({
+      check_type: checkType,
+      enabled: enabled,
+      run_after_crawl: runAfterCrawl,
+      scope: scope
+    });
+  });
+
+  // Save each config
+  let savePromises = configs.map(config =>
+    fetch('/crawler/config/checks', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(config)
+    })
+  );
+
+  Promise.all(savePromises)
+    .then(responses => Promise.all(responses.map(r => r.json())))
+    .then(results => {
+      const allSuccess = results.every(r => r.success);
+
+      if (allSuccess) {
+        alert('✅ Configuración guardada correctamente');
+      } else {
+        alert('⚠️ Hubo algunos errores al guardar la configuración');
+      }
+
+      button.disabled = false;
+      button.textContent = originalText;
+    })
+    .catch(error => {
+      console.error('Error saving config:', error);
+      alert('❌ Error al guardar la configuración');
+      button.disabled = false;
+      button.textContent = originalText;
+    });
+}
+</script>
+
+<style>
+/* Toggle Switch */
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 48px;
+  height: 24px;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--muted);
+  transition: 0.3s;
+  border-radius: 24px;
+}
+
+.toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: var(--bg);
+  transition: 0.3s;
+  border-radius: 50%;
+}
+
+input:checked + .toggle-slider {
+  background-color: var(--primary);
+}
+
+input:checked + .toggle-slider:before {
+  transform: translateX(24px);
+}
+
+.notification-option {
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card);
+  transition: all 0.2s ease;
+}
+
+.notification-option:hover {
+  border-color: var(--primary);
+  background: rgba(193, 83, 99, 0.05);
+}
+</style>
+{% endblock %}

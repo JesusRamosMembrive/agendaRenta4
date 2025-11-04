@@ -78,6 +78,22 @@ def index():
     )
 
 
+@config_bp.route('/herramientas')
+@login_required
+def herramientas():
+    """
+    Automatic analysis tools configuration page
+    """
+    # Generate available periods for consistency with other config pages
+    available_periods = generate_available_periods()
+
+    return render_template(
+        'configuracion_herramientas.html',
+        available_periods=available_periods,
+        current_user=current_user
+    )
+
+
 @config_bp.route('/alertas', methods=['POST'])
 @login_required
 def save_alert_settings():
