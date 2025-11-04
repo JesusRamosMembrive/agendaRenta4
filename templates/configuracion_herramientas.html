@@ -54,9 +54,19 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function loadQualityChecksConfig() {
-  fetch('/crawler/config/checks')
-    .then(response => response.json())
+  fetch('/crawler/config/checks', {
+    credentials: 'same-origin'
+  })
+    .then(response => {
+      if (response.redirected) {
+        window.location.href = response.url;
+        return;
+      }
+      return response.json();
+    })
     .then(data => {
+      if (!data) return; // Redirected case
+
       if (data.success) {
         renderQualityChecksConfig(data.checks);
       } else {
@@ -235,6 +245,7 @@ function saveQualityChecksConfig() {
   let savePromises = configs.map(config =>
     fetch('/crawler/config/checks', {
       method: 'POST',
+      credentials: 'same-origin',
       headers: {
         'Content-Type': 'application/json'
       },
