@@ -3,14 +3,65 @@ Post-Crawl Quality Check Runner
 
 Executes configured quality checks after a crawl completes.
 Integrates with existing checkers (ImagenesChecker, URLValidator).
+
+Performance optimizations:
+- Concurrent HTML fetching with connection pooling
+- Threaded quality check execution
+- Shared HTML cache across checkers
 """
 
 import logging
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
+from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, as_completed
 from utils import db_cursor
 from constants import QualityCheckDefaults
+from calidad.html_fetcher import fetch_html_for_urls
 
 logger = logging.getLogger(__name__)
+
+
+# Top-level function for multiprocessing (must be pickleable)
+def _check_spell_single_url_worker(args: Tuple[int, str, Optional[str], Optional[str]]) -> Dict[str, Any]:
+    """
+    Worker function for spell checking a single URL (used with ProcessPoolExecutor).
+
+    Args:
+        args: Tuple of (url_id, url, html_content, error_message)
+
+    Returns:
+        Dictionary with check results
+    """
+    from calidad.spell import SpellChecker
+
+    url_id, url, html_content, error = args
+
+    if error:
+        return {
+            'url_id': url_id,
+            'url': url,
+            'success': False,
+            'error': f"HTML fetch failed: {error}"
+        }
+
+    try:
+        # Create checker instance (each process gets its own)
+        checker = SpellChecker()
+        result = checker.check(url, html_content=html_content)
+
+        return {
+            'url_id': url_id,
+            'url': url,
+            'success': True,
+            'result': result
+        }
+
+    except Exception as e:
+        return {
+            'url_id': url_id,
+            'url': url,
+            'success': False,
+            'error': str(e)
+        }
 
 
 class PostCrawlQualityRunner:
@@ -56,14 +107,16 @@ class PostCrawlQualityRunner:
         }
     }
 
-    def __init__(self, crawl_run_id: int):
+    def __init__(self, crawl_run_id: int, max_workers: int = 10):
         """
         Initialize runner for a specific crawl.
 
         Args:
             crawl_run_id: ID of the crawl run to analyze
+            max_workers: Number of concurrent workers for processing URLs (default: 10)
         """
         self.crawl_run_id = crawl_run_id
+        self.max_workers = max_workers
 
     def _build_scope_query(self, base_query, scope):
         """
@@ -281,7 +334,7 @@ class PostCrawlQualityRunner:
 
     def _run_image_quality_check(self, scope: str = 'priority') -> Dict[str, Any]:
         """
-        Run image quality checks.
+        Run image quality checks with concurrent HTML fetching.
 
         Args:
             scope: 'all' for all URLs, 'priority' for is_priority=TRUE only
@@ -291,6 +344,7 @@ class PostCrawlQualityRunner:
         """
         from calidad.imagenes import ImagenesChecker
         import json
+        import time
 
         # Build query based on scope
         base_query = """
@@ -316,65 +370,133 @@ class PostCrawlQualityRunner:
                 'stats': {'total': 0, 'processed': 0, 'successful': 0, 'failed': 0}
             }
 
-        # Run image quality checks on each URL
-        checker = ImagenesChecker()
         total = len(urls)
+        logger.info(f"Starting optimized image quality check for {total} URLs with {self.max_workers} workers...")
+        start_time = time.time()
+
+        # Step 1: Fetch all HTML concurrently
+        logger.info(f"[1/2] Fetching HTML for {total} URLs...")
+        url_list = [row['url'] for row in urls]
+        html_cache = fetch_html_for_urls(
+            url_list,
+            max_workers=self.max_workers,
+            timeout=QualityCheckDefaults.IMAGE_CHECK_TIMEOUT
+        )
+
+        # Step 2: Process checks concurrently with cached HTML
+        logger.info(f"[2/2] Running image quality checks on {total} URLs...")
+        checker = ImagenesChecker()
+
         processed = 0
         successful = 0
         failed = 0
+        results_to_save = []
 
-        logger.info(f"Starting image quality check for {total} URLs...")
+        def check_single_url(url_row):
+            """Check a single URL with cached HTML."""
+            url = url_row['url']
+            html_content, error = html_cache.get(url, (None, None))
 
-        for url_row in urls:
+            if error:
+                # HTML fetch failed
+                return {
+                    'url_id': url_row['id'],
+                    'url': url,
+                    'success': False,
+                    'error': f"HTML fetch failed: {error}"
+                }
+
             try:
-                result = checker.check(url_row['url'])
+                # Run check with cached HTML
+                result = checker.check(url, html_content=html_content)
 
-                # Save result to quality_checks table with discovered_url_id
-                with db_cursor() as cursor:
-                    cursor.execute("""
-                        INSERT INTO quality_checks (
-                            discovered_url_id, check_type, status, score, message,
-                            details, issues_found, execution_time_ms, checked_at
-                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW())
-                    """, (
-                        url_row['id'],
-                        'image_quality',
-                        result.status,
-                        result.score,
-                        result.message,
-                        json.dumps(result.details),
-                        result.issues_found,
-                        result.execution_time_ms
-                    ))
-                successful += 1
-                processed += 1
-
-                # Progress logging every 10 URLs
-                if processed % 10 == 0:
-                    logger.info(f"Progress: {processed}/{total} URLs checked ({successful} successful, {failed} failed)")
+                return {
+                    'url_id': url_row['id'],
+                    'url': url,
+                    'success': True,
+                    'result': result
+                }
 
             except Exception as e:
-                logger.error(f"Error checking {url_row['url']}: {e}")
-                failed += 1
+                return {
+                    'url_id': url_row['id'],
+                    'url': url,
+                    'success': False,
+                    'error': str(e)
+                }
+
+        # Execute checks in parallel
+        with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+            future_to_url = {
+                executor.submit(check_single_url, url_row): url_row
+                for url_row in urls
+            }
+
+            for future in as_completed(future_to_url):
+                result_data = future.result()
                 processed += 1
 
-        logger.info(f"Image quality check complete: {processed}/{total} processed, {successful} successful, {failed} failed")
+                if result_data['success']:
+                    results_to_save.append(result_data)
+                    successful += 1
+                else:
+                    logger.error(f"Error checking {result_data['url']}: {result_data['error']}")
+                    failed += 1
+
+                # Progress logging every 10 URLs or first 3
+                if processed <= 3 or processed % 10 == 0:
+                    logger.info(
+                        f"Check progress: {processed}/{total} "
+                        f"({successful} successful, {failed} failed)"
+                    )
+
+        # Step 3: Batch save results to database
+        logger.info(f"Saving {len(results_to_save)} results to database...")
+        with db_cursor() as cursor:
+            for result_data in results_to_save:
+                result = result_data['result']
+                cursor.execute("""
+                    INSERT INTO quality_checks (
+                        discovered_url_id, check_type, status, score, message,
+                        details, issues_found, execution_time_ms, checked_at
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                """, (
+                    result_data['url_id'],
+                    'image_quality',
+                    result.status,
+                    result.score,
+                    result.message,
+                    json.dumps(result.details),
+                    result.issues_found,
+                    result.execution_time_ms
+                ))
+
+        elapsed = time.time() - start_time
+        logger.info(
+            f"Image quality check complete: {processed}/{total} processed, "
+            f"{successful} successful, {failed} failed in {elapsed:.1f}s "
+            f"({total/elapsed:.1f} URLs/s)"
+        )
 
         return {
             'check_type': 'image_quality',
             'status': 'completed',
-            'message': f"Checked {processed} URLs (scope: {scope}), {successful} saved to database",
+            'message': f"Checked {processed} URLs (scope: {scope}), {successful} saved to database in {elapsed:.1f}s",
             'stats': {
                 'total': total,
                 'processed': processed,
                 'successful': successful,
-                'failed': failed
+                'failed': failed,
+                'elapsed_seconds': round(elapsed, 1),
+                'urls_per_second': round(total / elapsed, 1) if elapsed > 0 else 0
             }
         }
 
     def _run_spell_check(self, scope: str = 'priority') -> Dict[str, Any]:
         """
-        Run spell check on URLs.
+        Run spell check on URLs with concurrent HTML fetching and multiprocessing.
+
+        Uses ProcessPoolExecutor for true CPU parallelism (bypasses Python GIL).
 
         Args:
             scope: 'all' for all URLs, 'priority' for is_priority=TRUE only
@@ -382,8 +504,8 @@ class PostCrawlQualityRunner:
         Returns:
             Dictionary with check results
         """
-        from calidad.spell import SpellChecker
         import json
+        import time
 
         # Build query based on scope
         base_query = """
@@ -409,60 +531,98 @@ class PostCrawlQualityRunner:
                 'stats': {'total': 0, 'processed': 0, 'successful': 0, 'failed': 0}
             }
 
-        # Run spell checks on each URL
-        logger.info(f"Initializing spell checker for {len(urls)} URLs...")
-        checker = SpellChecker()
-        logger.info("Spell checker ready, starting to process URLs...")
-
         total = len(urls)
+        logger.info(f"Starting optimized spell check for {total} URLs with {self.max_workers} CPU workers...")
+        start_time = time.time()
+
+        # Step 1: Fetch all HTML concurrently
+        logger.info(f"[1/2] Fetching HTML for {total} URLs...")
+        url_list = [row['url'] for row in urls]
+        html_cache = fetch_html_for_urls(
+            url_list,
+            max_workers=self.max_workers,
+            timeout=QualityCheckDefaults.SPELL_CHECK_TIMEOUT
+        )
+
+        # Step 2: Prepare arguments for multiprocessing
+        logger.info(f"[2/2] Running spell checks with {self.max_workers} parallel processes...")
+        worker_args = []
+        for url_row in urls:
+            url = url_row['url']
+            html_content, error = html_cache.get(url, (None, None))
+            worker_args.append((url_row['id'], url, html_content, error))
+
         processed = 0
         successful = 0
         failed = 0
+        results_to_save = []
 
-        for url_row in urls:
-            try:
-                # Log every 5 URLs or first 3
-                if processed < 3 or processed % 5 == 0:
-                    logger.info(f"[{processed + 1}/{total}] Checking: {url_row['url'][:60]}...")
+        # Execute checks in parallel processes (bypasses GIL)
+        with ProcessPoolExecutor(max_workers=self.max_workers) as executor:
+            # Submit all tasks
+            future_to_args = {
+                executor.submit(_check_spell_single_url_worker, args): args
+                for args in worker_args
+            }
 
-                result = checker.check(url_row['url'])
-
-                # Save result to quality_checks table with discovered_url_id
-                with db_cursor() as cursor:
-                    cursor.execute("""
-                        INSERT INTO quality_checks (
-                            discovered_url_id, check_type, status, score, message,
-                            details, issues_found, execution_time_ms, checked_at
-                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW())
-                    """, (
-                        url_row['id'],
-                        'spell_check',
-                        result.status,
-                        result.score,
-                        result.message,
-                        json.dumps(result.details),
-                        result.issues_found,
-                        result.execution_time_ms
-                    ))
-                successful += 1
+            # Collect results as they complete
+            for future in as_completed(future_to_args):
+                result_data = future.result()
                 processed += 1
 
-            except Exception as e:
-                logger.error(f"Error checking {url_row['url']}: {e}")
-                failed += 1
-                processed += 1
+                if result_data['success']:
+                    results_to_save.append(result_data)
+                    successful += 1
+                else:
+                    logger.error(f"Error checking {result_data['url']}: {result_data['error']}")
+                    failed += 1
 
-        logger.info(f"Spell check complete: {processed}/{total} processed, {successful} successful, {failed} failed")
+                # Progress logging every 10 URLs or first 3
+                if processed <= 3 or processed % 10 == 0:
+                    logger.info(
+                        f"Check progress: {processed}/{total} "
+                        f"({successful} successful, {failed} failed)"
+                    )
+
+        # Step 3: Batch save results to database
+        logger.info(f"Saving {len(results_to_save)} results to database...")
+        with db_cursor() as cursor:
+            for result_data in results_to_save:
+                result = result_data['result']
+                cursor.execute("""
+                    INSERT INTO quality_checks (
+                        discovered_url_id, check_type, status, score, message,
+                        details, issues_found, execution_time_ms, checked_at
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                """, (
+                    result_data['url_id'],
+                    'spell_check',
+                    result.status,
+                    result.score,
+                    result.message,
+                    json.dumps(result.details),
+                    result.issues_found,
+                    result.execution_time_ms
+                ))
+
+        elapsed = time.time() - start_time
+        logger.info(
+            f"Spell check complete: {processed}/{total} processed, "
+            f"{successful} successful, {failed} failed in {elapsed:.1f}s "
+            f"({total/elapsed:.1f} URLs/s)"
+        )
 
         return {
             'check_type': 'spell_check',
             'status': 'completed',
-            'message': f"Checked {processed} URLs (scope: {scope}), {successful} saved to database",
+            'message': f"Checked {processed} URLs (scope: {scope}), {successful} saved to database in {elapsed:.1f}s",
             'stats': {
                 'total': total,
                 'processed': processed,
                 'successful': successful,
-                'failed': failed
+                'failed': failed,
+                'elapsed_seconds': round(elapsed, 1),
+                'urls_per_second': round(total / elapsed, 1) if elapsed > 0 else 0
             }
         }
 

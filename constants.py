@@ -143,8 +143,8 @@ class QualityCheckDefaults:
 
     # Spell checker
     SPELL_CHECK_TIMEOUT = 10
-    SPELL_CHECK_MAX_TEXT_LENGTH = 50000    # Max characters to analyze per page
-    SPELL_CHECK_MIN_WORD_LENGTH = 3        # Minimum word length to check
+    SPELL_CHECK_MAX_TEXT_LENGTH = 10000    # Max characters to analyze per page (reduced for speed)
+    SPELL_CHECK_MIN_WORD_LENGTH = 4        # Minimum word length to check (skip short words)
 
     # Time estimates (seconds per URL for different check types)
     # Used for UI progress estimation
