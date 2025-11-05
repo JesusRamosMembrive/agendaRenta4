@@ -464,6 +464,84 @@ def spell_check():
                          current_user=current_user)
 
 
+@crawler_bp.route('/spell-check/recheck/<int:check_id>', methods=['POST'])
+@login_required
+def recheck_spell(check_id):
+    """
+    Re-run spell check for a specific URL after dictionary changes.
+
+    Args:
+        check_id: ID of the quality_check record to update
+
+    Returns:
+        JSON with updated check results
+    """
+    from calidad.spell import SpellChecker
+
+    try:
+        # Get the URL from the check_id
+        with db_cursor(commit=False) as cursor:
+            cursor.execute("""
+                SELECT du.id as url_id, du.url, qc.id as check_id
+                FROM quality_checks qc
+                JOIN discovered_urls du ON qc.discovered_url_id = du.id
+                WHERE qc.id = %s AND qc.check_type = 'spell_check'
+            """, (check_id,))
+
+            result = cursor.fetchone()
+
+            if not result:
+                return jsonify({
+                    'success': False,
+                    'error': 'Check not found'
+                }), 404
+
+        # Run spell check on the URL
+        checker = SpellChecker()
+        check_result = checker.check(result['url'])
+
+        # Update the database with new results
+        with db_cursor() as cursor:
+            cursor.execute("""
+                UPDATE quality_checks
+                SET status = %s,
+                    score = %s,
+                    message = %s,
+                    details = %s,
+                    issues_found = %s,
+                    checked_at = CURRENT_TIMESTAMP
+                WHERE id = %s
+                RETURNING id, status, score, message, issues_found, checked_at
+            """, (
+                check_result.status,
+                check_result.score,
+                check_result.message,
+                check_result.details_json,
+                check_result.issues_found,
+                check_id
+            ))
+
+            updated_check = cursor.fetchone()
+
+        return jsonify({
+            'success': True,
+            'check': {
+                'id': updated_check['id'],
+                'status': updated_check['status'],
+                'score': updated_check['score'],
+                'message': updated_check['message'],
+                'issues_found': updated_check['issues_found'],
+                'checked_at': updated_check['checked_at'].isoformat()
+            }
+        })
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 @crawler_bp.route('/scheduler', methods=['GET', 'POST'])
 @login_required
 def scheduler():

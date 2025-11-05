@@ -94,13 +94,22 @@
                         {% endif %}
                     </td>
                     <td style="text-align: center;">
-                        {% if result.issues_found > 0 %}
-                            <button onclick="toggleDetails({{ loop.index }})" class="btn" style="padding: 4px 12px; font-size: 12px; background: #3b82f6; color: white;">
-                                Ver
+                        <div style="display: flex; gap: 5px; justify-content: center;">
+                            {% if result.issues_found > 0 %}
+                                <button onclick="toggleDetails({{ loop.index }})" class="btn" style="padding: 4px 12px; font-size: 12px; background: #3b82f6; color: white;">
+                                    Ver
+                                </button>
+                            {% else %}
+                                <span style="color: #9ca3af;">-</span>
+                            {% endif %}
+                            <button
+                                onclick="recheckUrl({{ result.id }}, {{ loop.index }})"
+                                class="btn btn-recheck"
+                                title="Re-analizar con diccionario actualizado"
+                                style="padding: 4px 12px; font-size: 12px; background: #10b981; color: white;">
+                                🔄
                             </button>
-                        {% else %}
-                            <span style="color: #9ca3af;">-</span>
-                        {% endif %}
+                        </div>
                     </td>
                     <td style="font-size: 13px; color: #6b7280;">
                         {{ result.checked_at.strftime('%d/%m/%Y %H:%M') if result.checked_at else 'N/A' }}
@@ -581,6 +590,86 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 });
+
+// ========== Recheck Functions ==========
+
+async function recheckUrl(checkId, rowIndex) {
+    if (!confirm('¿Re-analizar esta URL con el diccionario actualizado?\n\nEsto actualizará los resultados del spell check.')) {
+        return;
+    }
+
+    // Find the row
+    const row = document.querySelectorAll('.result-row')[rowIndex - 1];
+    if (!row) return;
+
+    const recheckBtn = row.querySelector('.btn-recheck');
+    const originalContent = recheckBtn.innerHTML;
+
+    // Show loading
+    recheckBtn.disabled = true;
+    recheckBtn.innerHTML = '⏳';
+    recheckBtn.style.opacity = '0.6';
+
+    try {
+        const response = await fetch(`/crawler/spell-check/recheck/${checkId}`, {
+            method: 'POST'
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            const check = result.check;
+
+            // Update the row with new data
+            const statusCell = row.cells[3];
+            const scoreCell = row.cells[4];
+            const errorsCell = row.cells[5];
+
+            // Update status badge
+            let statusBadge = '';
+            if (check.status === 'ok') {
+                statusBadge = '<span class="status-badge" style="background: #d1fae5; color: #065f46; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">✅ OK</span>';
+            } else if (check.status === 'warning') {
+                statusBadge = '<span class="status-badge" style="background: #fef3c7; color: #92400e; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">⚠️ Warning</span>';
+            } else {
+                statusBadge = '<span class="status-badge" style="background: #fee2e2; color: #991b1b; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">❌ Error</span>';
+            }
+            statusCell.innerHTML = statusBadge;
+
+            // Update score
+            let scoreColor = '#dc2626';
+            if (check.score >= 80) scoreColor = '#10b981';
+            else if (check.score >= 50) scoreColor = '#f59e0b';
+
+            scoreCell.innerHTML = `<span style="font-weight: 600; font-size: 16px; color: ${scoreColor};">${check.score}%</span>`;
+
+            // Update errors count
+            if (check.issues_found > 0) {
+                errorsCell.innerHTML = `<span style="color: #dc2626; font-weight: 600;">${check.issues_found}</span>`;
+            } else {
+                errorsCell.innerHTML = '<span style="color: #10b981;">0</span>';
+            }
+
+            // Show success notification
+            alert(`✅ Re-análisis completado!\n\nPuntuación: ${check.score}%\nErrores: ${check.issues_found}\n\nRecarga la página para ver los detalles actualizados.`);
+
+            // Reload page after 2 seconds
+            setTimeout(() => {
+                window.location.reload();
+            }, 2000);
+        } else {
+            alert(`Error: ${result.error}`);
+            recheckBtn.disabled = false;
+            recheckBtn.innerHTML = originalContent;
+            recheckBtn.style.opacity = '1';
+        }
+    } catch (error) {
+        alert(`Error de conexión: ${error.message}`);
+        recheckBtn.disabled = false;
+        recheckBtn.innerHTML = originalContent;
+        recheckBtn.style.opacity = '1';
+    }
+}
 </script>
 
 <style>
