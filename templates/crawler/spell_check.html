@@ -117,8 +117,9 @@
                                 </h4>
                                 {% if result.details.spelling_errors and result.details.spelling_errors|length > 1 %}
                                 <button
-                                    onclick="addAllWordsFromUrl({{ result.id }}, {{ result.details.spelling_errors|tojson|safe }})"
                                     class="btn-add-all-dict"
+                                    data-result-id="{{ result.id }}"
+                                    data-errors='{{ result.details.spelling_errors|tojson }}'
                                     title="Añadir todas las palabras de esta URL al diccionario"
                                     style="background: #8b5cf6; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
                                     📖 Añadir Todas al Diccionario ({{ result.details.spelling_errors|length }})
@@ -500,22 +501,12 @@ async function addAllWordsFromUrl(resultId, spellingErrors) {
         return;
     }
 
-    // Find details row and bulk button
-    const detailsRow = document.querySelector(`#details-${resultId}`);
-    if (!detailsRow) {
-        // Try to find by result ID in error divs
-        const firstErrorDiv = document.querySelector(`[id^="error-${resultId}-"]`);
-        if (firstErrorDiv) {
-            const detailsContainer = firstErrorDiv.closest('.details-row');
-            if (detailsContainer) {
-                const bulkButton = detailsContainer.querySelector('.btn-add-all-dict');
-                if (bulkButton) {
-                    bulkButton.disabled = true;
-                    bulkButton.textContent = '⏳ Añadiendo todas...';
-                    bulkButton.style.opacity = '0.6';
-                }
-            }
-        }
+    // Find the button that was clicked
+    const bulkButton = document.querySelector(`.btn-add-all-dict[data-result-id="${resultId}"]`);
+    if (bulkButton) {
+        bulkButton.disabled = true;
+        bulkButton.textContent = '⏳ Añadiendo todas...';
+        bulkButton.style.opacity = '0.6';
     }
 
     let added = 0;
@@ -579,6 +570,17 @@ async function addAllWordsFromUrl(resultId, spellingErrors) {
         window.location.reload();
     }, 1000);
 }
+
+// Add event listener for bulk add buttons
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.btn-add-all-dict').forEach(button => {
+        button.addEventListener('click', function() {
+            const resultId = parseInt(this.dataset.resultId);
+            const spellingErrors = JSON.parse(this.dataset.errors);
+            addAllWordsFromUrl(resultId, spellingErrors);
+        });
+    });
+});
 </script>
 
 <style>
