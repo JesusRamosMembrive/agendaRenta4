@@ -47,6 +47,7 @@ from constants import (
     ANNUAL_MONTH,
     LOGIN_SESSION_DAYS,
     PROBLEMS_RETENTION_DAYS,
+    WEEKDAY_MAP,
 )
 
 # Initialize Flask app
@@ -129,10 +130,12 @@ def load_user(user_id):
 # ==============================================================================
 
 
-def get_task_counts():
+def get_task_counts() -> dict:
     """
     Get counts of pending, problem, completed tasks, and pending alerts.
-    Returns dict with 'pending', 'problems', 'completed', 'alerts' counts.
+
+    Returns:
+        dict: Dictionary with keys 'pending', 'problems', 'completed', 'alerts'
     """
     with db_cursor(commit=False) as cursor:
         current_period = datetime.now().strftime("%Y-%m")
@@ -269,7 +272,7 @@ def _fetch_alerts_for_notification(cursor, reference_date):
     return cursor.fetchall()
 
 
-def generate_alerts(reference_date=None):
+def generate_alerts(reference_date: date = None) -> dict:
     """
     Generate pending alerts based on alert_settings configuration (orchestrator).
 
@@ -280,7 +283,7 @@ def generate_alerts(reference_date=None):
         reference_date: Date to use as reference (default: today)
 
     Returns:
-        dict with stats: {'generated': count, 'skipped': count, 'errors': [], 'email_stats': {...}}
+        dict: Statistics with keys 'generated', 'skipped', 'errors', 'email_stats'
     """
     if reference_date is None:
         reference_date = date.today()
@@ -337,17 +340,6 @@ def generate_alerts(reference_date=None):
 # ALERT DAY CHECKERS (Strategy Pattern)
 # ==============================================================================
 
-# Weekday mapping for alert configuration
-WEEKDAY_MAP = {
-    "monday": 0,
-    "tuesday": 1,
-    "wednesday": 2,
-    "thursday": 3,
-    "friday": 4,
-    "saturday": 5,
-    "sunday": 6,
-}
-
 
 def _check_daily_alert(reference_date, alert_day):
     """Daily alerts always trigger."""
@@ -363,7 +355,24 @@ def _check_weekly_alert(reference_date, alert_day):
 
 
 def _check_biweekly_alert(reference_date, alert_day):
-    """Check if today is the configured weekday in an even week."""
+    """
+    Check if today is the configured weekday in an even week.
+
+    Biweekly alerts trigger every two weeks on the specified weekday.
+    Week numbers are ISO 8601 compliant (week 1 = first week with Thursday).
+
+    Example:
+        If alert_day='monday' and reference_date is Monday of week 4,
+        this returns True (week 4 is even). If reference_date is Monday
+        of week 5, returns False (week 5 is odd).
+
+    Args:
+        reference_date: Date to check
+        alert_day: Day of week (e.g., 'monday', 'tuesday')
+
+    Returns:
+        bool: True if it's the correct weekday in an even-numbered week
+    """
     target_weekday = WEEKDAY_MAP.get(alert_day)
     if target_weekday is None:
         return False
@@ -372,13 +381,31 @@ def _check_biweekly_alert(reference_date, alert_day):
     if reference_date.weekday() != target_weekday:
         return False
 
-    # Check if it's an even week number
+    # Check if it's an even week number (ISO 8601)
     week_number = reference_date.isocalendar()[1]
     return week_number % 2 == 0
 
 
 def _check_monthly_alert(reference_date, alert_day):
-    """Check if today is the configured day of the month."""
+    """
+    Check if today is the configured day of the month.
+
+    Handles months with varying lengths gracefully. If the target day exceeds
+    the month's length (e.g., day 31 in February), it adjusts to the last day.
+
+    Example:
+        If alert_day='31':
+        - January 31 → True (month has 31 days)
+        - February 31 → True on Feb 28/29 (month doesn't have 31 days)
+        - April 31 → True on April 30 (month has only 30 days)
+
+    Args:
+        reference_date: Date to check
+        alert_day: Day of month as string (e.g., '1', '15', '31')
+
+    Returns:
+        bool: True if today is the configured day (or last day if month is shorter)
+    """
     try:
         target_day = int(alert_day)
     except (ValueError, TypeError):
@@ -435,16 +462,16 @@ ALERT_CHECKERS = {
 }
 
 
-def check_alert_day(reference_date, frequency, alert_day):
+def check_alert_day(reference_date: date, frequency: str, alert_day: str) -> bool:
     """
     Check if the reference_date matches the alert configuration (Strategy Pattern).
 
     Uses a strategy pattern to delegate to specific checker functions based on frequency.
 
     Args:
-        reference_date: date object to check
-        frequency: alert frequency (daily, weekly, biweekly, monthly, quarterly, semiannual, annual)
-        alert_day: specific day configuration (day of week or day of month)
+        reference_date: Date object to check
+        frequency: Alert frequency (daily, weekly, biweekly, monthly, quarterly, semiannual, annual)
+        alert_day: Specific day configuration (day of week or day of month)
 
     Returns:
         bool: True if alert should be generated for this date
@@ -601,7 +628,7 @@ def _send_email_to_recipient(recipient, html_body, alert_count):
         return False, f"Failed to send to {recipient['email']}: {str(e)}"
 
 
-def send_email_notifications(alert_list, user_name=None):
+def send_email_notifications(alert_list: list, user_name: str = None) -> dict:
     """
     Send email notifications for newly generated alerts (orchestrator function).
 
@@ -610,7 +637,7 @@ def send_email_notifications(alert_list, user_name=None):
         user_name: User name to check preferences for. If None, uses current_user.
 
     Returns:
-        dict with stats: {'sent': count, 'failed': count, 'errors': []}
+        dict: Statistics with keys 'sent', 'failed', 'errors'
     """
     stats = {"sent": 0, "failed": 0, "errors": []}
 
