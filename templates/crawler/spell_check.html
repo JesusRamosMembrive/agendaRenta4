@@ -135,10 +135,19 @@
                             {% if result.details.spelling_errors %}
                             <div style="max-height: 400px; overflow-y: auto;">
                                 {% for error in result.details.spelling_errors[:20] %}
-                                <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 12px; margin-bottom: 10px; border-radius: 4px;">
-                                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
-                                        <span style="background: #dc2626; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">Error</span>
-                                        <span style="font-weight: 600; color: #991b1b; font-size: 14px;">{{ error.word }}</span>
+                                <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 12px; margin-bottom: 10px; border-radius: 4px;" id="error-{{ result.id }}-{{ loop.index }}">
+                                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+                                        <div style="display: flex; align-items: center; gap: 10px;">
+                                            <span style="background: #dc2626; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">Error</span>
+                                            <span style="font-weight: 600; color: #991b1b; font-size: 14px;">{{ error.word }}</span>
+                                        </div>
+                                        <button
+                                            onclick="addWordToDictionary('{{ error.word }}', {{ result.id }}, {{ loop.index }})"
+                                            class="btn-add-dict"
+                                            title="Añadir al diccionario personalizado"
+                                            style="background: #8b5cf6; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+                                            📖 Añadir al Diccionario
+                                        </button>
                                     </div>
                                     <div style="font-size: 13px; color: #78350f; font-family: monospace; background: white; padding: 8px; border-radius: 4px; margin-top: 8px;">
                                         {{ error.context|replace('**' + error.word + '**', '<span style="background: #fee2e2; color: #991b1b; padding: 2px 4px; border-radius: 2px; font-weight: 600;">' + error.word + '</span>')|safe }}
@@ -396,6 +405,75 @@ function toggleDetails(index) {
         detailsRow.style.display = 'none';
     }
 }
+
+// ========== Dictionary Functions ==========
+
+async function addWordToDictionary(word, resultId, errorIndex) {
+    // Confirm action
+    if (!confirm(`¿Añadir "${word}" al diccionario personalizado?\n\nEsta palabra ya no se marcará como error en futuros análisis.`)) {
+        return;
+    }
+
+    const errorDiv = document.getElementById(`error-${resultId}-${errorIndex}`);
+    const button = errorDiv.querySelector('.btn-add-dict');
+
+    // Disable button
+    button.disabled = true;
+    button.textContent = '⏳ Añadiendo...';
+    button.style.opacity = '0.6';
+
+    try {
+        // Add word to dictionary
+        const formData = new FormData();
+        formData.append('word', word);
+        formData.append('category', 'other');
+        formData.append('frequency', '1');
+        formData.append('notes', 'Añadida desde spell check');
+
+        const response = await fetch('{{ url_for("add_custom_word") }}', {
+            method: 'POST',
+            body: formData
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            // Show success message
+            errorDiv.style.background = '#d1fae5';
+            errorDiv.style.borderLeftColor = '#10b981';
+            errorDiv.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 10px; color: #065f46;">
+                    <span style="font-size: 20px;">✅</span>
+                    <div>
+                        <div style="font-weight: 600; margin-bottom: 4px;">Palabra "${word}" añadida correctamente</div>
+                        <div style="font-size: 13px; opacity: 0.8;">Ya no se marcará como error en futuros análisis</div>
+                    </div>
+                </div>
+            `;
+
+            // Fade out after 3 seconds
+            setTimeout(() => {
+                errorDiv.style.transition = 'opacity 0.5s, max-height 0.5s';
+                errorDiv.style.opacity = '0';
+                errorDiv.style.maxHeight = '0';
+                errorDiv.style.padding = '0';
+                errorDiv.style.marginBottom = '0';
+                setTimeout(() => errorDiv.remove(), 500);
+            }, 3000);
+        } else {
+            // Show error
+            alert(`Error: ${result.error}`);
+            button.disabled = false;
+            button.textContent = '📖 Añadir al Diccionario';
+            button.style.opacity = '1';
+        }
+    } catch (error) {
+        alert(`Error de conexión: ${error.message}`);
+        button.disabled = false;
+        button.textContent = '📖 Añadir al Diccionario';
+        button.style.opacity = '1';
+    }
+}
 </script>
 
 <style>
@@ -437,6 +515,21 @@ function toggleDetails(index) {
 
 #spellCheckProgressBar {
     position: relative;
+}
+
+/* Add to Dictionary Button */
+.btn-add-dict:hover {
+    background: #7c3aed !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px rgba(139, 92, 246, 0.3);
+}
+
+.btn-add-dict:active {
+    transform: translateY(0);
+}
+
+.btn-add-dict:disabled {
+    cursor: not-allowed;
 }
 </style>
 {% endblock %}
