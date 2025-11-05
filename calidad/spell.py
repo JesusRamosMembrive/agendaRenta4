@@ -1,18 +1,20 @@
 """
 Spell checker quality check module.
 
-Uses pyspellchecker to detect spelling errors in web page content.
+Uses Hunspell (via spylls) to detect spelling errors in web page content.
+Hunspell provides professional-quality Spanish dictionary from LibreOffice.
 """
 
 import logging
 import re
 import time
+import os
 from typing import Optional, Dict, Any, List
 from urllib.parse import urlparse
 
 import requests
 from bs4 import BeautifulSoup
-from spellchecker import SpellChecker as PySpellChecker
+from spylls.hunspell import Dictionary
 
 from calidad.base import QualityCheck, QualityCheckResult
 from calidad.whitelist_terms import is_whitelisted
@@ -48,110 +50,32 @@ class SpellChecker(QualityCheck):
     NUMBER_PATTERN = re.compile(r'\b\d+([.,]\d+)*\b')
 
     def __init__(self, config: Optional[Dict[str, Any]] = None):
-        """Initialize spell checker with configuration."""
+        """Initialize spell checker with Hunspell."""
         merged_config = {**self.DEFAULT_CONFIG}
         if config:
             merged_config.update(config)
 
         super().__init__(merged_config)
 
-        # Initialize Spanish spell checker
-        logger.debug("Initializing Spanish spell checker with pyspellchecker...")
-        self.spell = PySpellChecker(language='es')
+        # Initialize Hunspell with Spanish dictionary from LibreOffice
+        logger.debug("Initializing Hunspell Spanish spell checker...")
 
-        # Load whitelist terms into spell checker dictionary
-        from calidad.whitelist_terms import WHITELIST_TERMS
-        self.spell.word_frequency.load_words(WHITELIST_TERMS)
-        logger.debug(f"Loaded {len(WHITELIST_TERMS)} whitelist terms into spell checker")
+        # Get dictionary path
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        dict_path = os.path.join(base_dir, 'dictionaries', 'es_ES', 'es_ES')
 
-        # Add common Spanish words that are missing from pyspellchecker's dictionary
-        # These were identified from real website content analysis
-        common_words = {
-            # Basic verbs and conjugations
-            'servicios', 'clientes', 'fondos', 'disponibles', 'oportunidades',
-            'tenemos', 'ofrecemos', 'contáctenos', 'también', 'están', 'nuestros',
-            'podrá', 'podrás', 'pueden', 'puedes', 'deberá', 'deberás',
-            'sabes', 'sabe', 'sabemos', 'saben', 'sabía', 'sabías', 'sabían',
-            'tienes', 'tiene', 'tienen', 'años', 'datos', 'todos', 'todas',
-            # Common verbs - realizar (to perform/carry out)
-            'realizan', 'realiza', 'realizar', 'realizamos', 'realizas', 'realizo',
-            'realizaron', 'realizó', 'realizaba', 'realizaban', 'realizando', 'realizado', 'realizada', 'realizados', 'realizadas',
-            # Finance/investment terms
-            'inversión', 'inversiones', 'inversionistas', 'inversores', 'inversor', 'mercados', 'evolución', 'evoluciona',
-            'acciones', 'bonos', 'divisas', 'bróker', 'trading', 'información',
-            'financiero', 'financiera', 'financieros', 'financieras',
-            'rentabilidad', 'rentable', 'cotización', 'operaciones', 'constantemente', 'frecuentemente',
-            'fiscalidad', 'fiscal', 'fiscales', 'tributación', 'tributaria',
-            'rentabilidades', 'rentabilizado', 'fluctuaciones', 'capitales',
-            'institucionales', 'institucional', 'institución', 'instituciones',
-            'arbitrajes', 'arbitraje', 'arbitrar',
-            'bolsa', 'bolsas', 'bursátil', 'bursátiles',
-            # Participios y formas verbales
-            'gestionadas', 'gestionada', 'gestionados', 'gestionado',
-            'invertirán', 'invertirá', 'invertirás', 'invertiremos', 'invirtiendo',
-            'hacerse', 'hacerlo', 'hacerla', 'hacerlos', 'hacerlas', 'hacemos',
-            # Adjectives
-            'principales', 'principal', 'superiores', 'superior', 'inferiores', 'inferior',
-            'apalancados', 'apalancado', 'apalancadas', 'apalancada',
-            'personalizadas', 'personalizada', 'personalizados', 'personalizado',
-            'diversificadas', 'diversificada', 'diversificados', 'diversificado',
-            'mayores', 'diferentes', 'activos', 'mixtos', 'grandes', 'grande', 'pequeñas', 'pequeño', 'pequeños',
-            'competitivas', 'claras', 'periódicas', 'emergentes', 'correctos',
-            # Verbs - first person plural
-            'ayudamos', 'ofrecemos', 'brindamos', 'proporcionamos', 'garantizamos',
-            'analizamos', 'evaluamos', 'recomendamos', 'sugerimos', 'gestionamos',
-            'queremos', 'somos', 'haremos', 'creamos', 'ponemos', 'contamos',
-            # Common verbs in various forms
-            'prefieres', 'recomienda', 'recuerda', 'asume', 'ofrecen', 'buscan',
-            'necesitan', 'necesitas', 'necesites', 'quieres', 'quieras', 'puede',
-            'pueda', 'conoce', 'elige', 'comienza', 'realiza', 'opera',
-            'adapta', 'adapte', 'adapten', 'atienda', 'contacta', 'contactar',
-            'ayudará', 'ayudarán', 'ayudándote', 'ayudarte',
-            # Web/tech terms
-            'online', 'web', 'app', 'click', 'email', 'página', 'páginas',
-            'usuario', 'usuarios', 'contraseña', 'descargar', 'archivo', 'archivos',
-            'mail', 'captcha', 'videoconferencia', 'bizum',
-            # Common nouns
-            'carteras', 'cartera', 'patrimonio', 'ahorros', 'ahorradores',
-            'inversores', 'inversor', 'invierte', 'inviertes', 'invierten',
-            'tarifas', 'honorarios', 'euros', 'meses', 'estrategias',
-            'objetivos', 'beneficios', 'ventajas', 'dudas', 'preguntas',
-            'soluciones', 'productos', 'valores', 'riesgos', 'condiciones',
-            'necesidades', 'posibilidades', 'alternativas', 'recomendaciones',
-            'movimientos', 'cambios', 'transferencias', 'emisiones', 'plazos',
-            # Adjectives - website content
-            'favoritas', 'máximas', 'mínimas', 'mínimos', 'futuras', 'pasadas',
-            'distribuidas', 'elegidos', 'escogidos', 'adecuados', 'ajustadas',
-            'adaptadas', 'sencillas', 'gratuitas', 'privadas', 'respectivas',
-            'propias', 'propios', 'inherentes', 'fundamentales', 'frecuentes',
-            'distintos', 'distintas', 'distinta', 'distinto', 'internacionales', 'nacionales', 'comercial',
-            # Financial instrument terms
-            'gestoras', 'gestores', 'asesores', 'expertos', 'profesionales',
-            'conservadores', 'tolerantes', 'prometedores', 'temáticos',
-            'perfilados', 'selectores', 'cortos', 'inversos', 'monetarios',
-            'megatendencias', 'disruptivas', 'sectores', 'categorías',
-            # Other common words
-            'cuál', 'cuáles', 'cómo', 'según', 'quién', 'quienes',
-            'siguientes', 'siguiendo', 'dependiendo', 'asumiendo', 'sabiendo',
-            'incluyamos', 'tantas', 'unas', 'otros', 'aquellos', 'terceros',
-            'garantizan', 'requiere', 'pienses', 'estás', 'hace',
-            'descubre', 'conocimientos', 'hábitos', 'decisiones', 'circunstancias',
-            'cantidades', 'formas', 'canales', 'oficinas', 'marcas',
-            'planeta', 'mundial', 'globales', 'entre', 'dentro',
-            # Brand names (common ones)
-            'blackrock', 'fidelity', 'vanguard', 'morgan', 'foncuenta', 'fondotop',
-            'easy', 'criptomonedas', 'criptoactivos', 'letras',
-            # Additional common words from analysis
-            'apoyadas', 'aúna', 'minutos', 'hará', 'adaptada',
-            'cumplimenta', 'introducidos', 'producido', 'ofrece', 'planteemos',
-            'asentadas', 'comprensivos', 'beneficiados', 'compañías', 'empiezas',
-            'busques', 'tendrás', 'encuentras', 'interesa', 'sepas',
-            'gracias', 'informa', 'trimestral', 'podrás', 'harás',
-            'contarás', 'recibirás', 'dónde', 'cuándo', 'porqué'
-        }
-        self.spell.word_frequency.load_words(common_words)
+        if not os.path.exists(dict_path + '.dic'):
+            raise FileNotFoundError(
+                f"Spanish dictionary not found at {dict_path}.dic\n"
+                "Please ensure dictionaries/es_ES/es_ES.dic and es_ES.aff are present."
+            )
 
-        logger.debug("Spell checker initialized with extended Spanish dictionary")
+        self.hunspell = Dictionary.from_files(dict_path)
+
+        # Note: Whitelist terms are checked separately via is_whitelisted() in _check_spelling
+        # Hunspell's LibreOffice dictionary is comprehensive enough for most Spanish words
+
+        logger.debug("Hunspell initialized with LibreOffice Spanish dictionary")
 
     def _get_check_type(self) -> str:
         """Return the check type identifier."""
@@ -391,44 +315,49 @@ class SpellChecker(QualityCheck):
             word_positions[len(words_to_check)] = i
             words_to_check.append(cleaned_word)
 
-        # Find misspelled words
-        misspelled = self.spell.unknown(words_to_check)
+        # Check each word with Hunspell
+        checked_words = set()  # Track words we've already reported
 
-        # Build error list with context
-        for misspelled_word in misspelled:
-            # Find all positions of this misspelled word
-            for check_idx, word in enumerate(words_to_check):
-                if word == misspelled_word:
-                    original_pos = word_positions[check_idx]
+        for check_idx, word in enumerate(words_to_check):
+            # Skip if already reported
+            if word in checked_words:
+                continue
 
-                    # Get context (3 words before and after)
-                    start_idx = max(0, original_pos - 3)
-                    end_idx = min(len(words), original_pos + 4)
-                    context_words = words[start_idx:end_idx]
-                    context = " ".join(context_words)
+            # Check spelling with Hunspell
+            is_correct = self.hunspell.lookup(word)
 
-                    # Highlight the error word in context
-                    # Use the original word form (with capitalization)
-                    original_word = words[original_pos].strip('.,;:!?¿¡()[]{}"\'-')
-                    context = context.replace(original_word, f"**{original_word}**")
+            if not is_correct:
+                # Mark as checked
+                checked_words.add(word)
 
-                    # Get full sentence if possible (look for . ! ?)
-                    sentence = self._get_sentence(words, original_pos)
+                # Get original position
+                original_pos = word_positions[check_idx]
 
-                    # Get suggestions (top 3)
-                    candidates = self.spell.candidates(misspelled_word)
-                    suggestions = list(candidates)[:3] if candidates else []
+                # Get context (3 words before and after)
+                start_idx = max(0, original_pos - 3)
+                end_idx = min(len(words), original_pos + 4)
+                context_words = words[start_idx:end_idx]
+                context = " ".join(context_words)
 
-                    spelling_errors.append({
-                        "word": original_word,
-                        "context": context,
-                        "sentence": sentence if sentence != context else None,
-                        "suggestions": suggestions,
-                        "position": original_pos
-                    })
+                # Highlight the error word in context
+                # Use the original word form (with capitalization)
+                original_word = words[original_pos].strip('.,;:!?¿¡()[]{}"\'-')
+                context = context.replace(original_word, f"**{original_word}**")
 
-                    # Only report each unique misspelling once per document
-                    break
+                # Get full sentence if possible (look for . ! ?)
+                sentence = self._get_sentence(words, original_pos)
+
+                # Get suggestions (top 3)
+                suggestions_list = self.hunspell.suggest(word)
+                suggestions = list(suggestions_list)[:3] if suggestions_list else []
+
+                spelling_errors.append({
+                    "word": original_word,
+                    "context": context,
+                    "sentence": sentence if sentence != context else None,
+                    "suggestions": suggestions,
+                    "position": original_pos
+                })
 
         return spelling_errors
 
