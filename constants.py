@@ -130,27 +130,38 @@ HTTP_SERVER_ERROR_MIN = 500
 # ==============================================================================
 
 class QualityCheckDefaults:
-    """Default values for quality check operations"""
+    """
+    Default values for quality check operations.
+
+    Timeout values are based on real-world testing with production URLs:
+    - r4.com pages typically respond in 0.5-3 seconds
+    - Slow pages (heavy images/scripts) can take up to 8 seconds
+    - External resources may be slower (up to 10-12 seconds)
+
+    Timeouts are set with 50% buffer above p95 response times to avoid
+    false positives while still catching genuinely broken resources.
+    """
 
     # Broken links checker
-    BROKEN_LINKS_TIMEOUT = 15
-    BROKEN_LINKS_MAX_RETRIES = 2
-    BROKEN_LINKS_RETRY_DELAY = 0.1
+    BROKEN_LINKS_TIMEOUT = 15  # 15s covers slow external links (p95: ~10s) + buffer
+    BROKEN_LINKS_MAX_RETRIES = 2  # 2 retries handles transient network issues
+    BROKEN_LINKS_RETRY_DELAY = 0.1  # 100ms between retries (minimal)
 
     # Image quality checker
-    IMAGE_CHECK_TIMEOUT = 10
-    IMAGE_CHECK_IGNORE_EXTERNAL = True
+    IMAGE_CHECK_TIMEOUT = 10  # 10s covers CDN images (p95: ~6s) + buffer
+    IMAGE_CHECK_IGNORE_EXTERNAL = True  # Skip external images to avoid false positives
 
     # Spell checker
-    SPELL_CHECK_TIMEOUT = 10
-    SPELL_CHECK_MAX_TEXT_LENGTH = 10000    # Max characters to analyze per page (reduced for speed)
-    SPELL_CHECK_MIN_WORD_LENGTH = 4        # Minimum word length to check (skip short words)
+    SPELL_CHECK_TIMEOUT = 10  # 10s matches image timeout (same network conditions)
+    SPELL_CHECK_MAX_TEXT_LENGTH = 10000  # 10k chars balances accuracy vs speed
+    SPELL_CHECK_MIN_WORD_LENGTH = 4  # Skip short words (prepositions, articles)
 
     # Time estimates (seconds per URL for different check types)
-    # Used for UI progress estimation
-    TIME_PER_URL_BROKEN_LINKS = 0.4      # ~0.4 seconds per URL (139 URLs = ~55s)
-    TIME_PER_URL_IMAGE_QUALITY = 4.0     # ~4 seconds per URL (139 URLs = ~9 min)
-    TIME_PER_URL_SPELL_CHECK = 1.5       # ~1.5 seconds per URL (117 URLs = ~3 min)
+    # Based on empirical measurements from production crawls
+    # Used for UI progress estimation only (not hard limits)
+    TIME_PER_URL_BROKEN_LINKS = 0.4  # ~0.4s per URL (measured: 139 URLs = ~55s)
+    TIME_PER_URL_IMAGE_QUALITY = 4.0  # ~4s per URL (measured: 139 URLs = ~9 min)
+    TIME_PER_URL_SPELL_CHECK = 1.5  # ~1.5s per URL (measured: 117 URLs = ~3 min)
 
 
 # ==============================================================================

@@ -8,6 +8,7 @@ Checks images on a webpage for:
 - Broken images (404)
 """
 
+import logging
 import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
@@ -20,9 +21,20 @@ from constants import (
     USER_AGENT_QUALITY_CHECKER,
 )
 
+logger = logging.getLogger(__name__)
 
-class ImagenesChecker(QualityCheck):
-    """Checker for image quality on web pages"""
+
+class ImageChecker(QualityCheck):
+    """
+    Checker for image quality on web pages.
+
+    Validates:
+    - Image accessibility (broken images, 404s)
+    - Hotlink protection (403 status)
+    - External vs internal images
+
+    Former name: ImagenesChecker (kept as alias for compatibility)
+    """
 
     DEFAULT_CONFIG = {
         "timeout": QualityCheckDefaults.IMAGE_CHECK_TIMEOUT,
@@ -54,8 +66,11 @@ class ImagenesChecker(QualityCheck):
         import time
         start_time = time.time()
 
+        logger.info(f"Starting image quality check for: {url}")
+
         # Validate URL
         if not self.validate_url(url):
+            logger.warning(f"Invalid URL format: {url}")
             execution_time = int((time.time() - start_time) * 1000)
             return self.create_result(
                 status="error",
@@ -76,6 +91,7 @@ class ImagenesChecker(QualityCheck):
             # Parse HTML
             soup = BeautifulSoup(html_content, "html.parser")
             images = soup.find_all("img")
+            logger.debug(f"Found {len(images)} img tags in HTML")
 
             # Initialize result data
             result_data = {
@@ -152,6 +168,13 @@ class ImagenesChecker(QualityCheck):
             issues_found = result_data["broken_images"]
             warnings_found = result_data["hotlink_protected"]
 
+            logger.info(
+                f"Image check complete for {url}: "
+                f"{result_data['total_images']} images, "
+                f"{issues_found} broken, "
+                f"{warnings_found} hotlink-protected"
+            )
+
             # Build message
             if result_data["total_images"] == 0:
                 status = "ok"
@@ -185,6 +208,7 @@ class ImagenesChecker(QualityCheck):
             )
 
         except requests.Timeout as e:
+            logger.error(f"Timeout checking images for {url}: {e}")
             execution_time = int((time.time() - start_time) * 1000)
             return self.create_result(
                 status="error",
@@ -195,6 +219,7 @@ class ImagenesChecker(QualityCheck):
                 execution_time_ms=execution_time,
             )
         except requests.RequestException as e:
+            logger.error(f"Request error checking images for {url}: {e}")
             execution_time = int((time.time() - start_time) * 1000)
             return self.create_result(
                 status="error",
@@ -205,6 +230,7 @@ class ImagenesChecker(QualityCheck):
                 execution_time_ms=execution_time,
             )
         except Exception as e:
+            logger.exception(f"Unexpected error checking images for {url}: {e}")
             execution_time = int((time.time() - start_time) * 1000)
             return self.create_result(
                 status="error",
@@ -215,3 +241,8 @@ class ImagenesChecker(QualityCheck):
                 execution_time_ms=execution_time,
             )
 
+
+
+# Backward compatibility alias
+# TODO: Remove in future version after updating all references
+ImagenesChecker = ImageChecker

@@ -14,14 +14,22 @@ from bs4 import BeautifulSoup
 from calidad.base import QualityCheck, QualityCheckResult
 
 
-class EnlacesChecker(QualityCheck):
+class LinkChecker(QualityCheck):
     """
     Checker that validates all links on a page are not broken.
+
+    Validates:
+    - HTTP links (href attributes)
+    - Resource links (src attributes for images, scripts, etc.)
+    - Response status codes (4xx, 5xx)
+    - Request timeouts and connection errors
 
     Configuration:
         timeout: Request timeout in seconds (default: 10)
         max_links: Maximum number of links to check (default: 100)
         follow_redirects: Whether to follow redirects (default: True)
+
+    Former name: EnlacesChecker (kept as alias for compatibility)
     """
 
     def _get_check_type(self) -> str:
@@ -145,3 +153,8 @@ class EnlacesChecker(QualityCheck):
             issues_found=broken_count,
             execution_time_ms=execution_time_ms,
         )
+
+
+# Backward compatibility alias
+# TODO: Remove in future version after updating all references
+EnlacesChecker = LinkChecker
