@@ -72,6 +72,26 @@ class SpellChecker(QualityCheck):
 
         self.hunspell = Dictionary.from_files(dict_path)
 
+        # Load custom dictionary words as a set for fast lookup
+        # Note: spylls doesn't support loading multiple dictionaries, so we load
+        # custom words manually and check them programmatically
+        custom_path = os.path.join(base_dir, 'dictionaries', 'custom', 'custom.dic')
+        self.custom_words = set()
+        if os.path.exists(custom_path):
+            try:
+                with open(custom_path, 'r', encoding='utf-8') as f:
+                    lines = f.readlines()
+                    # First line is word count, skip it
+                    for line in lines[1:]:
+                        word = line.strip()
+                        if word:
+                            # Add both original and lowercase versions
+                            self.custom_words.add(word)
+                            self.custom_words.add(word.lower())
+                logger.debug(f"Custom dictionary loaded: {len(self.custom_words)} word forms")
+            except Exception as e:
+                logger.warning(f"Failed to load custom dictionary: {e}")
+
         # Note: Whitelist terms are checked separately via is_whitelisted() in _check_spelling
         # Hunspell's LibreOffice dictionary is comprehensive enough for most Spanish words
 
@@ -323,8 +343,12 @@ class SpellChecker(QualityCheck):
             if word in checked_words:
                 continue
 
-            # Check spelling with Hunspell
+            # Check spelling with Hunspell (main dictionary first, then custom words set)
             is_correct = self.hunspell.lookup(word)
+
+            # If not in main dictionary, check custom words set
+            if not is_correct and word in self.custom_words:
+                is_correct = True
 
             if not is_correct:
                 # Mark as checked

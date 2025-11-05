@@ -48,3 +48,8 @@ Thumbs.db
 
 # Local database backups
 backups/
+
+# Auto-generated custom dictionary files
+# These are regenerated from the database via dictionary_manager.py
+dictionaries/custom/custom.dic
+dictionaries/custom/custom.aff
