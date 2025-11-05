@@ -18,7 +18,7 @@ from spylls.hunspell import Dictionary
 
 from calidad.base import QualityCheck, QualityCheckResult
 from calidad.whitelist_terms import is_whitelisted
-from constants import QualityCheckDefaults
+from constants import QualityCheckDefaults, USER_AGENT_QUALITY_CHECKER
 
 logger = logging.getLogger(__name__)
 
@@ -131,7 +131,7 @@ class SpellChecker(QualityCheck):
             if html_content is None:
                 timeout = self.config.get("timeout", 10)
                 headers = {
-                    'User-Agent': 'Mozilla/5.0 (compatible; AgendaRenta4/1.0; +https://www.r4.com)'
+                    'User-Agent': USER_AGENT_QUALITY_CHECKER
                 }
                 response = requests.get(url, timeout=timeout, headers=headers)
                 response.raise_for_status()

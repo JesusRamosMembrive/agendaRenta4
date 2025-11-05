@@ -17,7 +17,7 @@ from constants import (
     HTTP_FORBIDDEN,
     HTTP_CLIENT_ERROR_MIN,
     QualityCheckDefaults,
-    USER_AGENT_IMAGE_CHECKER,
+    USER_AGENT_QUALITY_CHECKER,
 )
 
 
@@ -113,7 +113,7 @@ class ImagenesChecker(QualityCheck):
                     # Add realistic headers to avoid false positives
                     headers = {
                         'Referer': url,
-                        'User-Agent': 'Mozilla/5.0 (compatible; QualityChecker/1.0; +https://www.r4.com)'
+                        'User-Agent': USER_AGENT_QUALITY_CHECKER
                     }
 
                     img_response = requests.head(

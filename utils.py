@@ -91,7 +91,7 @@ def format_date(date_str):
     try:
         date_obj = datetime.strptime(str(date_str), '%Y-%m-%d')
         return date_obj.strftime('%d/%m/%Y')
-    except:
+    except (ValueError, TypeError):
         return date_str
 
 
@@ -112,32 +112,33 @@ def format_period(period_str):
         months_es = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
                      'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
         return f"{months_es[int(month)]} {year}"
-    except:
+    except (ValueError, IndexError, TypeError):
         return period_str
 
 
 def generate_available_periods():
     """
-    Generate list of available periods (last 6 months + current + next 6 months).
+    Generate list of available periods (configurable range via constants.PERIOD_RANGE_MONTHS).
 
     Returns:
         list: List of period strings in format 'YYYY-MM'
     """
     from dateutil.relativedelta import relativedelta
+    from constants import PERIOD_RANGE_MONTHS
 
     current_date = datetime.now()
     periods = []
 
-    # Last 6 months
-    for i in range(6, 0, -1):
+    # Last N months
+    for i in range(PERIOD_RANGE_MONTHS, 0, -1):
         past_date = current_date - relativedelta(months=i)
         periods.append(past_date.strftime('%Y-%m'))
 
     # Current month
     periods.append(current_date.strftime('%Y-%m'))
 
-    # Next 6 months
-    for i in range(1, 7):
+    # Next N months
+    for i in range(1, PERIOD_RANGE_MONTHS + 1):
         future_date = current_date + relativedelta(months=i)
         periods.append(future_date.strftime('%Y-%m'))
 

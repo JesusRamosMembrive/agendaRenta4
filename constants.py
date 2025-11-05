@@ -154,11 +154,16 @@ class QualityCheckDefaults:
 
 
 # ==============================================================================
-# USER AGENT STRINGS
+# TASK MANAGEMENT
 # ==============================================================================
 
-# User agent for image quality checker
-USER_AGENT_IMAGE_CHECKER = 'Mozilla/5.0 (compatible; QualityChecker/1.0; +https://www.r4.com)'
+# Problems retention period (days)
+# Tasks marked as 'problem' are shown for the last N days
+PROBLEMS_RETENTION_DAYS = 90
+
+# Period range for available periods selector
+# Shows last N months + current + next N months
+PERIOD_RANGE_MONTHS = 6
 
 
 # ==============================================================================
@@ -167,3 +172,17 @@ USER_AGENT_IMAGE_CHECKER = 'Mozilla/5.0 (compatible; QualityChecker/1.0; +https:
 
 # Login session duration (days)
 LOGIN_SESSION_DAYS = 30
+
+
+# ==============================================================================
+# USER AGENTS
+# ==============================================================================
+
+# User agent for web crawler
+USER_AGENT_CRAWLER = 'AgendaRenta4-Crawler/2.0 (quality monitoring; contact: admin@example.com)'
+
+# User agent for quality checks (mimics real browser)
+USER_AGENT_QUALITY_CHECKER = 'Mozilla/5.0 (compatible; QualityChecker/1.0; +https://www.r4.com)'
+
+# User agent for image quality checker (same as quality checker)
+USER_AGENT_IMAGE_CHECKER = USER_AGENT_QUALITY_CHECKER

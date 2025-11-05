@@ -46,6 +46,7 @@ from constants import (
     SEMIANNUAL_MONTHS,
     ANNUAL_MONTH,
     LOGIN_SESSION_DAYS,
+    PROBLEMS_RETENTION_DAYS,
 )
 
 # Initialize Flask app
@@ -970,8 +971,8 @@ def problemas():
     period = session.get("current_period", datetime.now().strftime("%Y-%m"))
     current_period = datetime.now().strftime("%Y-%m")
 
-    # Calculate cutoff date (90 days ago = ~3 months)
-    cutoff_date = (datetime.now() - timedelta(days=90)).strftime('%Y-%m')
+    # Calculate cutoff date (problems retention period)
+    cutoff_date = (datetime.now() - timedelta(days=PROBLEMS_RETENTION_DAYS)).strftime('%Y-%m')
 
     with db_cursor(commit=False) as cursor:
         # Query problem tasks from last 3 months to current month
