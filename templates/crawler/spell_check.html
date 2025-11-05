@@ -111,9 +111,20 @@
                 <tr id="details-{{ loop.index }}" style="display: none;" class="details-row">
                     <td colspan="8" style="background: #f9fafb; padding: 20px;">
                         <div style="max-width: 100%;">
-                            <h4 style="margin: 0 0 15px 0; color: #1f2937; font-size: 14px; font-weight: 600;">
-                                📝 Errores Ortográficos Detectados ({{ result.details.spelling_errors|length if result.details.spelling_errors else 0 }})
-                            </h4>
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                                <h4 style="margin: 0; color: #1f2937; font-size: 14px; font-weight: 600;">
+                                    📝 Errores Ortográficos Detectados ({{ result.details.spelling_errors|length if result.details.spelling_errors else 0 }})
+                                </h4>
+                                {% if result.details.spelling_errors and result.details.spelling_errors|length > 1 %}
+                                <button
+                                    onclick="addAllWordsFromUrl({{ result.id }}, {{ result.details.spelling_errors|tojson|safe }})"
+                                    class="btn-add-all-dict"
+                                    title="Añadir todas las palabras de esta URL al diccionario"
+                                    style="background: #8b5cf6; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+                                    📖 Añadir Todas al Diccionario ({{ result.details.spelling_errors|length }})
+                                </button>
+                                {% endif %}
+                            </div>
 
                             <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 15px; margin-bottom: 15px;">
                                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 15px;">
@@ -474,6 +485,100 @@ async function addWordToDictionary(word, resultId, errorIndex) {
         button.style.opacity = '1';
     }
 }
+
+async function addAllWordsFromUrl(resultId, spellingErrors) {
+    // Extract unique words
+    const words = [...new Set(spellingErrors.map(error => error.word))];
+
+    // Confirm action
+    const confirmMsg = `¿Añadir TODAS las ${words.length} palabras de esta URL al diccionario?\n\n` +
+                      `Palabras: ${words.slice(0, 10).join(', ')}` +
+                      (words.length > 10 ? `, y ${words.length - 10} más...` : '') +
+                      `\n\nEsta acción no se puede deshacer fácilmente.`;
+
+    if (!confirm(confirmMsg)) {
+        return;
+    }
+
+    // Find details row and bulk button
+    const detailsRow = document.querySelector(`#details-${resultId}`);
+    if (!detailsRow) {
+        // Try to find by result ID in error divs
+        const firstErrorDiv = document.querySelector(`[id^="error-${resultId}-"]`);
+        if (firstErrorDiv) {
+            const detailsContainer = firstErrorDiv.closest('.details-row');
+            if (detailsContainer) {
+                const bulkButton = detailsContainer.querySelector('.btn-add-all-dict');
+                if (bulkButton) {
+                    bulkButton.disabled = true;
+                    bulkButton.textContent = '⏳ Añadiendo todas...';
+                    bulkButton.style.opacity = '0.6';
+                }
+            }
+        }
+    }
+
+    let added = 0;
+    let errors = 0;
+    const failedWords = [];
+
+    // Add each word
+    for (let i = 0; i < words.length; i++) {
+        const word = words[i];
+
+        try {
+            const formData = new FormData();
+            formData.append('word', word);
+            formData.append('category', 'other');
+            formData.append('frequency', '1');
+            formData.append('notes', 'Añadida masivamente desde spell check');
+
+            const response = await fetch('{{ url_for("add_custom_word") }}', {
+                method: 'POST',
+                body: formData
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                added++;
+
+                // Remove error div if exists
+                spellingErrors.forEach((error, idx) => {
+                    if (error.word === word) {
+                        const errorDiv = document.getElementById(`error-${resultId}-${idx + 1}`);
+                        if (errorDiv) {
+                            errorDiv.style.transition = 'opacity 0.3s';
+                            errorDiv.style.opacity = '0';
+                            setTimeout(() => errorDiv.remove(), 300);
+                        }
+                    }
+                });
+            } else {
+                errors++;
+                failedWords.push(word);
+            }
+        } catch (error) {
+            errors++;
+            failedWords.push(word);
+        }
+    }
+
+    // Show results
+    let resultMsg = `✅ Proceso completado!\n\n`;
+    resultMsg += `Palabras añadidas: ${added}\n`;
+    if (errors > 0) {
+        resultMsg += `Errores: ${errors}\n`;
+        resultMsg += `\nPalabras que fallaron: ${failedWords.join(', ')}`;
+    }
+
+    alert(resultMsg);
+
+    // Reload page after 1 second to reflect changes
+    setTimeout(() => {
+        window.location.reload();
+    }, 1000);
+}
 </script>
 
 <style>
@@ -530,6 +635,22 @@ async function addWordToDictionary(word, resultId, errorIndex) {
 
 .btn-add-dict:disabled {
     cursor: not-allowed;
+}
+
+/* Add All to Dictionary Button */
+.btn-add-all-dict:hover {
+    background: #7c3aed !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(139, 92, 246, 0.4);
+}
+
+.btn-add-all-dict:active {
+    transform: translateY(0);
+}
+
+.btn-add-all-dict:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
 }
 </style>
 {% endblock %}
