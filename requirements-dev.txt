@@ -1,0 +1,16 @@
+# Development dependencies for code quality and testing
+# Install with: pip install -r requirements-dev.txt
+
+# Code quality tools
+ruff==0.8.4              # Fast linter and formatter (replaces Black, Flake8, isort, pyupgrade)
+bandit==1.7.10           # Security vulnerability scanner
+mypy==1.13.0             # Static type checker
+
+# Type stubs for third-party libraries
+types-requests==2.31.0.20240218
+types-python-dateutil==2.9.0.20241003
+
+# Testing tools (pytest already in requirements.txt, but adding coverage tools)
+pytest-xdist==3.6.1      # Parallel test execution
+pytest-timeout==2.3.1    # Timeout control for tests
+pytest-mock==3.14.0      # Mock/patch utilities

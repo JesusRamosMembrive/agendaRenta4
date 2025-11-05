@@ -4,8 +4,8 @@ Unit tests for calidad/base.py
 Tests the base classes: QualityCheck, QualityCheckResult, QualityCheckRunner
 """
 
-import pytest
 from datetime import datetime
+
 from calidad.base import QualityCheck, QualityCheckResult, QualityCheckRunner
 
 

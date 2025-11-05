@@ -10,12 +10,14 @@ Many tests are currently skipped and need to be fixed to work with:
 - JSON response parsing with proper content types
 """
 
-import pytest
 import json
-from datetime import datetime
+
+import pytest
 
 
-@pytest.mark.skip(reason="TODO: Fix Flask app context and authentication for blueprint tests")
+@pytest.mark.skip(
+    reason="TODO: Fix Flask app context and authentication for blueprint tests"
+)
 @pytest.mark.integration
 @pytest.mark.requires_db
 class TestConfigBlueprint:
@@ -27,7 +29,9 @@ class TestConfigBlueprint:
 
         assert response.status_code in [200, 302]  # 302 if auth required
 
-    def test_config_index_shows_task_types(self, authenticated_client, db_cursor_fixture):
+    def test_config_index_shows_task_types(
+        self, authenticated_client, db_cursor_fixture
+    ):
         """Test configuration page shows task types"""
         cursor = db_cursor_fixture
 
@@ -39,15 +43,23 @@ class TestConfigBlueprint:
             response = authenticated_client.get("/configuracion")
             # If accessible, should show task types
             if response.status_code == 200:
-                assert b"task" in response.data.lower() or b"tarea" in response.data.lower()
+                assert (
+                    b"task" in response.data.lower()
+                    or b"tarea" in response.data.lower()
+                )
 
-    def test_config_index_shows_sections(self, authenticated_client, db_cursor_fixture, sample_section):
+    def test_config_index_shows_sections(
+        self, authenticated_client, db_cursor_fixture, sample_section
+    ):
         """Test configuration page shows sections (URLs)"""
         response = authenticated_client.get("/configuracion")
 
         if response.status_code == 200:
             # Should display the sample section
-            assert sample_section["name"].encode() in response.data or b"section" in response.data.lower()
+            assert (
+                sample_section["name"].encode() in response.data
+                or b"section" in response.data.lower()
+            )
 
     def test_save_alert_settings_requires_post(self, authenticated_client):
         """Test /configuracion/alertas requires POST method"""
@@ -55,7 +67,9 @@ class TestConfigBlueprint:
 
         assert response.status_code == 405  # Method Not Allowed
 
-    def test_save_alert_settings_with_valid_data(self, authenticated_client, db_cursor_fixture):
+    def test_save_alert_settings_with_valid_data(
+        self, authenticated_client, db_cursor_fixture
+    ):
         """Test POST /configuracion/alertas with valid alert settings"""
         cursor = db_cursor_fixture
 
@@ -110,7 +124,9 @@ class TestConfigBlueprint:
 
         assert response.status_code == 405  # Method Not Allowed
 
-    def test_save_notification_preferences_with_valid_data(self, authenticated_client, db_cursor_fixture):
+    def test_save_notification_preferences_with_valid_data(
+        self, authenticated_client, db_cursor_fixture
+    ):
         """Test POST /configuracion/notificaciones with valid data"""
         response = authenticated_client.post(
             "/configuracion/notificaciones",
@@ -170,7 +186,9 @@ class TestConfigBlueprint:
 
     def test_add_url_with_missing_url(self, authenticated_client):
         """Test POST /configuracion/url/add with missing URL"""
-        response = authenticated_client.post("/configuracion/url/add", data={"name": "Test URL"})
+        response = authenticated_client.post(
+            "/configuracion/url/add", data={"name": "Test URL"}
+        )
 
         assert response.status_code == 400
         data = json.loads(response.data)
@@ -182,7 +200,9 @@ class TestConfigBlueprint:
 
         assert response.status_code == 405  # Method Not Allowed
 
-    def test_edit_url_with_valid_data(self, authenticated_client, db_cursor_fixture, sample_section):
+    def test_edit_url_with_valid_data(
+        self, authenticated_client, db_cursor_fixture, sample_section
+    ):
         """Test POST /configuracion/url/edit/<id> with valid data"""
         cursor = db_cursor_fixture
         url_id = sample_section["id"]
@@ -218,7 +238,9 @@ class TestConfigBlueprint:
 
         assert response.status_code == 405  # Method Not Allowed
 
-    def test_toggle_url_activates_inactive(self, authenticated_client, db_cursor_fixture):
+    def test_toggle_url_activates_inactive(
+        self, authenticated_client, db_cursor_fixture
+    ):
         """Test POST /configuracion/url/toggle/<id> activates inactive URL"""
         cursor = db_cursor_fixture
 
@@ -245,7 +267,9 @@ class TestConfigBlueprint:
         result = cursor.fetchone()
         assert result["active"] is True
 
-    def test_toggle_url_deactivates_active(self, authenticated_client, db_cursor_fixture, sample_section):
+    def test_toggle_url_deactivates_active(
+        self, authenticated_client, db_cursor_fixture, sample_section
+    ):
         """Test POST /configuracion/url/toggle/<id> deactivates active URL"""
         cursor = db_cursor_fixture
         url_id = sample_section["id"]
@@ -302,7 +326,9 @@ class TestConfigBlueprint:
         result = cursor.fetchone()
         assert result is None
 
-    def test_delete_url_with_tasks(self, authenticated_client, db_cursor_fixture, sample_section):
+    def test_delete_url_with_tasks(
+        self, authenticated_client, db_cursor_fixture, sample_section
+    ):
         """Test POST /configuracion/url/delete/<id> fails if URL has tasks"""
         cursor = db_cursor_fixture
         url_id = sample_section["id"]
@@ -336,7 +362,9 @@ class TestConfigBlueprint:
         assert response.status_code == 200
 
 
-@pytest.mark.skip(reason="TODO: Fix Flask app context and authentication for blueprint tests")
+@pytest.mark.skip(
+    reason="TODO: Fix Flask app context and authentication for blueprint tests"
+)
 @pytest.mark.integration
 @pytest.mark.requires_db
 class TestConfigBlueprintEdgeCases:

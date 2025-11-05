@@ -4,10 +4,10 @@ Unit tests for calidad/enlaces.py
 Tests the EnlacesChecker (broken links checker)
 """
 
-import pytest
 from unittest.mock import Mock, patch
-from calidad.enlaces import EnlacesChecker
+
 from calidad.base import QualityCheckResult
+from calidad.enlaces import EnlacesChecker
 
 
 class TestEnlacesChecker:
@@ -191,10 +191,7 @@ class TestEnlacesChecker:
         """Test that checker respects max_links configuration"""
         # Mock HTML with many links
         links_html = "".join(
-            [
-                f'<a href="https://example.com/link{i}">Link {i}</a>'
-                for i in range(150)
-            ]
+            [f'<a href="https://example.com/link{i}">Link {i}</a>' for i in range(150)]
         )
         mock_get_response = Mock()
         mock_get_response.status_code = 200

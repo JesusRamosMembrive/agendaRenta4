@@ -7,10 +7,11 @@ Ejemplo:
     python3 sync_postgres_to_postgres.py "postgresql://user:pass@host:port/dbname"
 """
 
+import os
 import sys
+
 import psycopg2
 import psycopg2.extras
-import os
 from dotenv import load_dotenv
 
 # Cargar variables de entorno
@@ -19,21 +20,20 @@ load_dotenv()
 # Tablas a migrar en orden (respetando foreign keys)
 TABLES_ORDER = [
     # Stage 1 - Sistema Manual
-    'sections',
-    'task_types',
-    'alert_settings',
-    'notification_preferences',
-    'notification_emails',
-    'users',
-    'tasks',
-    'notifications',
-    'pending_alerts',
-
+    "sections",
+    "task_types",
+    "alert_settings",
+    "notification_preferences",
+    "notification_emails",
+    "users",
+    "tasks",
+    "notifications",
+    "pending_alerts",
     # Stage 2 - Crawler Automático
-    'crawl_runs',           # Primero crawl_runs (no tiene FK)
-    'discovered_urls',      # Luego discovered_urls (FK a crawl_runs)
-    'url_changes',          # Luego url_changes (FK a discovered_urls)
-    'health_snapshots',     # Health snapshots (independiente)
+    "crawl_runs",  # Primero crawl_runs (no tiene FK)
+    "discovered_urls",  # Luego discovered_urls (FK a crawl_runs)
+    "url_changes",  # Luego url_changes (FK a discovered_urls)
+    "health_snapshots",  # Health snapshots (independiente)
 ]
 
 
@@ -42,13 +42,16 @@ def get_table_schema(conn, table_name):
     cursor = conn.cursor()
 
     # Get table structure
-    cursor.execute(f"""
+    cursor.execute(
+        """
         SELECT column_name, data_type, character_maximum_length,
                is_nullable, column_default
         FROM information_schema.columns
         WHERE table_name = %s
         ORDER BY ordinal_position
-    """, (table_name,))
+    """,
+        (table_name,),
+    )
 
     columns = cursor.fetchall()
 
@@ -63,28 +66,31 @@ def get_table_schema(conn, table_name):
         # Build column definition
         col_def = f"{col_name} "
 
-        if data_type == 'character varying' and max_length:
+        if data_type == "character varying" and max_length:
             col_def += f"VARCHAR({max_length})"
-        elif data_type == 'integer' and default and 'nextval' in str(default):
+        elif data_type == "integer" and default and "nextval" in str(default):
             col_def += "SERIAL"
         else:
             col_def += data_type.upper()
 
-        if nullable == 'NO' and 'nextval' not in str(default or ''):
+        if nullable == "NO" and "nextval" not in str(default or ""):
             col_def += " NOT NULL"
 
-        if default and 'nextval' not in str(default):
+        if default and "nextval" not in str(default):
             col_def += f" DEFAULT {default}"
 
         create_parts.append(col_def)
 
     # Get primary key
-    cursor.execute(f"""
+    cursor.execute(
+        """
         SELECT a.attname
         FROM pg_index i
         JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = ANY(i.indkey)
         WHERE i.indrelid = %s::regclass AND i.indisprimary
-    """, (table_name,))
+    """,
+        (table_name,),
+    )
 
     pk_cols = [row[0] for row in cursor.fetchall()]
     if pk_cols:
@@ -112,8 +118,8 @@ def migrate_table_data(source_conn, dest_conn, table_name):
     columns = [desc[0] for desc in src_cursor.description]
 
     # Build INSERT statement
-    placeholders = ','.join(['%s'] * len(columns))
-    columns_str = ','.join(columns)
+    placeholders = ",".join(["%s"] * len(columns))
+    columns_str = ",".join(columns)
     insert_sql = f"INSERT INTO {table_name} ({columns_str}) VALUES ({placeholders})"
 
     # Insert data
@@ -137,9 +143,17 @@ def reset_sequences(conn):
 
     # Tables with auto-increment IDs
     tables_with_id = [
-        'sections', 'task_types', 'tasks', 'notifications',
-        'pending_alerts', 'notification_emails', 'users',
-        'crawl_runs', 'discovered_urls', 'url_changes', 'health_snapshots'
+        "sections",
+        "task_types",
+        "tasks",
+        "notifications",
+        "pending_alerts",
+        "notification_emails",
+        "users",
+        "crawl_runs",
+        "discovered_urls",
+        "url_changes",
+        "health_snapshots",
     ]
 
     for table in tables_with_id:
@@ -162,11 +176,13 @@ def main():
         print(f"Usage: {sys.argv[0]} <production_database_url>")
         print()
         print("Example:")
-        print('  python3 sync_postgres_to_postgres.py "postgresql://user:pass@host:port/dbname"')
+        print(
+            '  python3 sync_postgres_to_postgres.py "postgresql://user:pass@host:port/dbname"'
+        )
         sys.exit(1)
 
     production_url = sys.argv[1]
-    local_url = os.getenv('DATABASE_URL')
+    local_url = os.getenv("DATABASE_URL")
 
     if not local_url:
         print("Error: Local DATABASE_URL not found in .env")
@@ -211,23 +227,32 @@ def main():
 
     # Apply migrations from SQL files
     print("Applying migration files...")
-    import subprocess
 
     migrations = [
-        'migrations/002_add_crawler_tables.sql',
-        'migrations/003_add_priority_flag.sql',
-        'migrations/004_add_health_snapshots.sql'
+        "migrations/002_add_crawler_tables.sql",
+        "migrations/003_add_priority_flag.sql",
+        "migrations/004_add_health_snapshots.sql",
     ]
 
     # First, create Stage 1 tables from local schema
     local_cursor = local_conn.cursor()
-    stage1_tables = ['sections', 'task_types', 'alert_settings', 'notification_preferences',
-                     'notification_emails', 'users', 'tasks', 'notifications', 'pending_alerts']
+    stage1_tables = [
+        "sections",
+        "task_types",
+        "alert_settings",
+        "notification_preferences",
+        "notification_emails",
+        "users",
+        "tasks",
+        "notifications",
+        "pending_alerts",
+    ]
 
     for table in stage1_tables:
         try:
             # Get table definition from local
-            local_cursor.execute(f"""
+            local_cursor.execute(
+                f"""
                 SELECT 'CREATE TABLE {table} (' || string_agg(column_definition, ', ') || ')'
                 FROM (
                     SELECT column_name || ' ' || data_type ||
@@ -242,7 +267,9 @@ def main():
                     WHERE table_name = %s
                     ORDER BY ordinal_position
                 ) AS cols
-            """, (table,))
+            """,
+                (table,),
+            )
 
             result = local_cursor.fetchone()
             if result and result[0]:
@@ -256,7 +283,7 @@ def main():
     # Apply Stage 2 migration files
     for migration_file in migrations:
         try:
-            with open(migration_file, 'r') as f:
+            with open(migration_file) as f:
                 sql = f.read()
                 prod_cursor.execute(sql)
                 prod_conn.commit()
@@ -274,12 +301,15 @@ def main():
     for table_name in TABLES_ORDER:
         try:
             # Check if table exists in local
-            local_cursor.execute("""
+            local_cursor.execute(
+                """
                 SELECT EXISTS (
                     SELECT FROM information_schema.tables
                     WHERE table_name = %s
                 )
-            """, (table_name,))
+            """,
+                (table_name,),
+            )
 
             if not local_cursor.fetchone()[0]:
                 print(f"  ⚠️  {table_name}: Table not found in local, skipping")
@@ -305,7 +335,7 @@ def main():
     prod_conn.close()
 
     print("=" * 70)
-    print(f"  ✅ Migration completed successfully!")
+    print("  ✅ Migration completed successfully!")
     print(f"  Total rows migrated: {total_rows}")
     print("=" * 70)
     print()
@@ -316,5 +346,5 @@ def main():
     print()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

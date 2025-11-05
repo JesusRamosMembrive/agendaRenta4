@@ -5,16 +5,16 @@ Test script for optimized quality checks (PR #1).
 Tests the new concurrent HTML fetching and threaded execution.
 """
 
+import logging
 import sys
 import time
-import logging
-from utils import db_cursor
+
 from calidad.post_crawl_runner import PostCrawlQualityRunner
+from utils import db_cursor
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -34,26 +34,31 @@ def get_latest_crawl_run_id():
             logger.error("No crawl runs found in database")
             return None
 
-        logger.info(f"Using crawl run #{row['id']} from {row['started_at']} ({row['urls_discovered']} URLs)")
-        return row['id']
+        logger.info(
+            f"Using crawl run #{row['id']} from {row['started_at']} ({row['urls_discovered']} URLs)"
+        )
+        return row["id"]
 
 
 def count_priority_urls(crawl_run_id):
     """Count priority and total URLs for a crawl run."""
     with db_cursor(commit=False) as cursor:
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT
                 COUNT(*) FILTER (WHERE is_priority = TRUE AND active = TRUE AND is_broken = FALSE) as priority_urls,
                 COUNT(*) FILTER (WHERE active = TRUE AND is_broken = FALSE) as total_urls
             FROM discovered_urls
             WHERE crawl_run_id = %s
-        """, (crawl_run_id,))
+        """,
+            (crawl_run_id,),
+        )
 
         row = cursor.fetchone()
-        return row['priority_urls'], row['total_urls']
+        return row["priority_urls"], row["total_urls"]
 
 
-def test_single_check(crawl_run_id, check_type, scope='priority', max_workers=10):
+def test_single_check(crawl_run_id, check_type, scope="priority", max_workers=10):
     """
     Test a single quality check with timing.
 
@@ -71,9 +76,9 @@ def test_single_check(crawl_run_id, check_type, scope='priority', max_workers=10
 
     start_time = time.time()
 
-    if check_type == 'image_quality':
+    if check_type == "image_quality":
         result = runner._run_image_quality_check(scope=scope)
-    elif check_type == 'spell_check':
+    elif check_type == "spell_check":
         result = runner._run_spell_check(scope=scope)
     else:
         logger.error(f"Unknown check type: {check_type}")
@@ -113,8 +118,8 @@ def main():
     # Test cases
     test_cases = [
         # (check_type, scope, max_workers)
-        ('image_quality', 'priority', 10),
-        ('spell_check', 'priority', 10),
+        ("image_quality", "priority", 10),
+        ("spell_check", "priority", 10),
     ]
 
     results = []
@@ -137,7 +142,7 @@ def main():
 
     for check_type, scope, max_workers, result in results:
         if result:
-            stats = result['stats']
+            stats = result["stats"]
             logger.info(
                 f"{check_type:20s} | scope={scope:8s} | workers={max_workers:2d} | "
                 f"{stats['successful']:3d}/{stats['total']:3d} successful | "
@@ -149,5 +154,5 @@ def main():
     logger.info("✅ All tests completed!")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

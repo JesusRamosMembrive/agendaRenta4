@@ -4,21 +4,24 @@ Script de prueba end-to-end para Quality Checks Post-Crawl
 Ejecuta las pruebas descritas en TESTING_POST_CRAWL.md de forma automatizada
 """
 
-import requests
-import time
 import json
-from typing import Dict, Any
+import time
+from typing import Any
+
+import requests
 
 BASE_URL = "http://127.0.0.1:5000"
 
+
 class ColoredOutput:
     """Helper para output con colores"""
-    GREEN = '\033[92m'
-    RED = '\033[91m'
-    YELLOW = '\033[93m'
-    BLUE = '\033[94m'
-    RESET = '\033[0m'
-    BOLD = '\033[1m'
+
+    GREEN = "\033[92m"
+    RED = "\033[91m"
+    YELLOW = "\033[93m"
+    BLUE = "\033[94m"
+    RESET = "\033[0m"
+    BOLD = "\033[1m"
 
     @staticmethod
     def success(msg: str):
@@ -38,12 +41,16 @@ class ColoredOutput:
 
     @staticmethod
     def header(msg: str):
-        print(f"\n{ColoredOutput.BOLD}{ColoredOutput.BLUE}{'='*60}{ColoredOutput.RESET}")
+        print(
+            f"\n{ColoredOutput.BOLD}{ColoredOutput.BLUE}{'='*60}{ColoredOutput.RESET}"
+        )
         print(f"{ColoredOutput.BOLD}{ColoredOutput.BLUE}{msg}{ColoredOutput.RESET}")
-        print(f"{ColoredOutput.BOLD}{ColoredOutput.BLUE}{'='*60}{ColoredOutput.RESET}\n")
+        print(
+            f"{ColoredOutput.BOLD}{ColoredOutput.BLUE}{'='*60}{ColoredOutput.RESET}\n"
+        )
 
 
-def test_get_quality_checks_config(session: requests.Session) -> Dict[str, Any]:
+def test_get_quality_checks_config(session: requests.Session) -> dict[str, Any]:
     """Test GET /crawler/config/checks"""
     ColoredOutput.header("TEST 1: Obtener Configuración de Quality Checks")
 
@@ -51,15 +58,17 @@ def test_get_quality_checks_config(session: requests.Session) -> Dict[str, Any]:
         response = session.get(f"{BASE_URL}/crawler/config/checks")
 
         if response.status_code == 200:
-            ColoredOutput.success(f"Endpoint respondió correctamente (HTTP {response.status_code})")
+            ColoredOutput.success(
+                f"Endpoint respondió correctamente (HTTP {response.status_code})"
+            )
 
             data = response.json()
             ColoredOutput.info(f"Checks disponibles: {len(data.get('checks', []))}")
 
-            for check in data.get('checks', []):
-                status = "✓ Habilitado" if check['enabled'] else "○ Deshabilitado"
-                auto = "(auto)" if check.get('run_after_crawl') else ""
-                available = "" if check.get('available', True) else "(próximamente)"
+            for check in data.get("checks", []):
+                status = "✓ Habilitado" if check["enabled"] else "○ Deshabilitado"
+                auto = "(auto)" if check.get("run_after_crawl") else ""
+                available = "" if check.get("available", True) else "(próximamente)"
                 print(f"  {check['icon']} {check['name']}: {status} {auto} {available}")
 
             return data
@@ -82,7 +91,7 @@ def test_save_quality_checks_config(session: requests.Session) -> bool:
         config = {
             "check_type": "image_quality",
             "enabled": True,
-            "run_after_crawl": True
+            "run_after_crawl": True,
         }
 
         ColoredOutput.info(f"Guardando configuración: {json.dumps(config, indent=2)}")
@@ -90,12 +99,14 @@ def test_save_quality_checks_config(session: requests.Session) -> bool:
         response = session.post(
             f"{BASE_URL}/crawler/config/checks",
             json=config,
-            headers={"Content-Type": "application/json"}
+            headers={"Content-Type": "application/json"},
         )
 
         if response.status_code == 200:
             data = response.json()
-            ColoredOutput.success(f"Configuración guardada: {data.get('message', 'OK')}")
+            ColoredOutput.success(
+                f"Configuración guardada: {data.get('message', 'OK')}"
+            )
             return True
         else:
             ColoredOutput.error(f"Falló al guardar (HTTP {response.status_code})")
@@ -113,25 +124,25 @@ def test_crawl_with_auto_checks(session: requests.Session) -> int:
 
     try:
         # Configurar crawl pequeño
-        crawl_config = {
-            "url": "https://www.r4.com",
-            "max_depth": 1,
-            "max_urls": 5
-        }
+        crawl_config = {"url": "https://www.r4.com", "max_depth": 1, "max_urls": 5}
 
-        ColoredOutput.info(f"Iniciando crawl: {crawl_config['url']} (máx. {crawl_config['max_urls']} URLs)")
+        ColoredOutput.info(
+            f"Iniciando crawl: {crawl_config['url']} (máx. {crawl_config['max_urls']} URLs)"
+        )
 
         response = session.post(
             f"{BASE_URL}/crawler/start",
             json=crawl_config,
-            headers={"Content-Type": "application/json"}
+            headers={"Content-Type": "application/json"},
         )
 
         if response.status_code in [200, 302]:
             ColoredOutput.success("Crawl iniciado correctamente")
 
             # Esperar un poco para que el crawl se complete
-            ColoredOutput.info("Esperando que el crawl se complete (esto puede tomar 30-60 segundos)...")
+            ColoredOutput.info(
+                "Esperando que el crawl se complete (esto puede tomar 30-60 segundos)..."
+            )
 
             # Poll para ver cuándo termina
             max_wait = 120  # 2 minutos máximo
@@ -151,7 +162,9 @@ def test_crawl_with_auto_checks(session: requests.Session) -> int:
 
                     # Por simplicidad, esperamos 60 segundos
                     if elapsed >= 60:
-                        ColoredOutput.warning("Asumiendo que el crawl terminó (60s transcurridos)")
+                        ColoredOutput.warning(
+                            "Asumiendo que el crawl terminó (60s transcurridos)"
+                        )
                         return 1  # Asumimos crawl_run_id = último
 
             ColoredOutput.warning("Timeout esperando el crawl")
@@ -190,10 +203,16 @@ def test_verify_auto_checks_ran(session: requests.Session):
                 else:
                     ColoredOutput.warning("No se encontraron estadísticas detalladas")
             else:
-                ColoredOutput.warning("No se encontraron resultados de checks en la página")
-                ColoredOutput.info("Puede que los checks no se hayan ejecutado automáticamente")
+                ColoredOutput.warning(
+                    "No se encontraron resultados de checks en la página"
+                )
+                ColoredOutput.info(
+                    "Puede que los checks no se hayan ejecutado automáticamente"
+                )
         else:
-            ColoredOutput.error(f"No se pudo acceder a la página (HTTP {response.status_code})")
+            ColoredOutput.error(
+                f"No se pudo acceder a la página (HTTP {response.status_code})"
+            )
 
     except Exception as e:
         ColoredOutput.error(f"Error: {str(e)}")
@@ -201,7 +220,9 @@ def test_verify_auto_checks_ran(session: requests.Session):
 
 def main():
     """Ejecutar todos los tests"""
-    print(f"\n{ColoredOutput.BOLD}🧪 Testing Quality Checks Post-Crawl System{ColoredOutput.RESET}")
+    print(
+        f"\n{ColoredOutput.BOLD}🧪 Testing Quality Checks Post-Crawl System{ColoredOutput.RESET}"
+    )
     print(f"{ColoredOutput.BOLD}Base URL: {BASE_URL}{ColoredOutput.RESET}\n")
 
     # Crear sesión
@@ -215,7 +236,9 @@ def main():
         config_data = test_get_quality_checks_config(session)
 
         if not config_data:
-            ColoredOutput.error("No se pudo obtener configuración inicial. Abortando tests.")
+            ColoredOutput.error(
+                "No se pudo obtener configuración inicial. Abortando tests."
+            )
             return
 
         time.sleep(1)
@@ -256,6 +279,7 @@ def main():
     except Exception as e:
         ColoredOutput.error(f"\n\nError inesperado: {str(e)}")
         import traceback
+
         traceback.print_exc()
 
 

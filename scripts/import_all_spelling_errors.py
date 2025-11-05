@@ -14,15 +14,15 @@ Opciones:
     --category CAT      Categoría a asignar (default: 'other')
 """
 
-import sys
 import os
+import sys
 from collections import Counter
 
 # Add parent directory to path to import modules
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from utils import db_cursor
 from calidad.dictionary_manager import add_word_to_dictionary, get_dictionary_words
+from utils import db_cursor
 
 
 def extract_all_spelling_errors(min_frequency=1):
@@ -50,13 +50,11 @@ def extract_all_spelling_errors(min_frequency=1):
         words = cursor.fetchall()
 
     # Count frequencies
-    word_counter = Counter([w['word'] for w in words])
+    word_counter = Counter([w["word"] for w in words])
 
     # Filter by frequency
     filtered_words = [
-        (word, count)
-        for word, count in word_counter.items()
-        if count >= min_frequency
+        (word, count) for word, count in word_counter.items() if count >= min_frequency
     ]
 
     # Sort by frequency descending
@@ -68,10 +66,10 @@ def extract_all_spelling_errors(min_frequency=1):
 def get_existing_words():
     """Get set of words already in dictionary (lowercase for comparison)."""
     existing = get_dictionary_words()
-    return {w['word_lower'] for w in existing}
+    return {w["word_lower"] for w in existing}
 
 
-def import_words(words_to_import, category='other', dry_run=False):
+def import_words(words_to_import, category="other", dry_run=False):
     """
     Import words to custom dictionary.
 
@@ -90,7 +88,7 @@ def import_words(words_to_import, category='other', dry_run=False):
     ]
 
     print(f"\n{'=' * 80}")
-    print(f"📋 RESUMEN:")
+    print("📋 RESUMEN:")
     print(f"{'=' * 80}")
     print(f"  Total de palabras únicas detectadas: {len(words_to_import)}")
     print(f"  Ya están en el diccionario: {len(words_to_import) - len(new_words)}")
@@ -98,7 +96,9 @@ def import_words(words_to_import, category='other', dry_run=False):
     print(f"{'=' * 80}\n")
 
     if not new_words:
-        print("✅ Todas las palabras ya están en el diccionario. No hay nada que importar.")
+        print(
+            "✅ Todas las palabras ya están en el diccionario. No hay nada que importar."
+        )
         return
 
     # Show top 20 words that will be imported
@@ -114,7 +114,7 @@ def import_words(words_to_import, category='other', dry_run=False):
     if dry_run:
         print("🔍 DRY RUN: No se realizaron cambios.")
         print("\nPara importar realmente, ejecuta sin --dry-run:")
-        print(f"  python scripts/import_all_spelling_errors.py")
+        print("  python scripts/import_all_spelling_errors.py")
         return
 
     # Confirm before proceeding
@@ -124,7 +124,7 @@ def import_words(words_to_import, category='other', dry_run=False):
 
     response = input("¿Continuar con la importación? (escriba 'SI' para confirmar): ")
 
-    if response.strip() != 'SI':
+    if response.strip() != "SI":
         print("\n❌ Importación cancelada.")
         return
 
@@ -142,23 +142,25 @@ def import_words(words_to_import, category='other', dry_run=False):
                 category=category,
                 frequency=frequency,
                 approved_by=1,  # System user
-                notes=f'Importada masivamente desde errores de spell check (freq: {frequency})'
+                notes=f"Importada masivamente desde errores de spell check (freq: {frequency})",
             )
 
-            if result['success']:
+            if result["success"]:
                 imported += 1
                 if imported % 10 == 0:
                     print(f"  ✓ {imported}/{len(new_words)} palabras importadas...")
             else:
                 errors += 1
-                print(f"  ✗ Error importando '{word}': {result.get('message', 'Unknown error')}")
+                print(
+                    f"  ✗ Error importando '{word}': {result.get('message', 'Unknown error')}"
+                )
 
         except Exception as e:
             errors += 1
             print(f"  ✗ Excepción importando '{word}': {e}")
 
     print("=" * 80)
-    print(f"\n✅ Importación completada!")
+    print("\n✅ Importación completada!")
     print(f"  • Palabras importadas: {imported}")
     print(f"  • Errores: {errors}")
     print(f"\n📖 El diccionario ahora tiene {len(get_existing_words())} palabras.\n")
@@ -173,7 +175,7 @@ def main():
     import argparse
 
     parser = argparse.ArgumentParser(
-        description='Importar todas las palabras de errores ortográficos al diccionario',
+        description="Importar todas las palabras de errores ortográficos al diccionario",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Ejemplos:
@@ -185,28 +187,36 @@ Ejemplos:
 
   # Importar todo con categoría específica
   python scripts/import_all_spelling_errors.py --category technical
-        """
+        """,
     )
 
     parser.add_argument(
-        '--min-frequency',
+        "--min-frequency",
         type=int,
         default=1,
-        help='Frecuencia mínima de apariciones (default: 1)'
+        help="Frecuencia mínima de apariciones (default: 1)",
     )
 
     parser.add_argument(
-        '--dry-run',
-        action='store_true',
-        help='Mostrar qué se importaría sin hacer cambios'
+        "--dry-run",
+        action="store_true",
+        help="Mostrar qué se importaría sin hacer cambios",
     )
 
     parser.add_argument(
-        '--category',
+        "--category",
         type=str,
-        default='other',
-        choices=['other', 'technical', 'geographic', 'brand', 'financial', 'verb', 'variant'],
-        help='Categoría a asignar a las palabras (default: other)'
+        default="other",
+        choices=[
+            "other",
+            "technical",
+            "geographic",
+            "brand",
+            "financial",
+            "verb",
+            "variant",
+        ],
+        help="Categoría a asignar a las palabras (default: other)",
     )
 
     args = parser.parse_args()
@@ -222,11 +232,13 @@ Ejemplos:
         print("\n✅ No se encontraron palabras que cumplan los criterios.")
         return
 
-    print(f"✓ Encontradas {len(words)} palabras únicas (frecuencia >= {args.min_frequency})")
+    print(
+        f"✓ Encontradas {len(words)} palabras únicas (frecuencia >= {args.min_frequency})"
+    )
 
     # Import
     import_words(words, category=args.category, dry_run=args.dry_run)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

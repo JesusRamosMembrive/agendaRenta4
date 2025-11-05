@@ -6,7 +6,6 @@ It migrates and extends the existing broken links detection from crawler.
 """
 
 import time
-from typing import Any, Dict, Optional
 
 import requests
 from bs4 import BeautifulSoup
@@ -35,7 +34,7 @@ class LinkChecker(QualityCheck):
     def _get_check_type(self) -> str:
         return "broken_links"
 
-    def check(self, url: str, html_content: Optional[str] = None) -> QualityCheckResult:
+    def check(self, url: str, html_content: str | None = None) -> QualityCheckResult:
         """
         Check for broken links on the page.
 

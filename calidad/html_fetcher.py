@@ -8,7 +8,6 @@ Implements connection pooling and retry logic for reliability.
 import logging
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Dict, List, Tuple, Optional
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -33,7 +32,7 @@ class HTMLFetcher:
         max_workers: int = 10,
         timeout: int = 10,
         max_retries: int = 3,
-        backoff_factor: float = 0.5
+        backoff_factor: float = 0.5,
     ):
         """
         Initialize HTML fetcher.
@@ -54,24 +53,26 @@ class HTMLFetcher:
             total=max_retries,
             backoff_factor=backoff_factor,
             status_forcelist=[429, 500, 502, 503, 504],
-            allowed_methods=["GET", "HEAD"]
+            allowed_methods=["GET", "HEAD"],
         )
 
         adapter = HTTPAdapter(
             max_retries=retry_strategy,
             pool_connections=max_workers,
-            pool_maxsize=max_workers * 2
+            pool_maxsize=max_workers * 2,
         )
 
         self.session.mount("http://", adapter)
         self.session.mount("https://", adapter)
 
         # Set default headers
-        self.session.headers.update({
-            'User-Agent': 'Mozilla/5.0 (compatible; AgendaRenta4/1.0; +https://www.r4.com)'
-        })
+        self.session.headers.update(
+            {
+                "User-Agent": "Mozilla/5.0 (compatible; AgendaRenta4/1.0; +https://www.r4.com)"
+            }
+        )
 
-    def fetch_single(self, url: str) -> Tuple[str, Optional[str], Optional[str]]:
+    def fetch_single(self, url: str) -> tuple[str, str | None, str | None]:
         """
         Fetch HTML for a single URL.
 
@@ -104,10 +105,8 @@ class HTMLFetcher:
             return (url, None, error_msg)
 
     def fetch_batch(
-        self,
-        urls: List[str],
-        progress_callback=None
-    ) -> Dict[str, Tuple[Optional[str], Optional[str]]]:
+        self, urls: list[str], progress_callback=None
+    ) -> dict[str, tuple[str | None, str | None]]:
         """
         Fetch HTML for multiple URLs concurrently.
 
@@ -124,14 +123,15 @@ class HTMLFetcher:
         total = len(urls)
         completed = 0
 
-        logger.info(f"Starting concurrent HTML fetch for {total} URLs with {self.max_workers} workers...")
+        logger.info(
+            f"Starting concurrent HTML fetch for {total} URLs with {self.max_workers} workers..."
+        )
         start_time = time.time()
 
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
             # Submit all fetch tasks
             future_to_url = {
-                executor.submit(self.fetch_single, url): url
-                for url in urls
+                executor.submit(self.fetch_single, url): url for url in urls
             }
 
             # Process results as they complete
@@ -176,11 +176,8 @@ class HTMLFetcher:
 
 
 def fetch_html_for_urls(
-    urls: List[str],
-    max_workers: int = 10,
-    timeout: int = 10,
-    progress_callback=None
-) -> Dict[str, Tuple[Optional[str], Optional[str]]]:
+    urls: list[str], max_workers: int = 10, timeout: int = 10, progress_callback=None
+) -> dict[str, tuple[str | None, str | None]]:
     """
     Convenience function to fetch HTML for multiple URLs.
 

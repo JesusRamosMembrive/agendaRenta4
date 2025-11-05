@@ -4,51 +4,51 @@ Agenda Renta4 - Task Manager Manual
 Flask application principal
 """
 
-import os
 import calendar
-from datetime import datetime, date, timedelta
+import os
+from datetime import date, datetime, timedelta
+
 from dotenv import load_dotenv
 from flask import (
     Flask,
+    flash,
+    jsonify,
+    redirect,
     render_template,
     request,
-    redirect,
-    url_for,
-    flash,
     session,
-    jsonify,
+    url_for,
 )
-from flask_mail import Mail, Message
 from flask_login import (
     LoginManager,
     UserMixin,
+    current_user,
+    login_required,
     login_user,
     logout_user,
-    login_required,
-    current_user,
 )
+from flask_mail import Mail, Message
 from werkzeug.security import check_password_hash
 
 # Load environment variables
 load_dotenv()
 
 # Import shared utilities
-from utils import db_cursor, format_date, format_period, generate_available_periods
-
 # Import constants
 from constants import (
-    TASK_STATUS_OK,
-    TASK_STATUS_PROBLEM,
+    ANNUAL_MONTH,
+    DEFAULT_EMAIL_SENDER,
     DEFAULT_PORT,
     DEFAULT_SMTP_PORT,
-    DEFAULT_EMAIL_SENDER,
-    QUARTERLY_MONTHS,
-    SEMIANNUAL_MONTHS,
-    ANNUAL_MONTH,
     LOGIN_SESSION_DAYS,
     PROBLEMS_RETENTION_DAYS,
+    QUARTERLY_MONTHS,
+    SEMIANNUAL_MONTHS,
+    TASK_STATUS_OK,
+    TASK_STATUS_PROBLEM,
     WEEKDAY_MAP,
 )
+from utils import db_cursor, format_date, format_period, generate_available_periods
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -81,11 +81,13 @@ mail = Mail(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = "login"
-login_manager.login_message = None  # Disable automatic flash messages to prevent accumulation
+login_manager.login_message = (
+    None  # Disable automatic flash messages to prevent accumulation
+)
 
 # Register Blueprints
-from crawler.routes import crawler_bp
 from config.routes import config_bp
+from crawler.routes import crawler_bp
 from dev.routes import dev_bp
 
 app.register_blueprint(crawler_bp)
@@ -313,7 +315,9 @@ def generate_alerts(reference_date: date = None) -> dict:
 
                 # Try to create the alert
                 try:
-                    if _create_alert_for_task_type(cursor, task_type_id, reference_date):
+                    if _create_alert_for_task_type(
+                        cursor, task_type_id, reference_date
+                    ):
                         stats["generated"] += 1
                     else:
                         stats["skipped"] += 1  # Duplicate
@@ -452,13 +456,13 @@ def _check_annual_alert(reference_date, alert_day):
 
 # Strategy mapping: frequency -> checker function
 ALERT_CHECKERS = {
-    'daily': _check_daily_alert,
-    'weekly': _check_weekly_alert,
-    'biweekly': _check_biweekly_alert,
-    'monthly': _check_monthly_alert,
-    'quarterly': _check_quarterly_alert,
-    'semiannual': _check_semiannual_alert,
-    'annual': _check_annual_alert,
+    "daily": _check_daily_alert,
+    "weekly": _check_weekly_alert,
+    "biweekly": _check_biweekly_alert,
+    "monthly": _check_monthly_alert,
+    "quarterly": _check_quarterly_alert,
+    "semiannual": _check_semiannual_alert,
+    "annual": _check_annual_alert,
 }
 
 
@@ -481,6 +485,7 @@ def check_alert_day(reference_date: date, frequency: str, alert_day: str) -> boo
     if not checker:
         # Unknown frequency - log warning and return False
         import logging
+
         logging.getLogger(__name__).warning(f"Unknown alert frequency: {frequency}")
         return False
 
@@ -537,7 +542,7 @@ def _build_email_body(alert_list):
     Returns:
         str: HTML email body
     """
-    alertas_url = url_for('alertas', _external=True)
+    alertas_url = url_for("alertas", _external=True)
 
     # Build alert items HTML
     alert_items_html = ""
@@ -726,26 +731,32 @@ def inject_task_counts():
                 broken_count = result["count"] if result else 0
 
                 # Count image quality issues (status = 'error')
-                cursor.execute("""
+                cursor.execute(
+                    """
                     SELECT COUNT(*) as count
                     FROM quality_checks qc
                     JOIN discovered_urls du ON qc.discovered_url_id = du.id
                     WHERE du.crawl_run_id = %s
                       AND qc.check_type = 'image_quality'
                       AND qc.status = 'error'
-                """, (crawl_run["id"],))
+                """,
+                    (crawl_run["id"],),
+                )
                 result = cursor.fetchone()
                 image_issues_count = result["count"] if result else 0
 
                 # Count spelling issues (status = 'warning')
-                cursor.execute("""
+                cursor.execute(
+                    """
                     SELECT COUNT(*) as count
                     FROM quality_checks qc
                     JOIN discovered_urls du ON qc.discovered_url_id = du.id
                     WHERE du.crawl_run_id = %s
                       AND qc.check_type = 'spell_check'
                       AND qc.status = 'warning'
-                """, (crawl_run["id"],))
+                """,
+                    (crawl_run["id"],),
+                )
                 result = cursor.fetchone()
                 spell_issues_count = result["count"] if result else 0
     except Exception:
@@ -758,7 +769,7 @@ def inject_task_counts():
         "task_counts": get_task_counts(),
         "broken_count": broken_count,
         "image_issues_count": image_issues_count,
-        "spell_issues_count": spell_issues_count
+        "spell_issues_count": spell_issues_count,
     }
 
 
@@ -999,7 +1010,9 @@ def problemas():
     current_period = datetime.now().strftime("%Y-%m")
 
     # Calculate cutoff date (problems retention period)
-    cutoff_date = (datetime.now() - timedelta(days=PROBLEMS_RETENTION_DAYS)).strftime('%Y-%m')
+    cutoff_date = (datetime.now() - timedelta(days=PROBLEMS_RETENTION_DAYS)).strftime(
+        "%Y-%m"
+    )
 
     with db_cursor(commit=False) as cursor:
         # Query problem tasks from last 3 months to current month
@@ -1328,8 +1341,8 @@ def custom_dictionary():
     - Manual word addition form
     """
     from calidad.dictionary_manager import (
-        get_dictionary_words,
         get_dictionary_stats,
+        get_dictionary_words,
     )
 
     try:
@@ -1365,9 +1378,7 @@ def custom_dictionary():
         # Filter out words already in dictionary
         existing_words_lower = {w["word_lower"] for w in dictionary_words}
         candidates = [
-            c
-            for c in candidate_words
-            if c["word"].lower() not in existing_words_lower
+            c for c in candidate_words if c["word"].lower() not in existing_words_lower
         ]
 
         return render_template(

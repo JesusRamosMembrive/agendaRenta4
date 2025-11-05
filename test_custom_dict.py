@@ -32,7 +32,7 @@ if errors:
     for i, error in enumerate(errors, 1):
         print(f"\n{i}. Word: {error['word']}")
         print(f"   Context: {error['context']}")
-        if error['suggestions']:
+        if error["suggestions"]:
             print(f"   Suggestions: {', '.join(error['suggestions'][:3])}")
 else:
     print("\n✅ No spelling errors found! Custom dictionary is working correctly.")

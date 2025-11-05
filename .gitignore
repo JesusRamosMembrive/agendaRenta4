@@ -53,3 +53,12 @@ backups/
 # These are regenerated from the database via dictionary_manager.py
 dictionaries/custom/custom.dic
 dictionaries/custom/custom.aff
+
+# Code quality tool outputs
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+*.cover
+.hypothesis/

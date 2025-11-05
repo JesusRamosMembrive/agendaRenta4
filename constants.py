@@ -9,10 +9,10 @@ Application-wide constants and configuration values
 # ==============================================================================
 
 # Task status constants
-TASK_STATUS_PENDING = 'pending'
-TASK_STATUS_OK = 'ok'
-TASK_STATUS_PROBLEM = 'problem'
-TASK_STATUS_NOT_APPLY = 'not_apply'
+TASK_STATUS_PENDING = "pending"
+TASK_STATUS_OK = "ok"
+TASK_STATUS_PROBLEM = "problem"
+TASK_STATUS_NOT_APPLY = "not_apply"
 
 # All valid task statuses
 TASK_STATUSES = (
@@ -28,11 +28,11 @@ TASK_STATUSES = (
 # ==============================================================================
 
 # Periodicity constants
-PERIODICITY_WEEKLY = 'weekly'
-PERIODICITY_MONTHLY = 'monthly'
-PERIODICITY_QUARTERLY = 'quarterly'
-PERIODICITY_BIANNUAL = 'biannual'
-PERIODICITY_YEARLY = 'yearly'
+PERIODICITY_WEEKLY = "weekly"
+PERIODICITY_MONTHLY = "monthly"
+PERIODICITY_QUARTERLY = "quarterly"
+PERIODICITY_BIANNUAL = "biannual"
+PERIODICITY_YEARLY = "yearly"
 
 # All valid periodicities
 PERIODICITIES = (
@@ -49,10 +49,10 @@ PERIODICITIES = (
 # ==============================================================================
 
 # Flash message categories
-FLASH_SUCCESS = 'success'
-FLASH_ERROR = 'error'
-FLASH_INFO = 'info'
-FLASH_WARNING = 'warning'
+FLASH_SUCCESS = "success"
+FLASH_ERROR = "error"
+FLASH_INFO = "info"
+FLASH_WARNING = "warning"
 
 
 # ==============================================================================
@@ -60,9 +60,9 @@ FLASH_WARNING = 'warning'
 # ==============================================================================
 
 # Alert types
-ALERT_TYPE_WEEKLY_PENDING = 'weekly_pending'
-ALERT_TYPE_MONTHLY_PENDING = 'monthly_pending'
-ALERT_TYPE_QUARTERLY_PENDING = 'quarterly_pending'
+ALERT_TYPE_WEEKLY_PENDING = "weekly_pending"
+ALERT_TYPE_MONTHLY_PENDING = "monthly_pending"
+ALERT_TYPE_QUARTERLY_PENDING = "quarterly_pending"
 
 
 # ==============================================================================
@@ -76,7 +76,7 @@ DEFAULT_PORT = 5000
 DEFAULT_PERIOD_RANGE_MONTHS = 6
 
 # Default email subject for notifications
-DEFAULT_EMAIL_SUBJECT = 'Agenda Renta4 - Notificación'
+DEFAULT_EMAIL_SUBJECT = "Agenda Renta4 - Notificación"
 
 
 # ==============================================================================
@@ -128,6 +128,7 @@ HTTP_SERVER_ERROR_MIN = 500
 # ==============================================================================
 # QUALITY CHECK DEFAULTS
 # ==============================================================================
+
 
 class QualityCheckDefaults:
     """
@@ -206,10 +207,14 @@ LOGIN_SESSION_DAYS = 30
 # ==============================================================================
 
 # User agent for web crawler
-USER_AGENT_CRAWLER = 'AgendaRenta4-Crawler/2.0 (quality monitoring; contact: admin@example.com)'
+USER_AGENT_CRAWLER = (
+    "AgendaRenta4-Crawler/2.0 (quality monitoring; contact: admin@example.com)"
+)
 
 # User agent for quality checks (mimics real browser)
-USER_AGENT_QUALITY_CHECKER = 'Mozilla/5.0 (compatible; QualityChecker/1.0; +https://www.r4.com)'
+USER_AGENT_QUALITY_CHECKER = (
+    "Mozilla/5.0 (compatible; QualityChecker/1.0; +https://www.r4.com)"
+)
 
 # User agent for image quality checker (same as quality checker)
 USER_AGENT_IMAGE_CHECKER = USER_AGENT_QUALITY_CHECKER

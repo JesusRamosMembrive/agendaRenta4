@@ -4,9 +4,9 @@ Test script for Dev routes - validates that all routes are registered correctly
 """
 
 import requests
-from requests.auth import HTTPBasicAuth
 
 BASE_URL = "http://localhost:5000"
+
 
 def test_routes():
     """Test that dev routes are accessible (will redirect to login)"""
@@ -28,13 +28,15 @@ def test_routes():
 
             # Check if it redirects to login (302) - this means route exists
             if response.status_code == 302:
-                redirect_location = response.headers.get('Location', '')
-                if '/login' in redirect_location:
+                redirect_location = response.headers.get("Location", "")
+                if "/login" in redirect_location:
                     print(f"✅ {description}: Route exists and requires login")
                     print(f"   {method} {route} -> 302 (redirect to login)")
                 else:
                     print(f"⚠️  {description}: Unexpected redirect")
-                    print(f"   {method} {route} -> {response.status_code} -> {redirect_location}")
+                    print(
+                        f"   {method} {route} -> {response.status_code} -> {redirect_location}"
+                    )
             elif response.status_code == 404:
                 print(f"❌ {description}: Route not found")
                 print(f"   {method} {route} -> 404")
@@ -46,6 +48,7 @@ def test_routes():
             print(f"❌ {description}: Error - {str(e)}")
 
     print("=" * 60)
+
 
 if __name__ == "__main__":
     test_routes()

@@ -4,19 +4,18 @@ Pytest configuration and shared fixtures
 
 import os
 import sys
-import pytest
-from datetime import datetime
 from unittest.mock import MagicMock
+
+import pytest
 from dotenv import load_dotenv
 
 # Add project root to path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 # Load environment variables
 load_dotenv()
 
 # Import database utilities
-from utils import db_cursor
 
 
 @pytest.fixture(scope="session")

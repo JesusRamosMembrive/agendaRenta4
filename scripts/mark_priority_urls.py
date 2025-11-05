@@ -17,8 +17,8 @@ Usage:
     python scripts/mark_priority_urls.py
 """
 
-import sys
 import os
+import sys
 
 # Add parent directory to path to import utils
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -40,7 +40,7 @@ def sync_priority_urls():
     with db_cursor() as cursor:
         # Step 1: Get count of URLs in sections
         cursor.execute("SELECT COUNT(*) as count FROM sections")
-        sections_count = cursor.fetchone()['count']
+        sections_count = cursor.fetchone()["count"]
         print(f"✓ Found {sections_count} URLs in sections (Gestión de URLs)")
 
         # Step 2: Get current priority status
@@ -52,13 +52,15 @@ def sync_priority_urls():
             FROM discovered_urls
         """)
         before_stats = cursor.fetchone()
-        print(f"✓ Before sync: {before_stats['priority_count']} priority, "
-              f"{before_stats['non_priority_count']} non-priority, "
-              f"{before_stats['total_count']} total")
+        print(
+            f"✓ Before sync: {before_stats['priority_count']} priority, "
+            f"{before_stats['non_priority_count']} non-priority, "
+            f"{before_stats['total_count']} total"
+        )
 
         # Step 3: Reset all is_priority to FALSE
         cursor.execute("UPDATE discovered_urls SET is_priority = FALSE")
-        print(f"✓ Reset all discovered_urls to non-priority")
+        print("✓ Reset all discovered_urls to non-priority")
 
         # Step 4: Mark as priority URLs that exist in sections
         # Match by normalized URL (remove trailing slashes for comparison)
@@ -100,39 +102,42 @@ def sync_priority_urls():
         print(f"  • Total discovered URLs: {after_stats['total_count']}")
 
         if unmatched:
-            print(f"\n⚠️  WARNING: {len(unmatched)} URLs in sections NOT found in discovered_urls:")
+            print(
+                f"\n⚠️  WARNING: {len(unmatched)} URLs in sections NOT found in discovered_urls:"
+            )
             for row in unmatched[:10]:  # Show first 10
                 print(f"     - {row['name']}: {row['url']}")
             if len(unmatched) > 10:
                 print(f"     ... and {len(unmatched) - 10} more")
-            print(f"\n   These URLs may not have been crawled yet.")
+            print("\n   These URLs may not have been crawled yet.")
 
         print("=" * 60)
         print("✅ Synchronization completed successfully!")
 
         return {
-            'sections_count': sections_count,
-            'before': {
-                'priority': before_stats['priority_count'],
-                'non_priority': before_stats['non_priority_count'],
-                'total': before_stats['total_count']
+            "sections_count": sections_count,
+            "before": {
+                "priority": before_stats["priority_count"],
+                "non_priority": before_stats["non_priority_count"],
+                "total": before_stats["total_count"],
             },
-            'after': {
-                'priority': after_stats['priority_count'],
-                'non_priority': after_stats['non_priority_count'],
-                'total': after_stats['total_count']
+            "after": {
+                "priority": after_stats["priority_count"],
+                "non_priority": after_stats["non_priority_count"],
+                "total": after_stats["total_count"],
             },
-            'marked_count': marked_count,
-            'unmatched_count': len(unmatched)
+            "marked_count": marked_count,
+            "unmatched_count": len(unmatched),
         }
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     try:
         stats = sync_priority_urls()
         sys.exit(0)
     except Exception as e:
         print(f"\n❌ ERROR: {e}", file=sys.stderr)
         import traceback
+
         traceback.print_exc()
         sys.exit(1)

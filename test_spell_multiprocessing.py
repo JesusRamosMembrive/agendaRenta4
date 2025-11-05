@@ -5,16 +5,16 @@ Test script for spell check with multiprocessing optimization.
 Tests ProcessPoolExecutor vs ThreadPoolExecutor for CPU-bound spell checking.
 """
 
+import logging
 import sys
 import time
-import logging
-from utils import db_cursor
+
 from calidad.post_crawl_runner import PostCrawlQualityRunner
+from utils import db_cursor
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -34,24 +34,29 @@ def get_latest_crawl_run_id():
             logger.error("No crawl runs found in database")
             return None
 
-        logger.info(f"Using crawl run #{row['id']} from {row['started_at']} ({row['urls_discovered']} URLs)")
-        return row['id']
+        logger.info(
+            f"Using crawl run #{row['id']} from {row['started_at']} ({row['urls_discovered']} URLs)"
+        )
+        return row["id"]
 
 
 def count_priority_urls(crawl_run_id):
     """Count priority URLs for a crawl run."""
     with db_cursor(commit=False) as cursor:
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT COUNT(*) as priority_urls
             FROM discovered_urls
             WHERE crawl_run_id = %s
               AND is_priority = TRUE
               AND active = TRUE
               AND is_broken = FALSE
-        """, (crawl_run_id,))
+        """,
+            (crawl_run_id,),
+        )
 
         row = cursor.fetchone()
-        return row['priority_urls']
+        return row["priority_urls"]
 
 
 def test_spell_check(crawl_run_id, max_workers=10):
@@ -63,13 +68,15 @@ def test_spell_check(crawl_run_id, max_workers=10):
         max_workers: Number of parallel processes
     """
     logger.info(f"\n{'='*80}")
-    logger.info(f"Testing SPELL CHECK with {max_workers} CPU workers (ProcessPoolExecutor)")
+    logger.info(
+        f"Testing SPELL CHECK with {max_workers} CPU workers (ProcessPoolExecutor)"
+    )
     logger.info(f"{'='*80}\n")
 
     runner = PostCrawlQualityRunner(crawl_run_id, max_workers=max_workers)
 
     start_time = time.time()
-    result = runner._run_spell_check(scope='priority')
+    result = runner._run_spell_check(scope="priority")
     elapsed = time.time() - start_time
 
     logger.info(f"\n{'='*80}")
@@ -117,7 +124,9 @@ def main():
             time.sleep(2)
 
         except Exception as e:
-            logger.error(f"Error testing with {max_workers} workers: {e}", exc_info=True)
+            logger.error(
+                f"Error testing with {max_workers} workers: {e}", exc_info=True
+            )
 
     # Print summary
     logger.info(f"\n{'='*80}")
@@ -126,7 +135,7 @@ def main():
 
     for max_workers, result in results:
         if result:
-            stats = result['stats']
+            stats = result["stats"]
             logger.info(
                 f"Workers: {max_workers:2d} | "
                 f"{stats['successful']:3d}/{stats['total']:3d} successful | "
@@ -138,5 +147,5 @@ def main():
     logger.info("✅ Spell check multiprocessing test completed!")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

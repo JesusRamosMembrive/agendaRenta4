@@ -4,8 +4,8 @@ Test script for Phase 2.4 - Automatic Revalidation System
 Tests the scheduler functionality without starting the Flask app
 """
 
-import os
 from dotenv import load_dotenv
+
 from crawler.scheduler import ValidationScheduler
 from utils import db_cursor
 
@@ -44,7 +44,7 @@ def test_manual_revalidation():
             snapshot = cursor.fetchone()
 
             if snapshot:
-                print(f"\n   Latest Health Snapshot:")
+                print("\n   Latest Health Snapshot:")
                 print(f"   - Date: {snapshot['snapshot_date']}")
                 print(f"   - Health Score: {snapshot['health_score']:.1f}%")
                 print(f"   - Total URLs: {snapshot['total_urls']}")
@@ -58,6 +58,7 @@ def test_manual_revalidation():
     except Exception as e:
         print(f"\n❌ Error during revalidation: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
@@ -68,11 +69,11 @@ def test_scheduler_configuration():
     print("TEST: Scheduler Configuration")
     print("=" * 80)
 
-    from crawler.scheduler import start_scheduler, stop_scheduler, get_scheduler
+    from crawler.scheduler import get_scheduler, start_scheduler, stop_scheduler
 
     print("\n1. Starting scheduler (daily at 03:00)...")
     try:
-        start_scheduler(frequency='daily', hour=3, minute=0)
+        start_scheduler(frequency="daily", hour=3, minute=0)
         print("   ✅ Scheduler started")
 
         # Get info
@@ -80,7 +81,7 @@ def test_scheduler_configuration():
         info = scheduler.get_schedule_info()
 
         if info:
-            print(f"\n   Scheduler Info:")
+            print("\n   Scheduler Info:")
             print(f"   - Job ID: {info['job_id']}")
             print(f"   - Name: {info['name']}")
             print(f"   - Next Run: {info['next_run']}")
@@ -98,6 +99,7 @@ def test_scheduler_configuration():
     except Exception as e:
         print(f"\n❌ Error during scheduler test: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
@@ -117,23 +119,25 @@ def check_database_setup():
             ) as exists;
         """)
         result = cursor.fetchone()
-        exists = result['exists']
+        exists = result["exists"]
 
         if exists:
             print("\n✅ health_snapshots table exists")
 
             # Check if there are any snapshots
             cursor.execute("SELECT COUNT(*) as count FROM health_snapshots")
-            count = cursor.fetchone()['count']
+            count = cursor.fetchone()["count"]
             print(f"   - Current snapshots: {count}")
         else:
             print("\n❌ health_snapshots table does NOT exist")
-            print("   Run migration: psql ... < migrations/004_add_health_snapshots.sql")
+            print(
+                "   Run migration: psql ... < migrations/004_add_health_snapshots.sql"
+            )
             return False
 
         # Check discovered_urls
         cursor.execute("SELECT COUNT(*) as count FROM discovered_urls")
-        url_count = cursor.fetchone()['count']
+        url_count = cursor.fetchone()["count"]
         print(f"\n✅ discovered_urls table: {url_count} URLs")
 
         # Check validation status
@@ -150,7 +154,7 @@ def check_database_setup():
     return True
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     print("\n🧪 TESTING PHASE 2.4 - AUTOMATIC REVALIDATION SYSTEM\n")
 
     # Step 1: Check database setup
@@ -160,9 +164,13 @@ if __name__ == '__main__':
 
     # Step 2: Test manual revalidation
     print("\n" + "=" * 80)
-    response = input("Run manual revalidation test? This will validate all URLs (y/n): ").strip().lower()
+    response = (
+        input("Run manual revalidation test? This will validate all URLs (y/n): ")
+        .strip()
+        .lower()
+    )
 
-    if response == 'y':
+    if response == "y":
         success = test_manual_revalidation()
         if not success:
             print("\n❌ Manual revalidation test failed")
@@ -174,7 +182,7 @@ if __name__ == '__main__':
     print("\n" + "=" * 80)
     response = input("Test scheduler configuration? (y/n): ").strip().lower()
 
-    if response == 'y':
+    if response == "y":
         success = test_scheduler_configuration()
         if not success:
             print("\n❌ Scheduler test failed")

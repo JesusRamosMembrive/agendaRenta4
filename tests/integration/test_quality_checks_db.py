@@ -4,9 +4,9 @@ Integration tests for quality_checks table operations
 Tests database interactions for storing and retrieving quality check results.
 """
 
-import pytest
 from datetime import datetime
-from calidad.base import QualityCheckResult
+
+import pytest
 
 
 @pytest.mark.integration
@@ -327,7 +327,6 @@ class TestQualityChecksTable:
 
     def test_get_latest_checks_per_section(self, db_cursor_fixture, sample_section):
         """Test querying latest quality check for each type per section"""
-        import time
         from datetime import datetime, timedelta
 
         cursor = db_cursor_fixture

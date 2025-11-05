@@ -12,21 +12,22 @@ LOCAL_URL = "postgresql://jesusramos:dev-password@localhost/agendaRenta4"
 
 # Tables to copy (in dependency order)
 TABLES = [
-    'users',
-    'sections',
-    'task_types',
-    'alert_settings',
-    'notification_preferences',
-    'tasks',
-    'pending_alerts',
-    'discovered_urls',
-    'crawl_runs',
-    'url_changes',
-    'health_snapshots',
-    'quality_checks',
-    'quality_check_batches',
-    'quality_check_config'
+    "users",
+    "sections",
+    "task_types",
+    "alert_settings",
+    "notification_preferences",
+    "tasks",
+    "pending_alerts",
+    "discovered_urls",
+    "crawl_runs",
+    "url_changes",
+    "health_snapshots",
+    "quality_checks",
+    "quality_check_batches",
+    "quality_check_config",
 ]
+
 
 def copy_table(source_conn, dest_conn, table_name):
     """Copy all data from source table to destination table."""
@@ -53,12 +54,11 @@ def copy_table(source_conn, dest_conn, table_name):
         # Insert all rows
         for row in rows:
             values = [row[col] for col in columns]
-            placeholders = ', '.join(['%s'] * len(columns))
-            cols = ', '.join(columns)
+            placeholders = ", ".join(["%s"] * len(columns))
+            cols = ", ".join(columns)
 
             dest_cur.execute(
-                f"INSERT INTO {table_name} ({cols}) VALUES ({placeholders})",
-                values
+                f"INSERT INTO {table_name} ({cols}) VALUES ({placeholders})", values
             )
 
         dest_conn.commit()
@@ -70,6 +70,7 @@ def copy_table(source_conn, dest_conn, table_name):
     finally:
         src_cur.close()
         dest_cur.close()
+
 
 def reset_sequences(conn):
     """Reset all sequences to max(id) + 1."""
@@ -97,10 +98,11 @@ def reset_sequences(conn):
     conn.commit()
     cur.close()
 
+
 def main():
-    print("="*80)
+    print("=" * 80)
     print("RESTORING DATABASE FROM RENDER TO LOCAL")
-    print("="*80)
+    print("=" * 80)
 
     # Connect to both databases
     print("\nConnecting to Render (production)...")
@@ -112,9 +114,9 @@ def main():
     print("✅ Connected to local")
 
     # Copy all tables
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("COPYING TABLES")
-    print("="*80 + "\n")
+    print("=" * 80 + "\n")
 
     for table in TABLES:
         copy_table(src_conn, dest_conn, table)
@@ -126,11 +128,12 @@ def main():
     src_conn.close()
     dest_conn.close()
 
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("✅ DATABASE RESTORE COMPLETED")
-    print("="*80)
+    print("=" * 80)
     print("\nYou can now access the application at http://localhost:5000")
     print("All data has been restored from production.")
+
 
 if __name__ == "__main__":
     main()
