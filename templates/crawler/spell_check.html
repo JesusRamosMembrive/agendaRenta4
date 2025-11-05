@@ -182,8 +182,45 @@
                                 {% endfor %}
 
                                 {% if result.details.spelling_errors|length > 20 %}
-                                <div style="text-align: center; padding: 10px; color: #6b7280; font-size: 13px; background: #f3f4f6; border-radius: 4px;">
-                                    ... y {{ result.details.spelling_errors|length - 20 }} errores más
+                                <!-- Hidden errors (21+) -->
+                                <div id="hidden-errors-{{ result.id }}" style="display: none;">
+                                    {% for error in result.details.spelling_errors[20:] %}
+                                    <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 12px; margin-bottom: 10px; border-radius: 4px;" id="error-{{ result.id }}-{{ loop.index + 20 }}">
+                                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+                                            <div style="display: flex; align-items: center; gap: 10px;">
+                                                <span style="background: #dc2626; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">Error</span>
+                                                <span style="font-weight: 600; color: #991b1b; font-size: 14px;">{{ error.word }}</span>
+                                            </div>
+                                            <button
+                                                onclick="addWordToDictionary('{{ error.word }}', {{ result.id }}, {{ loop.index + 20 }})"
+                                                class="btn-add-dict"
+                                                title="Añadir al diccionario personalizado"
+                                                style="background: #8b5cf6; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+                                                📖 Añadir al Diccionario
+                                            </button>
+                                        </div>
+                                        <div style="font-size: 13px; color: #78350f; font-family: monospace; background: white; padding: 8px; border-radius: 4px; margin-top: 8px;">
+                                            {{ error.context|replace('**' + error.word + '**', '<span style="background: #fee2e2; color: #991b1b; padding: 2px 4px; border-radius: 2px; font-weight: 600;">' + error.word + '</span>')|safe }}
+                                        </div>
+                                        {% if error.sentence and error.sentence != error.context %}
+                                        <div style="font-size: 12px; color: #6b7280; margin-top: 6px; font-style: italic;">
+                                            Oración completa: {{ error.sentence }}
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                    {% endfor %}
+                                </div>
+
+                                <!-- Show More / Show Less Button -->
+                                <div style="text-align: center; padding: 10px;">
+                                    <button
+                                        id="toggle-errors-btn-{{ result.id }}"
+                                        onclick="toggleHiddenErrors({{ result.id }})"
+                                        style="background: #3b82f6; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s;"
+                                        onmouseover="this.style.background='#2563eb'"
+                                        onmouseout="this.style.background='#3b82f6'">
+                                        👁️ Mostrar {{ result.details.spelling_errors|length - 20 }} errores más
+                                    </button>
                                 </div>
                                 {% endif %}
                             </div>
@@ -668,6 +705,26 @@ async function recheckUrl(checkId, rowIndex) {
         recheckBtn.disabled = false;
         recheckBtn.innerHTML = originalContent;
         recheckBtn.style.opacity = '1';
+    }
+}
+
+// Toggle hidden errors (show more / show less)
+function toggleHiddenErrors(resultId) {
+    const hiddenErrorsDiv = document.getElementById(`hidden-errors-${resultId}`);
+    const toggleBtn = document.getElementById(`toggle-errors-btn-${resultId}`);
+
+    if (hiddenErrorsDiv.style.display === 'none') {
+        // Show hidden errors
+        hiddenErrorsDiv.style.display = 'block';
+        toggleBtn.innerHTML = '👁️ Mostrar menos';
+        toggleBtn.style.background = '#6b7280';
+    } else {
+        // Hide errors again
+        hiddenErrorsDiv.style.display = 'none';
+        const totalErrors = hiddenErrorsDiv.querySelectorAll('[id^="error-"]').length;
+        toggleBtn.innerHTML = `👁️ Mostrar ${totalErrors} errores más`;
+        toggleBtn.style.background = '#3b82f6';
+        toggleBtn.onmouseout = function() { this.style.background = '#3b82f6'; };
     }
 }
 </script>

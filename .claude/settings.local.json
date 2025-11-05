@@ -45,7 +45,8 @@
       "Bash(/tmp/render_backup.sql)",
       "Bash(PGPASSWORD=\"cp6ZcGTJWL1FDUCkaXijmSzFhnUlo4Nm\" pg_dump:*)",
       "Bash(.gitignore)",
-      "mcp__sequential-thinking__sequentialthinking"
+      "mcp__sequential-thinking__sequentialthinking",
+      "Bash(frecuentemente arbitrajes entre las distintas bolsas del planeta.\"\n\nBefore (pyspellchecker): 7/10 words marked as ERROR\nAfter (Hunspell): 0/10 words marked as ERROR ✅\n\nBENEFITS:\n✅ Eliminates 200+ word manual maintenance\n✅ Professional-quality Spanish coverage\n✅ Reduced false positives significantly\n✅ Future-proof with LibreOffice dictionary updates\n✅ Industry-standard spell checking\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")"
     ],
     "deny": [],
     "ask": []

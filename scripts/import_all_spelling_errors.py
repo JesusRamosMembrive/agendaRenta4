@@ -43,7 +43,6 @@ def extract_all_spelling_errors(min_frequency=1):
                 jsonb_array_elements(details->'spelling_errors')->>'word' as word
             FROM quality_checks
             WHERE check_type = 'spell_check'
-                AND status IN ('warning', 'error')
                 AND details->'spelling_errors' IS NOT NULL
                 AND jsonb_array_length(details->'spelling_errors') > 0
         """)
