@@ -477,6 +477,7 @@ def recheck_spell(check_id):
         JSON with updated check results
     """
     from calidad.spell import SpellChecker
+    import json
 
     try:
         # Get the URL from the check_id
@@ -516,7 +517,7 @@ def recheck_spell(check_id):
                 check_result.status,
                 check_result.score,
                 check_result.message,
-                check_result.details_json,
+                json.dumps(check_result.details),
                 check_result.issues_found,
                 check_id
             ))
