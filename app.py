@@ -1285,6 +1285,151 @@ def dismiss_alert(alert_id):
 
 
 # ==============================================================================
+# CUSTOM DICTIONARY ROUTES
+# ==============================================================================
+
+
+@app.route("/diccionario-personalizado")
+@login_required
+def custom_dictionary():
+    """
+    Custom dictionary management page
+    Shows:
+    - Candidate words (errors from quality_checks that could be added)
+    - Current custom dictionary words
+    - Manual word addition form
+    """
+    from calidad.dictionary_manager import (
+        get_dictionary_words,
+        get_dictionary_stats,
+    )
+
+    try:
+        # Get current dictionary words
+        dictionary_words = get_dictionary_words()
+
+        # Get dictionary stats
+        stats = get_dictionary_stats()
+
+        # Get candidate words from quality_checks
+        # Extract spelling errors from quality checks, group by word, count frequency
+        with db_cursor(commit=False) as cursor:
+            cursor.execute(
+                """
+                SELECT
+                    jsonb_array_elements(details->'spelling_errors')->>'word' as word,
+                    COUNT(*) as frequency,
+                    STRING_AGG(DISTINCT du.url, ', ') as example_urls
+                FROM quality_checks qc
+                LEFT JOIN discovered_urls du ON qc.discovered_url_id = du.id
+                WHERE qc.check_type = 'spell_check'
+                    AND qc.status IN ('warning', 'error')
+                    AND details->'spelling_errors' IS NOT NULL
+                    AND jsonb_array_length(details->'spelling_errors') > 0
+                GROUP BY word
+                HAVING COUNT(*) >= 2  -- Only show words that appear at least twice
+                ORDER BY COUNT(*) DESC, word
+                LIMIT 100
+            """
+            )
+            candidate_words = cursor.fetchall()
+
+        # Filter out words already in dictionary
+        existing_words_lower = {w["word_lower"] for w in dictionary_words}
+        candidates = [
+            c
+            for c in candidate_words
+            if c["word"].lower() not in existing_words_lower
+        ]
+
+        return render_template(
+            "diccionario_personalizado.html",
+            dictionary_words=dictionary_words,
+            candidates=candidates,
+            stats=stats,
+            current_user=current_user,
+        )
+
+    except Exception as e:
+        flash(f"Error cargando diccionario: {str(e)}", "error")
+        return redirect(url_for("inicio"))
+
+
+@app.route("/diccionario-personalizado/add", methods=["POST"])
+@login_required
+def add_custom_word():
+    """
+    Add a word to the custom dictionary
+    """
+    from calidad.dictionary_manager import add_word_to_dictionary
+
+    try:
+        word = request.form.get("word", "").strip()
+        category = request.form.get("category", "other")
+        frequency = int(request.form.get("frequency", 0))
+        notes = request.form.get("notes", "").strip()
+
+        if not word:
+            return jsonify({"success": False, "error": "Palabra requerida"}), 400
+
+        result = add_word_to_dictionary(
+            word=word,
+            category=category,
+            frequency=frequency,
+            approved_by=current_user.id,
+            notes=notes,
+        )
+
+        if result["success"]:
+            return jsonify(
+                {
+                    "success": True,
+                    "message": f"Palabra '{word}' añadida al diccionario",
+                    "word_id": result["word_id"],
+                }
+            )
+        else:
+            return jsonify({"success": False, "error": result["message"]}), 400
+
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/diccionario-personalizado/remove/<int:word_id>", methods=["POST"])
+@login_required
+def remove_custom_word(word_id):
+    """
+    Remove a word from the custom dictionary
+    """
+    from calidad.dictionary_manager import get_dictionary_words
+
+    try:
+        # Get word first
+        words = get_dictionary_words()
+        word_obj = next((w for w in words if w["id"] == word_id), None)
+
+        if not word_obj:
+            return jsonify({"success": False, "error": "Palabra no encontrada"}), 404
+
+        from calidad.dictionary_manager import remove_word_from_dictionary
+
+        result = remove_word_from_dictionary(word_obj["word"])
+
+        if result["success"]:
+            return jsonify(
+                {
+                    "success": True,
+                    "message": f"Palabra '{word_obj['word']}' eliminada del diccionario",
+                }
+            )
+        else:
+            return jsonify({"success": False, "error": result["message"]}), 400
+
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+# ==============================================================================
 # ERROR HANDLERS
 # ==============================================================================
 
