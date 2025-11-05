@@ -462,6 +462,9 @@ class Crawler:
 
         logger.info(f"Crawl completed: {self.stats}")
 
+        # Sync priority URLs (mark URLs from sections as priority)
+        self._sync_priority_urls()
+
         # Run post-crawl quality checks if configured
         self._run_post_crawl_checks(created_by)
 
@@ -510,3 +513,39 @@ class Crawler:
 
         except Exception as e:
             logger.error(f"Error running post-crawl checks: {e}", exc_info=True)
+
+    def _sync_priority_urls(self):
+        """
+        Synchronize is_priority flag in discovered_urls based on sections table.
+
+        This ensures that URLs manually added to sections are automatically
+        marked as priority for quality checks.
+        """
+        try:
+            logger.info("Syncing priority URLs with sections table...")
+
+            with db_cursor() as cursor:
+                # Reset all is_priority to FALSE
+                cursor.execute("UPDATE discovered_urls SET is_priority = FALSE")
+
+                # Mark as priority URLs that exist in sections
+                cursor.execute("""
+                    UPDATE discovered_urls du
+                    SET is_priority = TRUE
+                    FROM sections s
+                    WHERE TRIM(TRAILING '/' FROM du.url) = TRIM(TRAILING '/' FROM s.url)
+                """)
+                marked_count = cursor.rowcount
+
+                # Get final count
+                cursor.execute("""
+                    SELECT COUNT(*) as count
+                    FROM discovered_urls
+                    WHERE is_priority = TRUE
+                """)
+                priority_count = cursor.fetchone()['count']
+
+                logger.info(f"✓ Priority URL sync complete: {priority_count} URLs marked as priority")
+
+        except Exception as e:
+            logger.error(f"Error syncing priority URLs: {e}", exc_info=True)

@@ -44,7 +44,8 @@
       "Bash(pg_dump:*)",
       "Bash(/tmp/render_backup.sql)",
       "Bash(PGPASSWORD=\"cp6ZcGTJWL1FDUCkaXijmSzFhnUlo4Nm\" pg_dump:*)",
-      "Bash(.gitignore)"
+      "Bash(.gitignore)",
+      "mcp__sequential-thinking__sequentialthinking"
     ],
     "deny": [],
     "ask": []

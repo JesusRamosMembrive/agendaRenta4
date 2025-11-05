@@ -73,13 +73,19 @@ class SpellChecker(QualityCheck):
             'podrá', 'podrás', 'pueden', 'puedes', 'deberá', 'deberás',
             'sabes', 'sabe', 'sabemos', 'saben', 'sabía', 'sabías', 'sabían',
             'tienes', 'tiene', 'tienen', 'años', 'datos', 'todos', 'todas',
+            # Common verbs - realizar (to perform/carry out)
+            'realizan', 'realiza', 'realizar', 'realizamos', 'realizas', 'realizo',
+            'realizaron', 'realizó', 'realizaba', 'realizaban', 'realizando', 'realizado', 'realizada', 'realizados', 'realizadas',
             # Finance/investment terms
-            'inversión', 'inversiones', 'inversionistas', 'mercados', 'evolución', 'evoluciona',
+            'inversión', 'inversiones', 'inversionistas', 'inversores', 'inversor', 'mercados', 'evolución', 'evoluciona',
             'acciones', 'bonos', 'divisas', 'bróker', 'trading', 'información',
             'financiero', 'financiera', 'financieros', 'financieras',
-            'rentabilidad', 'rentable', 'cotización', 'operaciones', 'constantemente',
+            'rentabilidad', 'rentable', 'cotización', 'operaciones', 'constantemente', 'frecuentemente',
             'fiscalidad', 'fiscal', 'fiscales', 'tributación', 'tributaria',
             'rentabilidades', 'rentabilizado', 'fluctuaciones', 'capitales',
+            'institucionales', 'institucional', 'institución', 'instituciones',
+            'arbitrajes', 'arbitraje', 'arbitrar',
+            'bolsa', 'bolsas', 'bursátil', 'bursátiles',
             # Participios y formas verbales
             'gestionadas', 'gestionada', 'gestionados', 'gestionado',
             'invertirán', 'invertirá', 'invertirás', 'invertiremos', 'invirtiendo',
@@ -89,7 +95,7 @@ class SpellChecker(QualityCheck):
             'apalancados', 'apalancado', 'apalancadas', 'apalancada',
             'personalizadas', 'personalizada', 'personalizados', 'personalizado',
             'diversificadas', 'diversificada', 'diversificados', 'diversificado',
-            'mayores', 'diferentes', 'activos', 'mixtos', 'grandes', 'pequeñas',
+            'mayores', 'diferentes', 'activos', 'mixtos', 'grandes', 'grande', 'pequeñas', 'pequeño', 'pequeños',
             'competitivas', 'claras', 'periódicas', 'emergentes', 'correctos',
             # Verbs - first person plural
             'ayudamos', 'ofrecemos', 'brindamos', 'proporcionamos', 'garantizamos',
@@ -118,7 +124,7 @@ class SpellChecker(QualityCheck):
             'distribuidas', 'elegidos', 'escogidos', 'adecuados', 'ajustadas',
             'adaptadas', 'sencillas', 'gratuitas', 'privadas', 'respectivas',
             'propias', 'propios', 'inherentes', 'fundamentales', 'frecuentes',
-            'distintos', 'internacionales', 'nacionales', 'comercial',
+            'distintos', 'distintas', 'distinta', 'distinto', 'internacionales', 'nacionales', 'comercial',
             # Financial instrument terms
             'gestoras', 'gestores', 'asesores', 'expertos', 'profesionales',
             'conservadores', 'tolerantes', 'prometedores', 'temáticos',
@@ -131,6 +137,7 @@ class SpellChecker(QualityCheck):
             'garantizan', 'requiere', 'pienses', 'estás', 'hace',
             'descubre', 'conocimientos', 'hábitos', 'decisiones', 'circunstancias',
             'cantidades', 'formas', 'canales', 'oficinas', 'marcas',
+            'planeta', 'mundial', 'globales', 'entre', 'dentro',
             # Brand names (common ones)
             'blackrock', 'fidelity', 'vanguard', 'morgan', 'foncuenta', 'fondotop',
             'easy', 'criptomonedas', 'criptoactivos', 'letras',
