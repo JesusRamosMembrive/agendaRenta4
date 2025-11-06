@@ -4,7 +4,9 @@
       "Bash(calidad/imagenes.py)",
       "Bash(calidad/enlaces.py)",
       "Bash(ls:*)",
-      "Bash(bandit:*)"
+      "Bash(bandit:*)",
+      "Bash(PGPASSWORD=dev-password psql:*)",
+      "mcp__firecrawl__firecrawl_scrape"
     ],
     "deny": [],
     "ask": []
