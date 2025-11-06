@@ -6,12 +6,10 @@ Tests the ImagenesChecker (image quality checker)
 TDD Approach: Tests written BEFORE implementation
 """
 
-import pytest
-from unittest.mock import Mock, patch, MagicMock
-from io import BytesIO
-from PIL import Image
-from calidad.imagenes import ImagenesChecker
+from unittest.mock import Mock, patch
+
 from calidad.base import QualityCheckResult
+from calidad.imagenes import ImagenesChecker
 
 
 class TestImagenesChecker:
@@ -142,12 +140,15 @@ class TestImagenesChecker:
     @patch("calidad.imagenes.requests.get")
     def test_check_image_size_ok(self, mock_get, mock_head):
         """Test checking image sizes (under limit)"""
-        html = '<html><body><img src="https://example.com/img.jpg" alt="OK"></body></html>'
+        html = (
+            '<html><body><img src="https://example.com/img.jpg" alt="OK"></body></html>'
+        )
         mock_get.return_value = Mock(status_code=200, text=html)
 
         # Mock image HEAD request (size check)
         mock_head.return_value = Mock(
-            status_code=200, headers={"content-length": "500000"}  # 500KB
+            status_code=200,
+            headers={"content-length": "500000"},  # 500KB
         )
 
         checker = ImagenesChecker(config={"max_size_mb": 1.0})
@@ -242,7 +243,9 @@ class TestImagenesChecker:
     @patch("calidad.imagenes.requests.get")
     def test_check_with_provided_html_content(self, mock_get):
         """Test checking with pre-fetched HTML content"""
-        html = '<html><body><img src="https://example.com/img.jpg" alt="OK"></body></html>'
+        html = (
+            '<html><body><img src="https://example.com/img.jpg" alt="OK"></body></html>'
+        )
 
         checker = ImagenesChecker()
         result = checker.check("https://example.com", html_content=html)
@@ -284,9 +287,10 @@ class TestImagenesChecker:
 
         # Should handle timeout gracefully
         assert result.status in ["ok", "warning"]
-        assert "timeout" in str(result.details).lower() or result.details.get(
-            "check_errors", 0
-        ) > 0
+        assert (
+            "timeout" in str(result.details).lower()
+            or result.details.get("check_errors", 0) > 0
+        )
 
     @patch("calidad.imagenes.requests.get")
     def test_check_multiple_issues(self, mock_get):

@@ -5,10 +5,11 @@ Importa las URLs desde el archivo Excel original a la tabla 'sections'
 """
 
 import sys
-import os
 from pathlib import Path
-from utils import db_cursor
+
 import psycopg2
+
+from utils import db_cursor
 
 try:
     import openpyxl
@@ -18,7 +19,9 @@ except ImportError:
     sys.exit(1)
 
 
-EXCEL_PATH = Path(__file__).parent / "original-data" / "251028_Árbol web - control calidad.xlsx"
+EXCEL_PATH = (
+    Path(__file__).parent / "original-data" / "251028_Árbol web - control calidad.xlsx"
+)
 
 
 def generate_section_name(url, hierarchy_levels):
@@ -38,30 +41,36 @@ def generate_section_name(url, hierarchy_levels):
     # Intenta extraer de URL
     try:
         # Obtener path sin dominio
-        if 'r4.com' in url:
-            path = url.split('r4.com')[-1]
+        if "r4.com" in url:
+            path = url.split("r4.com")[-1]
         else:
             path = url
 
         # Dividir por / y tomar últimos 2 segmentos
-        parts = [p for p in path.split('/') if p]
+        parts = [p for p in path.split("/") if p]
         if len(parts) >= 2:
             # Convertir guiones a espacios y capitalizar
             name_parts = []
             for part in parts[-2:]:
-                words = part.replace('-', ' ').replace('_', ' ').title()
+                words = part.replace("-", " ").replace("_", " ").title()
                 name_parts.append(words)
-            return ' - '.join(name_parts)
+            return " - ".join(name_parts)
         elif len(parts) == 1:
-            return parts[0].replace('-', ' ').replace('_', ' ').title()
+            return parts[0].replace("-", " ").replace("_", " ").title()
     except:
         pass
 
     # Fallback: usar jerarquía
-    hierarchy_names = [h for h in hierarchy_levels if h and isinstance(h, str) and h.strip()]
+    hierarchy_names = [
+        h for h in hierarchy_levels if h and isinstance(h, str) and h.strip()
+    ]
     if hierarchy_names:
         # Tomar últimos 2 niveles
-        return ' - '.join(hierarchy_names[-2:]) if len(hierarchy_names) >= 2 else hierarchy_names[-1]
+        return (
+            " - ".join(hierarchy_names[-2:])
+            if len(hierarchy_names) >= 2
+            else hierarchy_names[-1]
+        )
 
     # Fallback final: usar URL completa
     return url
@@ -90,7 +99,7 @@ def load_sections_from_excel(excel_path):
 
     # Obtener pestaña principal
     if "Actualización y calidad" not in wb.sheetnames:
-        print(f"❌ ERROR: Pestaña 'Actualización y calidad' no encontrada")
+        print("❌ ERROR: Pestaña 'Actualización y calidad' no encontrada")
         print(f"   Pestañas disponibles: {wb.sheetnames}")
         sys.exit(1)
 
@@ -109,7 +118,9 @@ def load_sections_from_excel(excel_path):
 
     with db_cursor() as cursor:
         # Iterar sobre filas (saltando header)
-        for row_idx, row in enumerate(sheet.iter_rows(min_row=2, max_row=MAX_ROWS, values_only=True), start=2):
+        for row_idx, row in enumerate(
+            sheet.iter_rows(min_row=2, max_row=MAX_ROWS, values_only=True), start=2
+        ):
             total_rows += 1
 
             # Columna 7 (index 6) = URL
@@ -121,7 +132,7 @@ def load_sections_from_excel(excel_path):
                 continue
 
             # Filtrar si no es URL válida (debe contener r4.com o empezar con /)
-            if 'r4.com' not in url and not url.startswith('/'):
+            if "r4.com" not in url and not url.startswith("/"):
                 skipped += 1
                 continue
 
@@ -135,10 +146,13 @@ def load_sections_from_excel(excel_path):
 
             # Insertar en BD
             try:
-                cursor.execute("""
+                cursor.execute(
+                    """
                     INSERT INTO sections (name, url, active)
                     VALUES (%s, %s, TRUE)
-                """, (name, url))
+                """,
+                    (name, url),
+                )
                 inserted += 1
                 print(f"   ✓ {name}")
                 print(f"     {url}")
@@ -151,7 +165,7 @@ def load_sections_from_excel(excel_path):
 
     # Resumen
     print("\n" + "=" * 80)
-    print(f"📊 RESUMEN:")
+    print("📊 RESUMEN:")
     print(f"   - Filas procesadas: {total_rows}")
     print(f"   - Secciones insertadas: {inserted}")
     print(f"   - Filas omitidas: {skipped}")
@@ -174,9 +188,9 @@ def main():
     # Mostrar estadísticas finales
     with db_cursor() as cursor:
         cursor.execute("SELECT COUNT(*) FROM sections WHERE active = TRUE")
-        count = cursor.fetchone()['count']
+        count = cursor.fetchone()["count"]
         print(f"📊 Total de secciones activas en BD: {count}\n")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

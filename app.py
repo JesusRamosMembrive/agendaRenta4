@@ -4,49 +4,51 @@ Agenda Renta4 - Task Manager Manual
 Flask application principal
 """
 
-import os
 import calendar
-from datetime import datetime, date, timedelta
+import os
+from datetime import date, datetime, timedelta
+
 from dotenv import load_dotenv
 from flask import (
     Flask,
+    flash,
+    jsonify,
+    redirect,
     render_template,
     request,
-    redirect,
-    url_for,
-    flash,
     session,
-    jsonify,
+    url_for,
 )
-from flask_mail import Mail, Message
 from flask_login import (
     LoginManager,
     UserMixin,
+    current_user,
+    login_required,
     login_user,
     logout_user,
-    login_required,
-    current_user,
 )
+from flask_mail import Mail, Message
 from werkzeug.security import check_password_hash
 
 # Load environment variables
 load_dotenv()
 
 # Import shared utilities
-from utils import db_cursor, format_date, format_period, generate_available_periods
-
 # Import constants
 from constants import (
-    TASK_STATUS_OK,
-    TASK_STATUS_PROBLEM,
+    ANNUAL_MONTH,
+    DEFAULT_EMAIL_SENDER,
     DEFAULT_PORT,
     DEFAULT_SMTP_PORT,
-    DEFAULT_EMAIL_SENDER,
+    LOGIN_SESSION_DAYS,
+    PROBLEMS_RETENTION_DAYS,
     QUARTERLY_MONTHS,
     SEMIANNUAL_MONTHS,
-    ANNUAL_MONTH,
-    LOGIN_SESSION_DAYS,
+    TASK_STATUS_OK,
+    TASK_STATUS_PROBLEM,
+    WEEKDAY_MAP,
 )
+from utils import db_cursor, format_date, format_period, generate_available_periods
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -79,14 +81,18 @@ mail = Mail(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = "login"
-login_manager.login_message = None  # Disable automatic flash messages to prevent accumulation
+login_manager.login_message = (
+    None  # Disable automatic flash messages to prevent accumulation
+)
 
 # Register Blueprints
-from crawler.routes import crawler_bp
 from config.routes import config_bp
+from crawler.routes import crawler_bp
+from dev.routes import dev_bp
 
 app.register_blueprint(crawler_bp)
 app.register_blueprint(config_bp)
+app.register_blueprint(dev_bp)
 
 
 # ==============================================================================
@@ -126,10 +132,12 @@ def load_user(user_id):
 # ==============================================================================
 
 
-def get_task_counts():
+def get_task_counts() -> dict:
     """
     Get counts of pending, problem, completed tasks, and pending alerts.
-    Returns dict with 'pending', 'problems', 'completed', 'alerts' counts.
+
+    Returns:
+        dict: Dictionary with keys 'pending', 'problems', 'completed', 'alerts'
     """
     with db_cursor(commit=False) as cursor:
         current_period = datetime.now().strftime("%Y-%m")
@@ -266,7 +274,7 @@ def _fetch_alerts_for_notification(cursor, reference_date):
     return cursor.fetchall()
 
 
-def generate_alerts(reference_date=None):
+def generate_alerts(reference_date: date = None) -> dict:
     """
     Generate pending alerts based on alert_settings configuration (orchestrator).
 
@@ -277,7 +285,7 @@ def generate_alerts(reference_date=None):
         reference_date: Date to use as reference (default: today)
 
     Returns:
-        dict with stats: {'generated': count, 'skipped': count, 'errors': [], 'email_stats': {...}}
+        dict: Statistics with keys 'generated', 'skipped', 'errors', 'email_stats'
     """
     if reference_date is None:
         reference_date = date.today()
@@ -307,7 +315,9 @@ def generate_alerts(reference_date=None):
 
                 # Try to create the alert
                 try:
-                    if _create_alert_for_task_type(cursor, task_type_id, reference_date):
+                    if _create_alert_for_task_type(
+                        cursor, task_type_id, reference_date
+                    ):
                         stats["generated"] += 1
                     else:
                         stats["skipped"] += 1  # Duplicate
@@ -334,17 +344,6 @@ def generate_alerts(reference_date=None):
 # ALERT DAY CHECKERS (Strategy Pattern)
 # ==============================================================================
 
-# Weekday mapping for alert configuration
-WEEKDAY_MAP = {
-    "monday": 0,
-    "tuesday": 1,
-    "wednesday": 2,
-    "thursday": 3,
-    "friday": 4,
-    "saturday": 5,
-    "sunday": 6,
-}
-
 
 def _check_daily_alert(reference_date, alert_day):
     """Daily alerts always trigger."""
@@ -360,7 +359,24 @@ def _check_weekly_alert(reference_date, alert_day):
 
 
 def _check_biweekly_alert(reference_date, alert_day):
-    """Check if today is the configured weekday in an even week."""
+    """
+    Check if today is the configured weekday in an even week.
+
+    Biweekly alerts trigger every two weeks on the specified weekday.
+    Week numbers are ISO 8601 compliant (week 1 = first week with Thursday).
+
+    Example:
+        If alert_day='monday' and reference_date is Monday of week 4,
+        this returns True (week 4 is even). If reference_date is Monday
+        of week 5, returns False (week 5 is odd).
+
+    Args:
+        reference_date: Date to check
+        alert_day: Day of week (e.g., 'monday', 'tuesday')
+
+    Returns:
+        bool: True if it's the correct weekday in an even-numbered week
+    """
     target_weekday = WEEKDAY_MAP.get(alert_day)
     if target_weekday is None:
         return False
@@ -369,13 +385,31 @@ def _check_biweekly_alert(reference_date, alert_day):
     if reference_date.weekday() != target_weekday:
         return False
 
-    # Check if it's an even week number
+    # Check if it's an even week number (ISO 8601)
     week_number = reference_date.isocalendar()[1]
     return week_number % 2 == 0
 
 
 def _check_monthly_alert(reference_date, alert_day):
-    """Check if today is the configured day of the month."""
+    """
+    Check if today is the configured day of the month.
+
+    Handles months with varying lengths gracefully. If the target day exceeds
+    the month's length (e.g., day 31 in February), it adjusts to the last day.
+
+    Example:
+        If alert_day='31':
+        - January 31 → True (month has 31 days)
+        - February 31 → True on Feb 28/29 (month doesn't have 31 days)
+        - April 31 → True on April 30 (month has only 30 days)
+
+    Args:
+        reference_date: Date to check
+        alert_day: Day of month as string (e.g., '1', '15', '31')
+
+    Returns:
+        bool: True if today is the configured day (or last day if month is shorter)
+    """
     try:
         target_day = int(alert_day)
     except (ValueError, TypeError):
@@ -422,26 +456,26 @@ def _check_annual_alert(reference_date, alert_day):
 
 # Strategy mapping: frequency -> checker function
 ALERT_CHECKERS = {
-    'daily': _check_daily_alert,
-    'weekly': _check_weekly_alert,
-    'biweekly': _check_biweekly_alert,
-    'monthly': _check_monthly_alert,
-    'quarterly': _check_quarterly_alert,
-    'semiannual': _check_semiannual_alert,
-    'annual': _check_annual_alert,
+    "daily": _check_daily_alert,
+    "weekly": _check_weekly_alert,
+    "biweekly": _check_biweekly_alert,
+    "monthly": _check_monthly_alert,
+    "quarterly": _check_quarterly_alert,
+    "semiannual": _check_semiannual_alert,
+    "annual": _check_annual_alert,
 }
 
 
-def check_alert_day(reference_date, frequency, alert_day):
+def check_alert_day(reference_date: date, frequency: str, alert_day: str) -> bool:
     """
     Check if the reference_date matches the alert configuration (Strategy Pattern).
 
     Uses a strategy pattern to delegate to specific checker functions based on frequency.
 
     Args:
-        reference_date: date object to check
-        frequency: alert frequency (daily, weekly, biweekly, monthly, quarterly, semiannual, annual)
-        alert_day: specific day configuration (day of week or day of month)
+        reference_date: Date object to check
+        frequency: Alert frequency (daily, weekly, biweekly, monthly, quarterly, semiannual, annual)
+        alert_day: Specific day configuration (day of week or day of month)
 
     Returns:
         bool: True if alert should be generated for this date
@@ -451,6 +485,7 @@ def check_alert_day(reference_date, frequency, alert_day):
     if not checker:
         # Unknown frequency - log warning and return False
         import logging
+
         logging.getLogger(__name__).warning(f"Unknown alert frequency: {frequency}")
         return False
 
@@ -507,7 +542,7 @@ def _build_email_body(alert_list):
     Returns:
         str: HTML email body
     """
-    alertas_url = url_for('alertas', _external=True)
+    alertas_url = url_for("alertas", _external=True)
 
     # Build alert items HTML
     alert_items_html = ""
@@ -598,7 +633,7 @@ def _send_email_to_recipient(recipient, html_body, alert_count):
         return False, f"Failed to send to {recipient['email']}: {str(e)}"
 
 
-def send_email_notifications(alert_list, user_name=None):
+def send_email_notifications(alert_list: list, user_name: str = None) -> dict:
     """
     Send email notifications for newly generated alerts (orchestrator function).
 
@@ -607,7 +642,7 @@ def send_email_notifications(alert_list, user_name=None):
         user_name: User name to check preferences for. If None, uses current_user.
 
     Returns:
-        dict with stats: {'sent': count, 'failed': count, 'errors': []}
+        dict: Statistics with keys 'sent', 'failed', 'errors'
     """
     stats = {"sent": 0, "failed": 0, "errors": []}
 
@@ -669,6 +704,9 @@ def inject_task_counts():
     """
     # Get broken links count for crawler
     broken_count = 0
+    image_issues_count = 0
+    spell_issues_count = 0
+
     try:
         with db_cursor(commit=False) as cursor:
             # Get latest crawl run
@@ -691,11 +729,48 @@ def inject_task_counts():
                 )
                 result = cursor.fetchone()
                 broken_count = result["count"] if result else 0
+
+                # Count image quality issues (status = 'error')
+                cursor.execute(
+                    """
+                    SELECT COUNT(*) as count
+                    FROM quality_checks qc
+                    JOIN discovered_urls du ON qc.discovered_url_id = du.id
+                    WHERE du.crawl_run_id = %s
+                      AND qc.check_type = 'image_quality'
+                      AND qc.status = 'error'
+                """,
+                    (crawl_run["id"],),
+                )
+                result = cursor.fetchone()
+                image_issues_count = result["count"] if result else 0
+
+                # Count spelling issues (status = 'warning')
+                cursor.execute(
+                    """
+                    SELECT COUNT(*) as count
+                    FROM quality_checks qc
+                    JOIN discovered_urls du ON qc.discovered_url_id = du.id
+                    WHERE du.crawl_run_id = %s
+                      AND qc.check_type = 'spell_check'
+                      AND qc.status = 'warning'
+                """,
+                    (crawl_run["id"],),
+                )
+                result = cursor.fetchone()
+                spell_issues_count = result["count"] if result else 0
     except Exception:
         # If crawler tables don't exist yet, just return 0
         broken_count = 0
+        image_issues_count = 0
+        spell_issues_count = 0
 
-    return {"task_counts": get_task_counts(), "broken_count": broken_count}
+    return {
+        "task_counts": get_task_counts(),
+        "broken_count": broken_count,
+        "image_issues_count": image_issues_count,
+        "spell_issues_count": spell_issues_count,
+    }
 
 
 # ==============================================================================
@@ -934,8 +1009,10 @@ def problemas():
     period = session.get("current_period", datetime.now().strftime("%Y-%m"))
     current_period = datetime.now().strftime("%Y-%m")
 
-    # Calculate cutoff date (90 days ago = ~3 months)
-    cutoff_date = (datetime.now() - timedelta(days=90)).strftime('%Y-%m')
+    # Calculate cutoff date (problems retention period)
+    cutoff_date = (datetime.now() - timedelta(days=PROBLEMS_RETENTION_DAYS)).strftime(
+        "%Y-%m"
+    )
 
     with db_cursor(commit=False) as cursor:
         # Query problem tasks from last 3 months to current month
@@ -1243,6 +1320,149 @@ def dismiss_alert(alert_id):
         return jsonify(
             {"success": True, "message": message, "dismissed": new_dismissed}
         )
+
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+# ==============================================================================
+# CUSTOM DICTIONARY ROUTES
+# ==============================================================================
+
+
+@app.route("/diccionario-personalizado")
+@login_required
+def custom_dictionary():
+    """
+    Custom dictionary management page
+    Shows:
+    - Candidate words (errors from quality_checks that could be added)
+    - Current custom dictionary words
+    - Manual word addition form
+    """
+    from calidad.dictionary_manager import (
+        get_dictionary_stats,
+        get_dictionary_words,
+    )
+
+    try:
+        # Get current dictionary words
+        dictionary_words = get_dictionary_words()
+
+        # Get dictionary stats
+        stats = get_dictionary_stats()
+
+        # Get candidate words from quality_checks
+        # Extract spelling errors from quality checks, group by word, count frequency
+        with db_cursor(commit=False) as cursor:
+            cursor.execute(
+                """
+                SELECT
+                    jsonb_array_elements(details->'spelling_errors')->>'word' as word,
+                    COUNT(*) as frequency,
+                    STRING_AGG(DISTINCT du.url, ', ') as example_urls
+                FROM quality_checks qc
+                LEFT JOIN discovered_urls du ON qc.discovered_url_id = du.id
+                WHERE qc.check_type = 'spell_check'
+                    AND qc.status IN ('warning', 'error')
+                    AND details->'spelling_errors' IS NOT NULL
+                    AND jsonb_array_length(details->'spelling_errors') > 0
+                GROUP BY word
+                HAVING COUNT(*) >= 2  -- Only show words that appear at least twice
+                ORDER BY COUNT(*) DESC, word
+                LIMIT 100
+            """
+            )
+            candidate_words = cursor.fetchall()
+
+        # Filter out words already in dictionary
+        existing_words_lower = {w["word_lower"] for w in dictionary_words}
+        candidates = [
+            c for c in candidate_words if c["word"].lower() not in existing_words_lower
+        ]
+
+        return render_template(
+            "diccionario_personalizado.html",
+            dictionary_words=dictionary_words,
+            candidates=candidates,
+            stats=stats,
+            current_user=current_user,
+        )
+
+    except Exception as e:
+        flash(f"Error cargando diccionario: {str(e)}", "error")
+        return redirect(url_for("inicio"))
+
+
+@app.route("/diccionario-personalizado/add", methods=["POST"])
+@login_required
+def add_custom_word():
+    """
+    Add a word to the custom dictionary
+    """
+    from calidad.dictionary_manager import add_word_to_dictionary
+
+    try:
+        word = request.form.get("word", "").strip()
+        category = request.form.get("category", "other")
+        frequency = int(request.form.get("frequency", 0))
+        notes = request.form.get("notes", "").strip()
+
+        if not word:
+            return jsonify({"success": False, "error": "Palabra requerida"}), 400
+
+        result = add_word_to_dictionary(
+            word=word,
+            category=category,
+            frequency=frequency,
+            approved_by=current_user.id,
+            notes=notes,
+        )
+
+        if result["success"]:
+            return jsonify(
+                {
+                    "success": True,
+                    "message": f"Palabra '{word}' añadida al diccionario",
+                    "word_id": result["word_id"],
+                }
+            )
+        else:
+            return jsonify({"success": False, "error": result["message"]}), 400
+
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/diccionario-personalizado/remove/<int:word_id>", methods=["POST"])
+@login_required
+def remove_custom_word(word_id):
+    """
+    Remove a word from the custom dictionary
+    """
+    from calidad.dictionary_manager import get_dictionary_words
+
+    try:
+        # Get word first
+        words = get_dictionary_words()
+        word_obj = next((w for w in words if w["id"] == word_id), None)
+
+        if not word_obj:
+            return jsonify({"success": False, "error": "Palabra no encontrada"}), 404
+
+        from calidad.dictionary_manager import remove_word_from_dictionary
+
+        result = remove_word_from_dictionary(word_obj["word"])
+
+        if result["success"]:
+            return jsonify(
+                {
+                    "success": True,
+                    "message": f"Palabra '{word_obj['word']}' eliminada del diccionario",
+                }
+            )
+        else:
+            return jsonify({"success": False, "error": result["message"]}), 400
 
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500

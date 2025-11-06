@@ -7,7 +7,9 @@ Real-time monitoring of URL validation progress
 import os
 import time
 from datetime import datetime
+
 from dotenv import load_dotenv
+
 from utils import db_cursor
 
 load_dotenv()
@@ -15,7 +17,7 @@ load_dotenv()
 
 def clear_screen():
     """Clear terminal screen"""
-    os.system('clear' if os.name != 'nt' else 'cls')
+    os.system("clear" if os.name != "nt" else "cls")
 
 
 def get_validation_stats():
@@ -34,7 +36,8 @@ def get_validation_stats():
             return None
 
         # Get validation progress
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT
                 COUNT(*) as total_urls,
                 COUNT(*) FILTER (WHERE last_checked IS NOT NULL) as validated,
@@ -48,14 +51,13 @@ def get_validation_stats():
                 COUNT(*) FILTER (WHERE is_priority = TRUE AND last_checked IS NOT NULL) as priority_validated
             FROM discovered_urls
             WHERE crawl_run_id = %s
-        """, (crawl_run['id'],))
+        """,
+            (crawl_run["id"],),
+        )
 
         stats = cursor.fetchone()
 
-        return {
-            'crawl_run': crawl_run,
-            'stats': stats
-        }
+        return {"crawl_run": crawl_run, "stats": stats}
 
 
 def print_progress_bar(current, total, width=50):
@@ -66,7 +68,7 @@ def print_progress_bar(current, total, width=50):
         percentage = (current / total) * 100
 
     filled = int(width * current / total) if total > 0 else 0
-    bar = '█' * filled + '░' * (width - filled)
+    bar = "█" * filled + "░" * (width - filled)
 
     return f"[{bar}] {percentage:.1f}% ({current}/{total})"
 
@@ -120,8 +122,8 @@ def monitor_validation(refresh_interval=5):
                 print("\n❌ No crawl runs found. Run crawler first.")
                 break
 
-            crawl_run = data['crawl_run']
-            stats = data['stats']
+            crawl_run = data["crawl_run"]
+            stats = data["stats"]
 
             # Clear screen and print header
             clear_screen()
@@ -134,12 +136,14 @@ def monitor_validation(refresh_interval=5):
             print("=" * 80)
 
             # Progress bar
-            validated = stats['validated']
-            total = stats['total_urls']
+            validated = stats["validated"]
+            total = stats["total_urls"]
 
-            print(f"\n📊 Overall Progress:")
+            print("\n📊 Overall Progress:")
             print(f"   {print_progress_bar(validated, total)}")
-            print(f"\n⏱️  Time Remaining: {estimate_time_remaining(validated, total, start_time)}")
+            print(
+                f"\n⏱️  Time Remaining: {estimate_time_remaining(validated, total, start_time)}"
+            )
 
             # Velocity calculation
             if validated > last_validated:
@@ -161,14 +165,14 @@ def monitor_validation(refresh_interval=5):
             print(f"      └─ ⚠️  Client Errors:   {stats['client_errors']}")
             print(f"      └─ 💥 Server Errors:   {stats['server_errors']}")
 
-            if stats['priority_total'] > 0:
-                print(f"\n⭐ Priority URLs:")
+            if stats["priority_total"] > 0:
+                print("\n⭐ Priority URLs:")
                 print(f"   Total:     {stats['priority_total']}")
                 print(f"   Validated: {stats['priority_validated']}")
 
             # Health percentage
             if validated > 0:
-                health_pct = (stats['ok'] / validated) * 100
+                health_pct = (stats["ok"] / validated) * 100
                 print(f"\n💚 Health Score: {health_pct:.1f}%")
 
             # Check if complete
@@ -179,9 +183,9 @@ def monitor_validation(refresh_interval=5):
                 print(f"\nTotal time: {format_time_elapsed(start_time)}")
                 print(f"URLs validated: {validated}")
                 print(f"Success rate: {health_pct:.1f}%")
-                print(f"\n📄 View results:")
-                print(f"   - Web UI: http://localhost:5000/crawler/broken")
-                print(f"   - Generate report: python generate_excel_report.py")
+                print("\n📄 View results:")
+                print("   - Web UI: http://localhost:5000/crawler/broken")
+                print("   - Generate report: python generate_excel_report.py")
                 break
 
             # Wait before next update
@@ -193,7 +197,7 @@ def monitor_validation(refresh_interval=5):
         print(f"Last known progress: {validated}/{total} URLs validated")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import sys
 
     # Parse arguments

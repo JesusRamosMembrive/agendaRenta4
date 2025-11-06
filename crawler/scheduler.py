@@ -6,12 +6,14 @@ Automatic revalidation of URLs with configurable frequency and email notificatio
 
 import logging
 from datetime import datetime
+
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
+
 from crawler.validator import URLValidator, get_validation_config
 from utils import db_cursor
 
-logger = logging.getLogger('scheduler')
+logger = logging.getLogger("scheduler")
 
 
 class ValidationScheduler:
@@ -29,7 +31,7 @@ class ValidationScheduler:
         self.scheduler = BackgroundScheduler()
         self.validator = None
 
-    def start(self, frequency='daily', hour=3, minute=0):
+    def start(self, frequency="daily", hour=3, minute=0):
         """
         Start the scheduler with specified frequency.
 
@@ -40,10 +42,10 @@ class ValidationScheduler:
         """
 
         # Configure cron trigger based on frequency
-        if frequency == 'daily':
+        if frequency == "daily":
             trigger = CronTrigger(hour=hour, minute=minute)
-        elif frequency == 'weekly':
-            trigger = CronTrigger(day_of_week='mon', hour=hour, minute=minute)
+        elif frequency == "weekly":
+            trigger = CronTrigger(day_of_week="mon", hour=hour, minute=minute)
         else:
             # Default to daily
             trigger = CronTrigger(hour=hour, minute=minute)
@@ -52,9 +54,9 @@ class ValidationScheduler:
         self.scheduler.add_job(
             func=self.run_revalidation,
             trigger=trigger,
-            id='url_revalidation',
-            name='URL Revalidation Job',
-            replace_existing=True
+            id="url_revalidation",
+            name="URL Revalidation Job",
+            replace_existing=True,
         )
 
         self.scheduler.start()
@@ -99,8 +101,7 @@ class ValidationScheduler:
 
             # 3. Validate URLs
             urls_to_validate = [
-                (url['id'], url['url'], url.get('status_code'))
-                for url in urls
+                (url["id"], url["url"], url.get("status_code")) for url in urls
             ]
 
             stats = self.validator.validate_batch(urls_to_validate, track_changes=True)
@@ -152,15 +153,16 @@ class ValidationScheduler:
 
         Health = (OK URLs / Total URLs) * 100
         """
-        if stats['validated'] == 0:
+        if stats["validated"] == 0:
             return 0.0
 
-        return (stats['ok'] / stats['validated']) * 100
+        return (stats["ok"] / stats["validated"]) * 100
 
     def _save_health_snapshot(self, health_score, stats):
         """Save health metrics snapshot for historical tracking"""
         with db_cursor() as cursor:
-            cursor.execute("""
+            cursor.execute(
+                """
                 INSERT INTO health_snapshots (
                     snapshot_date,
                     health_score,
@@ -171,14 +173,16 @@ class ValidationScheduler:
                     error_urls
                 )
                 VALUES (NOW(), %s, %s, %s, %s, %s, %s)
-            """, (
-                health_score,
-                stats['validated'],
-                stats['ok'],
-                stats['broken'],
-                stats['redirects'],
-                stats['errors']
-            ))
+            """,
+                (
+                    health_score,
+                    stats["validated"],
+                    stats["ok"],
+                    stats["broken"],
+                    stats["redirects"],
+                    stats["errors"],
+                ),
+            )
             cursor.connection.commit()
             logger.info("Health snapshot saved")
 
@@ -218,8 +222,8 @@ class ValidationScheduler:
             stats: Validation statistics
             health_score: Current health score
         """
-        from flask_mail import Message
         from flask import current_app, render_template
+        from flask_mail import Message
 
         try:
             # Get recipient from notification preferences
@@ -236,26 +240,26 @@ class ValidationScheduler:
                     logger.warning("No email recipients configured")
                     return
 
-                recipient = result['email']
+                recipient = result["email"]
 
             # Prepare email
-            priority_broken = sum(1 for u in broken_urls if u['is_priority'])
+            priority_broken = sum(1 for u in broken_urls if u["is_priority"])
 
             msg = Message(
                 subject=f"⚠️ Alerta: {len(broken_urls)} enlaces rotos detectados",
                 recipients=[recipient],
                 html=render_template(
-                    'emails/revalidation_report.html',
+                    "emails/revalidation_report.html",
                     broken_urls=broken_urls,
                     stats=stats,
                     health_score=health_score,
                     priority_broken=priority_broken,
-                    timestamp=datetime.now()
-                )
+                    timestamp=datetime.now(),
+                ),
             )
 
             # Send email
-            current_app.extensions['mail'].send(msg)
+            current_app.extensions["mail"].send(msg)
             logger.info(f"Notification email sent to {recipient}")
 
         except Exception as e:
@@ -271,10 +275,10 @@ class ValidationScheduler:
         job = jobs[0]
 
         return {
-            'job_id': job.id,
-            'name': job.name,
-            'next_run': job.next_run_time,
-            'trigger': str(job.trigger)
+            "job_id": job.id,
+            "name": job.name,
+            "next_run": job.next_run_time,
+            "trigger": str(job.trigger),
         }
 
 
@@ -292,7 +296,7 @@ def get_scheduler():
     return _scheduler
 
 
-def start_scheduler(frequency='daily', hour=3, minute=0):
+def start_scheduler(frequency="daily", hour=3, minute=0):
     """
     Start the global scheduler.
 

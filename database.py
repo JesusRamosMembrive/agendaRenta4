@@ -4,12 +4,10 @@ Agenda Renta4 - Database Schema
 Crea y inicializa la base de datos SQLite con las 4 tablas principales
 """
 
-import sqlite3
 import os
-from datetime import datetime
+import sqlite3
 
-
-DATABASE_PATH = os.getenv('DATABASE_PATH', 'agendaRenta4.db')
+DATABASE_PATH = os.getenv("DATABASE_PATH", "agendaRenta4.db")
 
 
 def init_db():
@@ -99,26 +97,29 @@ def seed_task_types():
     conn = sqlite3.connect(DATABASE_PATH)
     cursor = conn.cursor()
 
-    print(f"🌱 Poblando tipos de tareas...\n")
+    print("🌱 Poblando tipos de tareas...\n")
 
     # Los 8 tipos de tareas con periodicidades iniciales
     task_types_data = [
-        ('enlaces_rotos', 'Enlaces rotos', 'weekly', 1),
-        ('enlaces_incorrectos', 'Enlaces incorrectos', 'weekly', 2),
-        ('textos_erratas', 'Textos – erratas', 'monthly', 3),
-        ('informacion_actualizada', 'Información actualizada', 'monthly', 4),
-        ('preguntas_frecuentes', 'Preguntas frecuentes', 'quarterly', 5),
-        ('ctas', 'CTAs', 'monthly', 6),
-        ('imagenes', 'Imágenes', 'monthly', 7),
-        ('diseno', 'Diseño', 'quarterly', 8),
+        ("enlaces_rotos", "Enlaces rotos", "weekly", 1),
+        ("enlaces_incorrectos", "Enlaces incorrectos", "weekly", 2),
+        ("textos_erratas", "Textos – erratas", "monthly", 3),
+        ("informacion_actualizada", "Información actualizada", "monthly", 4),
+        ("preguntas_frecuentes", "Preguntas frecuentes", "quarterly", 5),
+        ("ctas", "CTAs", "monthly", 6),
+        ("imagenes", "Imágenes", "monthly", 7),
+        ("diseno", "Diseño", "quarterly", 8),
     ]
 
     for name, display_name, periodicity, order in task_types_data:
         try:
-            cursor.execute("""
+            cursor.execute(
+                """
                 INSERT INTO task_types (name, display_name, periodicity, display_order)
                 VALUES (?, ?, ?, ?)
-            """, (name, display_name, periodicity, order))
+            """,
+                (name, display_name, periodicity, order),
+            )
             print(f"   ✓ {display_name} ({periodicity})")
         except sqlite3.IntegrityError:
             print(f"   ⚠️  {display_name} ya existe (skip)")
@@ -165,7 +166,7 @@ def get_db_stats():
 
     print(f"📊 Estadísticas de la base de datos: {DATABASE_PATH}\n")
 
-    tables = ['sections', 'task_types', 'tasks', 'users']
+    tables = ["sections", "task_types", "tasks", "users"]
 
     for table in tables:
         cursor.execute(f"SELECT COUNT(*) FROM {table}")
@@ -185,9 +186,9 @@ def main():
     if len(sys.argv) > 1:
         command = sys.argv[1]
 
-        if command == 'drop':
+        if command == "drop":
             confirm = input("⚠️  ¿Estás seguro de eliminar todas las tablas? (yes/no): ")
-            if confirm.lower() == 'yes':
+            if confirm.lower() == "yes":
                 drop_all_tables()
                 init_db()
                 seed_task_types()
@@ -195,11 +196,11 @@ def main():
                 print("Operación cancelada")
                 return
 
-        elif command == 'stats':
+        elif command == "stats":
             get_db_stats()
             return
 
-        elif command == 'seed':
+        elif command == "seed":
             seed_task_types()
             return
 
@@ -214,5 +215,5 @@ def main():
     get_db_stats()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

@@ -98,6 +98,15 @@
         </a>
         <a href="{{ url_for('crawler.quality') }}" class="{% if request.endpoint == 'crawler.quality' %}active{% endif %}">
           🖼️ Calidad de Imágenes
+          {% if image_issues_count is defined and image_issues_count > 0 %}
+            <span class="nav-counter alert-counter">{{ image_issues_count }}</span>
+          {% endif %}
+        </a>
+        <a href="{{ url_for('crawler.spell_check') }}" class="{% if request.endpoint == 'crawler.spell_check' %}active{% endif %}">
+          📝 Corrección Ortográfica
+          {% if spell_issues_count is defined and spell_issues_count > 0 %}
+            <span class="nav-counter alert-counter">{{ spell_issues_count }}</span>
+          {% endif %}
         </a>
         <a href="{{ url_for('crawler.test_runner') }}" class="{% if request.endpoint == 'crawler.test_runner' %}active{% endif %}">
           🎯 Test Runner
@@ -112,7 +121,31 @@
           ⚙️ Configuración
         </div>
         <a href="{{ url_for('config.index') }}" class="{% if request.endpoint == 'config.index' %}active{% endif %}">
-          General
+          Alertas de Tareas
+        </a>
+        <a href="{{ url_for('config.urls') }}" class="{% if request.endpoint == 'config.urls' %}active{% endif %}">
+          Gestión de URLs
+        </a>
+        <a href="{{ url_for('config.herramientas') }}" class="{% if request.endpoint == 'config.herramientas' %}active{% endif %}">
+          Herramientas de Análisis Automático
+        </a>
+        <a href="{{ url_for('custom_dictionary') }}" class="{% if request.endpoint == 'custom_dictionary' %}active{% endif %}">
+          📖 Diccionario Personalizado
+        </a>
+      </nav>
+
+      <div class="divider"></div>
+
+      <!-- Dev Tools -->
+      <nav class="nav">
+        <div style="padding: 10px 20px; color: var(--text-muted); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">
+          🛠️ Dev
+        </div>
+        <a href="{{ url_for('dev.cleanup_page') }}" class="{% if request.endpoint == 'dev.cleanup_page' %}active{% endif %}">
+          🗑️ Limpiar BD
+        </a>
+        <a href="{{ url_for('dev.database_stats') }}" class="{% if request.endpoint == 'dev.database_stats' %}active{% endif %}">
+          📊 Estadísticas
         </a>
       </nav>
     </aside>

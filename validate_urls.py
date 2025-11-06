@@ -4,9 +4,10 @@ URL Validation Script
 Validates discovered URLs and updates database with status codes and response times
 """
 
-import os
-from dotenv import load_dotenv
 from datetime import datetime
+
+from dotenv import load_dotenv
+
 from crawler.validator import URLValidator, get_validation_config
 from utils import db_cursor
 
@@ -36,7 +37,7 @@ def get_urls_to_validate(priority_only=False, crawl_run_id=None):
             if not result:
                 print("❌ No crawl runs found. Run crawler first.")
                 return []
-            crawl_run_id = result['id']
+            crawl_run_id = result["id"]
 
         # Build query
         query = """
@@ -80,11 +81,11 @@ def validate_urls(priority_only=False, crawl_run_id=None):
         print("   ⚠️  No URLs found to validate")
         return
 
-    priority_count = sum(1 for u in urls if u.get('is_priority', False))
+    priority_count = sum(1 for u in urls if u.get("is_priority", False))
 
     print(f"   ✓ Found {len(urls)} URLs to validate")
     if priority_only:
-        print(f"   ⭐ Validating ONLY priority URLs")
+        print("   ⭐ Validating ONLY priority URLs")
     else:
         print(f"   ⭐ Priority URLs: {priority_count}")
         print(f"   📄 Non-priority URLs: {len(urls) - priority_count}")
@@ -94,7 +95,7 @@ def validate_urls(priority_only=False, crawl_run_id=None):
     print(f"   Estimated time: ~{len(urls) * 0.5 / 60:.1f} minutes (rate limited)")
 
     response = input("\n   Proceed with validation? (y/n): ").strip().lower()
-    if response != 'y':
+    if response != "y":
         print("\n   ❌ Validation cancelled by user")
         return
 
@@ -104,13 +105,12 @@ def validate_urls(priority_only=False, crawl_run_id=None):
     validator = URLValidator(config)
 
     print(f"   ✓ Timeout: {config['timeout']}s")
-    print(f"   ✓ Rate limit: {1 / config['delay_between_requests']:.1f} requests/second")
+    print(
+        f"   ✓ Rate limit: {1 / config['delay_between_requests']:.1f} requests/second"
+    )
 
     # Prepare URLs for validation
-    urls_to_validate = [
-        (url['id'], url['url'], url.get('status_code'))
-        for url in urls
-    ]
+    urls_to_validate = [(url["id"], url["url"], url.get("status_code")) for url in urls]
 
     # Validate
     print("\n3. Validating URLs...")
@@ -128,7 +128,7 @@ def validate_urls(priority_only=False, crawl_run_id=None):
     print("=" * 80)
 
     print(f"\n⏱️  Duration: {duration:.1f} seconds ({duration / 60:.1f} minutes)")
-    print(f"\n📊 Statistics:")
+    print("\n📊 Statistics:")
     print(f"   - Total URLs validated: {stats['validated']}")
     print(f"   - ✅ OK (2xx, 3xx):     {stats['ok']}")
     print(f"   - ❌ Broken (4xx, 5xx): {stats['broken']}")
@@ -136,29 +136,32 @@ def validate_urls(priority_only=False, crawl_run_id=None):
     print(f"   - ⚠️  Errors (timeout): {stats['errors']}")
 
     # Calculate percentages
-    if stats['validated'] > 0:
-        ok_pct = (stats['ok'] / stats['validated']) * 100
-        broken_pct = (stats['broken'] / stats['validated']) * 100
+    if stats["validated"] > 0:
+        ok_pct = (stats["ok"] / stats["validated"]) * 100
+        broken_pct = (stats["broken"] / stats["validated"]) * 100
 
-        print(f"\n📈 Health:")
+        print("\n📈 Health:")
         print(f"   - OK:     {ok_pct:.1f}%")
         print(f"   - Broken: {broken_pct:.1f}%")
 
     # Get broken URLs summary
     print("\n4. Checking broken URLs...")
     with db_cursor() as cursor:
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT
                 COUNT(*) FILTER (WHERE is_priority = TRUE) as priority_broken,
                 COUNT(*) FILTER (WHERE is_priority = FALSE) as non_priority_broken,
                 COUNT(*) as total_broken
             FROM discovered_urls
             WHERE is_broken = TRUE AND crawl_run_id = %s
-        """, (crawl_run_id if crawl_run_id else urls[0]['id'],))
+        """,
+            (crawl_run_id if crawl_run_id else urls[0]["id"],),
+        )
 
         broken_stats = cursor.fetchone()
 
-        print(f"\n   ⚠️  Broken URLs found:")
+        print("\n   ⚠️  Broken URLs found:")
         print(f"   - ⭐ Priority:     {broken_stats['priority_broken']}")
         print(f"   - 📄 Non-priority: {broken_stats['non_priority_broken']}")
         print(f"   - Total:          {broken_stats['total_broken']}")
@@ -167,18 +170,18 @@ def validate_urls(priority_only=False, crawl_run_id=None):
     print("✅ VALIDATION COMPLETED")
     print("=" * 80)
 
-    print(f"\n📄 Next steps:")
-    print(f"   - View broken links: python -c \"from utils import db_cursor; ...\"")
-    print(f"   - Generate Excel report: python generate_excel_report.py")
-    print(f"   - View in UI: http://localhost:5000/crawler/broken")
+    print("\n📄 Next steps:")
+    print('   - View broken links: python -c "from utils import db_cursor; ..."')
+    print("   - Generate Excel report: python generate_excel_report.py")
+    print("   - View in UI: http://localhost:5000/crawler/broken")
 
     return stats
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import sys
 
-    priority_only = '--priority-only' in sys.argv or '-p' in sys.argv
+    priority_only = "--priority-only" in sys.argv or "-p" in sys.argv
 
     if priority_only:
         print("\n🎯 PRIORITY MODE: Validating only the 117 priority URLs\n")

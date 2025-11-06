@@ -8,7 +8,7 @@ quality checkers must inherit from and use.
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 @dataclass
@@ -31,12 +31,12 @@ class QualityCheckResult:
     status: str  # 'ok', 'warning', 'error'
     score: int  # 0-100
     message: str
-    details: Dict[str, Any]
+    details: dict[str, Any]
     issues_found: int
     checked_at: datetime
     execution_time_ms: int
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert result to dictionary for JSON serialization."""
         return {
             "check_type": self.check_type,
@@ -50,7 +50,7 @@ class QualityCheckResult:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "QualityCheckResult":
+    def from_dict(cls, data: dict[str, Any]) -> "QualityCheckResult":
         """Create result from dictionary."""
         return cls(
             check_type=data["check_type"],
@@ -72,7 +72,7 @@ class QualityCheck(ABC):
     the check() method.
     """
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: dict[str, Any] | None = None):
         """
         Initialize quality checker.
 
@@ -84,7 +84,7 @@ class QualityCheck(ABC):
         self.check_type = self._get_check_type()
 
     @abstractmethod
-    def check(self, url: str, html_content: Optional[str] = None) -> QualityCheckResult:
+    def check(self, url: str, html_content: str | None = None) -> QualityCheckResult:
         """
         Execute the quality check on a URL.
 
@@ -129,7 +129,7 @@ class QualityCheck(ABC):
         status: str,
         score: int,
         message: str,
-        details: Dict[str, Any],
+        details: dict[str, Any],
         issues_found: int,
         execution_time_ms: int,
     ) -> QualityCheckResult:
@@ -181,7 +181,7 @@ class QualityCheckRunner:
     Runner class to execute multiple quality checks on a URL.
     """
 
-    def __init__(self, checkers: List[QualityCheck]):
+    def __init__(self, checkers: list[QualityCheck]):
         """
         Initialize runner with list of checkers.
 
@@ -191,8 +191,8 @@ class QualityCheckRunner:
         self.checkers = checkers
 
     def run_all(
-        self, url: str, html_content: Optional[str] = None
-    ) -> List[QualityCheckResult]:
+        self, url: str, html_content: str | None = None
+    ) -> list[QualityCheckResult]:
         """
         Run all configured quality checks on a URL.
 
@@ -226,8 +226,8 @@ class QualityCheckRunner:
         return results
 
     def run_single(
-        self, check_type: str, url: str, html_content: Optional[str] = None
-    ) -> Optional[QualityCheckResult]:
+        self, check_type: str, url: str, html_content: str | None = None
+    ) -> QualityCheckResult | None:
         """
         Run a single quality check by type.
 
@@ -257,7 +257,7 @@ class QualityCheckRunner:
 
         return None
 
-    def get_summary(self, results: List[QualityCheckResult]) -> Dict[str, Any]:
+    def get_summary(self, results: list[QualityCheckResult]) -> dict[str, Any]:
         """
         Generate summary statistics from multiple check results.
 

@@ -4,13 +4,11 @@ Agenda Renta4 - Create Tasks for Period
 Genera tareas manualmente para un periodo dado (mes) según las periodicidades configuradas.
 """
 
-import sys
-import os
-from pathlib import Path
-from datetime import datetime
 import argparse
-from utils import db_cursor
+
 import psycopg2
+
+from utils import db_cursor
 
 
 def should_create_task_for_period(period, periodicity):
@@ -25,30 +23,30 @@ def should_create_task_for_period(period, periodicity):
         True si se debe crear la tarea, False si no
     """
     try:
-        year, month = map(int, period.split('-'))
+        year, month = map(int, period.split("-"))
     except:
         return False
 
     # Monthly: siempre crear (se crea todos los meses)
-    if periodicity == 'monthly':
+    if periodicity == "monthly":
         return True
 
     # Weekly: crear 4 tareas (una por semana)
     # Para simplificar, creamos 1 tarea semanal cada mes
     # (En fase 2, el scheduler creará 4 tareas reales)
-    if periodicity == 'weekly':
+    if periodicity == "weekly":
         return True
 
     # Quarterly: solo en meses 1, 4, 7, 10 (enero, abril, julio, octubre)
-    if periodicity == 'quarterly':
+    if periodicity == "quarterly":
         return month in [1, 4, 7, 10]
 
     # Biannual: solo en meses 1 y 7 (enero, julio)
-    if periodicity == 'biannual':
+    if periodicity == "biannual":
         return month in [1, 7]
 
     # Yearly: solo en mes 1 (enero)
-    if periodicity == 'yearly':
+    if periodicity == "yearly":
         return month == 1
 
     return False
@@ -66,7 +64,6 @@ def create_tasks_for_period(period, verbose=True):
         print(f"\n📅 Creando tareas para el periodo: {period}\n")
 
     with db_cursor() as cursor:
-
         # Obtener todas las secciones activas
         cursor.execute("SELECT id, name FROM sections WHERE active = TRUE")
         sections = cursor.fetchall()
@@ -102,14 +99,16 @@ def create_tasks_for_period(period, verbose=True):
 
         # Para cada tipo de tarea
         for task_type in task_types:
-            task_type_id = task_type['id']
-            task_name = task_type['display_name']
-            periodicity = task_type['periodicity']
+            task_type_id = task_type["id"]
+            task_name = task_type["display_name"]
+            periodicity = task_type["periodicity"]
 
             # Verificar si este tipo aplica a este periodo
             if not should_create_task_for_period(period, periodicity):
                 if verbose:
-                    print(f"   ⏩ {task_name} ({periodicity}) - No aplica a este periodo")
+                    print(
+                        f"   ⏩ {task_name} ({periodicity}) - No aplica a este periodo"
+                    )
                 continue
 
             if verbose:
@@ -120,13 +119,16 @@ def create_tasks_for_period(period, verbose=True):
 
             # Crear una tarea para cada sección
             for section in sections:
-                section_id = section['id']
+                section_id = section["id"]
 
                 try:
-                    cursor.execute("""
+                    cursor.execute(
+                        """
                         INSERT INTO tasks (section_id, task_type_id, period, status)
                         VALUES (%s, %s, %s, 'pending')
-                    """, (section_id, task_type_id, period))
+                    """,
+                        (section_id, task_type_id, period),
+                    )
                     created_for_type += 1
                 except psycopg2.IntegrityError:
                     # Ya existe una tarea para esta combinación (section + type + period)
@@ -134,27 +136,35 @@ def create_tasks_for_period(period, verbose=True):
                 except Exception as e:
                     total_errors += 1
                     if verbose:
-                        print(f"      ✗ Error creando tarea para sección {section_id}: {e}")
+                        print(
+                            f"      ✗ Error creando tarea para sección {section_id}: {e}"
+                        )
 
             total_created += created_for_type
             total_skipped += skipped_for_type
 
             if verbose:
-                print(f"      ✓ Creadas: {created_for_type}, Omitidas: {skipped_for_type}")
+                print(
+                    f"      ✓ Creadas: {created_for_type}, Omitidas: {skipped_for_type}"
+                )
 
         # Resumen
         if verbose:
             print("\n" + "=" * 80)
-            print(f"📊 RESUMEN:")
+            print("📊 RESUMEN:")
             print(f"   - Tareas creadas: {total_created}")
             print(f"   - Tareas omitidas (ya existían): {total_skipped}")
             print(f"   - Errores: {total_errors}")
             print("=" * 80 + "\n")
 
             if total_created > 0:
-                print(f"✅ {total_created} tareas creadas correctamente para {period}\n")
+                print(
+                    f"✅ {total_created} tareas creadas correctamente para {period}\n"
+                )
             else:
-                print(f"⚠️  No se crearon tareas nuevas (ya existían o no aplican a este periodo)\n")
+                print(
+                    "⚠️  No se crearon tareas nuevas (ya existían o no aplican a este periodo)\n"
+                )
 
         return total_created, total_skipped, total_errors
 
@@ -164,11 +174,11 @@ def get_db_task_stats():
     Muestra estadísticas de tareas en la BD.
     """
     with db_cursor() as cursor:
-        print(f"\n📊 Estadísticas de tareas en la BD:\n")
+        print("\n📊 Estadísticas de tareas en la BD:\n")
 
         # Total de tareas
         cursor.execute("SELECT COUNT(*) FROM tasks")
-        total = cursor.fetchone()['count']
+        total = cursor.fetchone()["count"]
         print(f"   Total de tareas: {total}")
 
         # Por status
@@ -180,8 +190,8 @@ def get_db_task_stats():
         """)
         print("\n   Por estado:")
         for row in cursor.fetchall():
-            status = row['status']
-            count = row['count']
+            status = row["status"]
+            count = row["count"]
             print(f"      {status:12s}: {count:5d} tareas")
 
         # Por periodo
@@ -194,8 +204,8 @@ def get_db_task_stats():
         """)
         print("\n   Por periodo (últimos 10):")
         for row in cursor.fetchall():
-            period = row['period']
-            count = row['count']
+            period = row["period"]
+            count = row["count"]
             print(f"      {period:12s}: {count:5d} tareas")
 
         print()
@@ -206,7 +216,7 @@ def main():
     Script principal con argumentos CLI.
     """
     parser = argparse.ArgumentParser(
-        description='Crea tareas manualmente para un periodo dado',
+        description="Crea tareas manualmente para un periodo dado",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Ejemplos:
@@ -214,31 +224,27 @@ Ejemplos:
   python create_tasks_for_period.py --period 2025-12 --quiet
   python create_tasks_for_period.py --stats
   python create_tasks_for_period.py --next-months 3
-        """
+        """,
     )
 
     parser.add_argument(
-        '--period',
-        type=str,
-        help='Periodo en formato YYYY-MM (ej: 2025-11)'
+        "--period", type=str, help="Periodo en formato YYYY-MM (ej: 2025-11)"
     )
 
     parser.add_argument(
-        '--next-months',
+        "--next-months",
         type=int,
-        help='Crear tareas para los próximos N meses (desde hoy)'
+        help="Crear tareas para los próximos N meses (desde hoy)",
     )
 
     parser.add_argument(
-        '--stats',
-        action='store_true',
-        help='Mostrar estadísticas de tareas en la BD'
+        "--stats", action="store_true", help="Mostrar estadísticas de tareas en la BD"
     )
 
     parser.add_argument(
-        '--quiet',
-        action='store_true',
-        help='Modo silencioso (no mostrar mensajes de progreso)'
+        "--quiet",
+        action="store_true",
+        help="Modo silencioso (no mostrar mensajes de progreso)",
     )
 
     args = parser.parse_args()
@@ -257,18 +263,19 @@ Ejemplos:
 
     elif args.next_months:
         # Próximos N meses desde hoy
-        from datetime import datetime, timedelta
+        from datetime import datetime
+
         from dateutil.relativedelta import relativedelta
 
         current_date = datetime.now()
         for i in range(args.next_months):
             future_date = current_date + relativedelta(months=i)
-            period = future_date.strftime('%Y-%m')
+            period = future_date.strftime("%Y-%m")
             periods_to_create.append(period)
 
     else:
         # Por defecto: mes actual
-        current_period = datetime.now().strftime('%Y-%m')
+        current_period = datetime.now().strftime("%Y-%m")
         periods_to_create.append(current_period)
 
     # Crear tareas para cada periodo
@@ -282,5 +289,5 @@ Ejemplos:
         get_db_task_stats()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

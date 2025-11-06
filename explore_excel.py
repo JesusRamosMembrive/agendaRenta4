@@ -48,12 +48,12 @@ def explore_excel(file_path):
         sheet = wb[sheet_name]
 
         # Dimensiones
-        print(f"\n📐 Dimensiones:")
+        print("\n📐 Dimensiones:")
         print(f"   - Filas con datos: {sheet.max_row}")
         print(f"   - Columnas con datos: {sheet.max_column}")
 
         # Headers (primera fila)
-        print(f"\n📊 COLUMNAS (Primera fila como headers):")
+        print("\n📊 COLUMNAS (Primera fila como headers):")
         print("-" * 80)
         headers = []
         for col_idx in range(1, sheet.max_column + 1):
@@ -63,7 +63,7 @@ def explore_excel(file_path):
             print(f"   Col {col_idx:2d}: {header}")
 
         # Primeras 3 filas de datos (para entender contenido)
-        print(f"\n📝 PRIMERAS 3 FILAS DE DATOS:")
+        print("\n📝 PRIMERAS 3 FILAS DE DATOS:")
         print("-" * 80)
 
         max_rows_to_show = min(4, sheet.max_row + 1)  # Filas 2-3 (saltando header)
@@ -78,7 +78,7 @@ def explore_excel(file_path):
                 print(f"      {header}: {value}")
 
         # Estadísticas de columnas (limitado a primeras 50 filas)
-        print(f"\n📈 ESTADÍSTICAS POR COLUMNA (primeras 50 filas):")
+        print("\n📈 ESTADÍSTICAS POR COLUMNA (primeras 50 filas):")
         print("-" * 80)
 
         max_rows_to_analyze = min(50, sheet.max_row + 1)
@@ -96,7 +96,9 @@ def explore_excel(file_path):
                         unique_values.add(str(cell.value)[:50])  # Truncar
 
             print(f"\n   {header}:")
-            print(f"      - Celdas con datos: {non_empty}/{max_rows_to_analyze - 2} (muestra)")
+            print(
+                f"      - Celdas con datos: {non_empty}/{max_rows_to_analyze - 2} (muestra)"
+            )
             print(f"      - Valores únicos (muestra): {len(unique_values)}")
             if unique_values and len(unique_values) <= 10:
                 print(f"      - Ejemplos: {sorted(unique_values)}")
@@ -108,7 +110,11 @@ def explore_excel(file_path):
 
 def main():
     # Path al Excel
-    excel_path = Path(__file__).parent / "original-data" / "251028_Árbol web - control calidad.xlsx"
+    excel_path = (
+        Path(__file__).parent
+        / "original-data"
+        / "251028_Árbol web - control calidad.xlsx"
+    )
 
     if not excel_path.exists():
         print(f"❌ ERROR: Excel no encontrado en: {excel_path}")

@@ -4,11 +4,12 @@ Mark Priority URLs
 Marks the 117 manually audited URLs from sections table as priority in discovered_urls
 """
 
-import os
 from dotenv import load_dotenv
+
 from utils import db_cursor
 
 load_dotenv()
+
 
 def get_priority_urls():
     """Get active URLs from sections table (manually curated list)"""
@@ -20,6 +21,7 @@ def get_priority_urls():
             ORDER BY id
         """)
         return cursor.fetchall()
+
 
 def mark_priority_in_discovered():
     """Mark priority URLs in discovered_urls table"""
@@ -42,29 +44,32 @@ def mark_priority_in_discovered():
         not_found_urls = []
 
         for section in priority_urls:
-            url = section['url']
+            url = section["url"]
 
             # Check if URL exists in discovered_urls
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT id FROM discovered_urls WHERE url = %s
-            """, (url,))
+            """,
+                (url,),
+            )
 
             result = cursor.fetchone()
 
             if result:
                 # Mark as priority
-                cursor.execute("""
+                cursor.execute(
+                    """
                     UPDATE discovered_urls
                     SET is_priority = TRUE
                     WHERE url = %s
-                """, (url,))
+                """,
+                    (url,),
+                )
                 marked_count += 1
             else:
                 not_found_count += 1
-                not_found_urls.append({
-                    'name': section['name'],
-                    'url': url
-                })
+                not_found_urls.append({"name": section["name"], "url": url})
 
         # Commit changes
         cursor.connection.commit()
@@ -87,7 +92,7 @@ def mark_priority_in_discovered():
 
         stats = cursor.fetchone()
 
-        print(f"\n   Statistics:")
+        print("\n   Statistics:")
         print(f"   - Priority URLs:     {stats['priority_urls']}")
         print(f"   - Non-Priority URLs: {stats['non_priority_urls']}")
         print(f"   - Total URLs:        {stats['total_urls']}")
@@ -110,10 +115,11 @@ def mark_priority_in_discovered():
 
     return marked_count, not_found_count
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     marked, not_found = mark_priority_in_discovered()
 
-    print(f"\n📊 Summary:")
+    print("\n📊 Summary:")
     print(f"   - URLs marked as priority: {marked}")
     print(f"   - URLs not found: {not_found}")
     print(f"   - Success rate: {(marked / (marked + not_found) * 100):.1f}%")

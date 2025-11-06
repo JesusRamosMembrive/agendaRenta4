@@ -10,12 +10,14 @@ Many tests are currently skipped and need to be fixed to work with:
 - Background job mocking (crawler scheduler)
 """
 
-import pytest
-import json
 from datetime import datetime
 
+import pytest
 
-@pytest.mark.skip(reason="TODO: Fix Flask app context and authentication for blueprint tests")
+
+@pytest.mark.skip(
+    reason="TODO: Fix Flask app context and authentication for blueprint tests"
+)
 @pytest.mark.integration
 @pytest.mark.requires_db
 class TestCrawlerBlueprint:
@@ -59,7 +61,9 @@ class TestCrawlerBlueprint:
         # Should either redirect or show empty results
         assert response.status_code in [200, 302, 404]
 
-    def test_results_by_run_with_valid_id(self, authenticated_client, db_cursor_fixture):
+    def test_results_by_run_with_valid_id(
+        self, authenticated_client, db_cursor_fixture
+    ):
         """Test /crawler/results/<id> with valid crawl run"""
         cursor = db_cursor_fixture
 
@@ -242,7 +246,9 @@ class TestCrawlerBlueprint:
         assert response.status_code in [200, 302]
 
 
-@pytest.mark.skip(reason="TODO: Fix Flask app context and authentication for blueprint tests")
+@pytest.mark.skip(
+    reason="TODO: Fix Flask app context and authentication for blueprint tests"
+)
 @pytest.mark.integration
 @pytest.mark.requires_db
 class TestCrawlerBlueprintAuthentication:

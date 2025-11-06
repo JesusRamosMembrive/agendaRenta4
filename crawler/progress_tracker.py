@@ -3,8 +3,9 @@ Crawler Progress Tracker
 Tracks real-time progress of crawler execution using shared state.
 """
 
-from datetime import datetime
 import threading
+from datetime import datetime
+
 
 class CrawlerProgressTracker:
     """
@@ -58,8 +59,15 @@ class CrawlerProgressTracker:
             self.estimated_total = estimated_total
             self.cancel_requested = False  # Reset cancel flag
 
-    def update_progress(self, urls_discovered=None, urls_skipped=None, errors=None,
-                       last_url=None, current_depth=None, queue_size=None):
+    def update_progress(
+        self,
+        urls_discovered=None,
+        urls_skipped=None,
+        errors=None,
+        last_url=None,
+        current_depth=None,
+        queue_size=None,
+    ):
         """
         Update progress metrics.
 
@@ -112,10 +120,7 @@ class CrawlerProgressTracker:
         """
         with self._lock:
             if not self.is_running and self.started_at is None:
-                return {
-                    'is_running': False,
-                    'message': 'No hay crawl en ejecución'
-                }
+                return {"is_running": False, "message": "No hay crawl en ejecución"}
 
             elapsed_seconds = 0
             urls_per_minute = 0
@@ -140,20 +145,20 @@ class CrawlerProgressTracker:
                 percentage = int((self.urls_discovered / self.estimated_total) * 100)
 
             return {
-                'is_running': self.is_running,
-                'crawl_run_id': self.crawl_run_id,
-                'started_at': self.started_at.isoformat() if self.started_at else None,
-                'elapsed_seconds': elapsed_seconds,
-                'urls_discovered': self.urls_discovered,
-                'urls_skipped': self.urls_skipped,
-                'errors': self.errors,
-                'last_url': self.last_url,
-                'current_depth': self.current_depth,
-                'queue_size': self.queue_size,
-                'urls_per_minute': urls_per_minute,
-                'estimated_total': self.estimated_total,
-                'percentage': percentage,
-                'estimated_remaining_minutes': estimated_remaining_minutes
+                "is_running": self.is_running,
+                "crawl_run_id": self.crawl_run_id,
+                "started_at": self.started_at.isoformat() if self.started_at else None,
+                "elapsed_seconds": elapsed_seconds,
+                "urls_discovered": self.urls_discovered,
+                "urls_skipped": self.urls_skipped,
+                "errors": self.errors,
+                "last_url": self.last_url,
+                "current_depth": self.current_depth,
+                "queue_size": self.queue_size,
+                "urls_per_minute": urls_per_minute,
+                "estimated_total": self.estimated_total,
+                "percentage": percentage,
+                "estimated_remaining_minutes": estimated_remaining_minutes,
             }
 
 

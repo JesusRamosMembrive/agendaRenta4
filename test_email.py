@@ -4,8 +4,9 @@ Script para probar el envío de emails
 Uso: python3 test_email.py [email_destino]
 """
 
-import sys
 import os
+import sys
+
 from dotenv import load_dotenv
 from flask import Flask
 from flask_mail import Mail, Message
@@ -17,16 +18,19 @@ load_dotenv()
 app = Flask(__name__)
 
 # Configure mail
-app.config['MAIL_SERVER'] = os.getenv('MAIL_SERVER', 'smtp.gmail.com')
-app.config['MAIL_PORT'] = int(os.getenv('MAIL_PORT', 587))
-app.config['MAIL_USE_TLS'] = os.getenv('MAIL_USE_TLS', 'True') == 'True'
-app.config['MAIL_USE_SSL'] = os.getenv('MAIL_USE_SSL', 'False') == 'True'
-app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME')
-app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD')
-app.config['MAIL_DEFAULT_SENDER'] = os.getenv('MAIL_DEFAULT_SENDER', 'Agenda Renta4 <noreply@renta4.com>')
-app.config['MAIL_DEBUG'] = True
+app.config["MAIL_SERVER"] = os.getenv("MAIL_SERVER", "smtp.gmail.com")
+app.config["MAIL_PORT"] = int(os.getenv("MAIL_PORT", 587))
+app.config["MAIL_USE_TLS"] = os.getenv("MAIL_USE_TLS", "True") == "True"
+app.config["MAIL_USE_SSL"] = os.getenv("MAIL_USE_SSL", "False") == "True"
+app.config["MAIL_USERNAME"] = os.getenv("MAIL_USERNAME")
+app.config["MAIL_PASSWORD"] = os.getenv("MAIL_PASSWORD")
+app.config["MAIL_DEFAULT_SENDER"] = os.getenv(
+    "MAIL_DEFAULT_SENDER", "Agenda Renta4 <noreply@renta4.com>"
+)
+app.config["MAIL_DEBUG"] = True
 
 mail = Mail(app)
+
 
 def test_email(recipient=None):
     """Send a test email"""
@@ -48,7 +52,7 @@ def test_email(recipient=None):
     print()
 
     # Validate configuration
-    if not app.config['MAIL_USERNAME'] or not app.config['MAIL_PASSWORD']:
+    if not app.config["MAIL_USERNAME"] or not app.config["MAIL_PASSWORD"]:
         print("❌ ERROR: MAIL_USERNAME o MAIL_PASSWORD no están configurados")
         print()
         print("Configura las siguientes variables en .env:")
@@ -58,14 +62,14 @@ def test_email(recipient=None):
 
     # Get recipient
     if not recipient:
-        recipient = app.config['MAIL_USERNAME']
+        recipient = app.config["MAIL_USERNAME"]
 
     print(f"📬 Destinatario: {recipient}")
     print()
 
     # Confirm
     response = input("¿Enviar email de prueba? (y/n): ")
-    if response.lower() != 'y':
+    if response.lower() != "y":
         print("❌ Cancelado")
         return False
 
@@ -75,10 +79,10 @@ def test_email(recipient=None):
     try:
         with app.app_context():
             # Build email body
-            server = app.config['MAIL_SERVER']
-            port = app.config['MAIL_PORT']
-            tls = 'Activado' if app.config['MAIL_USE_TLS'] else 'Desactivado'
-            sender = app.config['MAIL_DEFAULT_SENDER']
+            server = app.config["MAIL_SERVER"]
+            port = app.config["MAIL_PORT"]
+            tls = "Activado" if app.config["MAIL_USE_TLS"] else "Desactivado"
+            sender = app.config["MAIL_DEFAULT_SENDER"]
 
             html_body = f"""
 <html>
@@ -142,7 +146,7 @@ def test_email(recipient=None):
             msg = Message(
                 subject="[TEST] Agenda Renta4 - Prueba de Email",
                 recipients=[recipient],
-                html=html_body
+                html=html_body,
             )
 
             # Send email
@@ -185,7 +189,7 @@ def test_email(recipient=None):
         return False
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     recipient = sys.argv[1] if len(sys.argv) > 1 else None
     success = test_email(recipient)
     sys.exit(0 if success else 1)

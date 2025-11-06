@@ -75,6 +75,13 @@
                         <option value="all" {% if config.get('scope') == 'all' %}selected{% endif %}>
                             🌐 All (~2,800 URLs • 2 HORAS)
                         </option>
+                        {% elif check_type == 'spell_check' %}
+                        <option value="priority" {% if config.get('scope') == 'priority' %}selected{% endif %}>
+                            ⭐ Priority (~117 URLs • 3-5 min)
+                        </option>
+                        <option value="all" {% if config.get('scope') == 'all' %}selected{% endif %}>
+                            🌐 All (~2,800 URLs • 60-70 min)
+                        </option>
                         {% else %}
                         <option value="priority" {% if config.get('scope') == 'priority' %}selected{% endif %}>
                             ⭐ Priority (~117 URLs)
