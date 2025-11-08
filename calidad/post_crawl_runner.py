@@ -80,6 +80,11 @@ class PostCrawlQualityRunner:
             "description": "Detecta errores ortográficos en el contenido de la página",
             "icon": "📝",
         },
+        "cta_validation": {
+            "name": "Validación de CTAs",
+            "description": "Verifica que los Call-To-Action estén presentes y correctos",
+            "icon": "🎯",
+        },
         "seo": {
             "name": "Análisis SEO",
             "description": "Verifica meta tags, títulos y estructura SEO (próximamente)",
@@ -261,6 +266,9 @@ class PostCrawlQualityRunner:
 
         elif check_type == "spell_check":
             return self._run_spell_check(scope)
+
+        elif check_type == "cta_validation":
+            return self._run_cta_validation_check(scope)
 
         else:
             raise ValueError(f"Check type '{check_type}' not implemented")
@@ -627,6 +635,173 @@ class PostCrawlQualityRunner:
 
         return {
             "check_type": "spell_check",
+            "status": "completed",
+            "message": f"Checked {processed} URLs (scope: {scope}), {successful} saved to database in {elapsed:.1f}s",
+            "stats": {
+                "total": total,
+                "processed": processed,
+                "successful": successful,
+                "failed": failed,
+                "elapsed_seconds": round(elapsed, 1),
+                "urls_per_second": round(total / elapsed, 1) if elapsed > 0 else 0,
+            },
+        }
+
+    def _run_cta_validation_check(self, scope: str = "priority") -> dict[str, Any]:
+        """
+        Run CTA validation checks with concurrent HTML fetching.
+
+        Args:
+            scope: 'all' for all URLs, 'priority' for is_priority=TRUE only
+
+        Returns:
+            Dictionary with check results
+        """
+        import json
+        import time
+
+        from calidad.ctas import CTAChecker
+
+        # Build query based on scope
+        base_query = """
+            SELECT id, url, depth
+            FROM discovered_urls
+            WHERE crawl_run_id = %s
+              AND active = TRUE
+              AND is_broken = FALSE
+        """
+        query = self._build_scope_query(base_query, scope)
+        query += " ORDER BY depth ASC"
+
+        # Get URLs from this crawl run
+        with db_cursor(commit=False) as cursor:
+            cursor.execute(query, (self.crawl_run_id,))
+            urls = cursor.fetchall()
+
+        if not urls:
+            return {
+                "check_type": "cta_validation",
+                "status": "completed",
+                "message": f"No URLs to check (scope: {scope})",
+                "stats": {"total": 0, "processed": 0, "successful": 0, "failed": 0},
+            }
+
+        total = len(urls)
+        logger.info(
+            f"Starting CTA validation check for {total} URLs with {self.max_workers} workers..."
+        )
+        start_time = time.time()
+
+        # Step 1: Fetch all HTML concurrently
+        logger.info(f"[1/2] Fetching HTML for {total} URLs...")
+        url_list = [row["url"] for row in urls]
+        html_cache = fetch_html_for_urls(
+            url_list,
+            max_workers=self.max_workers,
+            timeout=QualityCheckDefaults.IMAGE_CHECK_TIMEOUT,
+        )
+
+        # Step 2: Process checks concurrently with cached HTML
+        logger.info(f"[2/2] Running CTA validation checks on {total} URLs...")
+        checker = CTAChecker()
+
+        processed = 0
+        successful = 0
+        failed = 0
+        results_to_save = []
+
+        def check_single_url(url_row):
+            """Check a single URL with cached HTML."""
+            url = url_row["url"]
+            html_content, error = html_cache.get(url, (None, None))
+
+            if error:
+                # HTML fetch failed
+                return {
+                    "url_id": url_row["id"],
+                    "url": url,
+                    "success": False,
+                    "error": f"HTML fetch failed: {error}",
+                }
+
+            try:
+                # Run check with cached HTML
+                result = checker.check(url, html_content=html_content)
+
+                return {
+                    "url_id": url_row["id"],
+                    "url": url,
+                    "success": True,
+                    "result": result,
+                }
+
+            except Exception as e:
+                return {
+                    "url_id": url_row["id"],
+                    "url": url,
+                    "success": False,
+                    "error": str(e),
+                }
+
+        # Execute checks in parallel
+        with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+            future_to_url = {
+                executor.submit(check_single_url, url_row): url_row for url_row in urls
+            }
+
+            for future in as_completed(future_to_url):
+                result_data = future.result()
+                processed += 1
+
+                if result_data["success"]:
+                    results_to_save.append(result_data)
+                    successful += 1
+                else:
+                    logger.error(
+                        f"Error checking {result_data['url']}: {result_data['error']}"
+                    )
+                    failed += 1
+
+                # Progress logging every 10 URLs or first 3
+                if processed <= 3 or processed % 10 == 0:
+                    logger.info(
+                        f"Check progress: {processed}/{total} "
+                        f"({successful} successful, {failed} failed)"
+                    )
+
+        # Step 3: Batch save results to database
+        logger.info(f"Saving {len(results_to_save)} results to database...")
+        with db_cursor() as cursor:
+            for result_data in results_to_save:
+                result = result_data["result"]
+                cursor.execute(
+                    """
+                    INSERT INTO quality_checks (
+                        discovered_url_id, check_type, status, score, message,
+                        details, issues_found, execution_time_ms, checked_at
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                """,
+                    (
+                        result_data["url_id"],
+                        "cta_validation",
+                        result.status,
+                        result.score,
+                        result.message,
+                        json.dumps(result.details),
+                        result.issues_found,
+                        result.execution_time_ms,
+                    ),
+                )
+
+        elapsed = time.time() - start_time
+        logger.info(
+            f"CTA validation check complete: {processed}/{total} processed, "
+            f"{successful} successful, {failed} failed in {elapsed:.1f}s "
+            f"({total/elapsed:.1f} URLs/s)"
+        )
+
+        return {
+            "check_type": "cta_validation",
             "status": "completed",
             "message": f"Checked {processed} URLs (scope: {scope}), {successful} saved to database in {elapsed:.1f}s",
             "stats": {

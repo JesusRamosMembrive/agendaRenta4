@@ -6,7 +6,11 @@
       "Bash(ls:*)",
       "Bash(bandit:*)",
       "Bash(PGPASSWORD=dev-password psql:*)",
-      "mcp__firecrawl__firecrawl_scrape"
+      "mcp__firecrawl__firecrawl_scrape",
+      "Bash(python inspect_ctas.py:*)",
+      "Bash(chmod:*)",
+      "Bash(python scripts/seed_cta_rules.py:*)",
+      "Bash(python test_cta_checker.py:*)"
     ],
     "deny": [],
     "ask": []

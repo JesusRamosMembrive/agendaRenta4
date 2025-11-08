@@ -1200,3 +1200,116 @@ def run_quality_checks_manual():
     except Exception as e:
         logger.error(f"Error running manual quality checks: {e}", exc_info=True)
         return jsonify({"success": False, "error": str(e)}), 500
+
+
+@crawler_bp.route("/cta-config", methods=["GET"])
+@login_required
+def cta_config():
+    """
+    Display CTA validation configuration page.
+    Shows page types, rules, and URL assignments.
+    """
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        with db_cursor(commit=False) as cursor:
+            # Get all page types
+            cursor.execute("""
+                SELECT id, name, description, url_pattern, created_at
+                FROM cta_page_types
+                ORDER BY name
+            """)
+            page_types = cursor.fetchall()
+
+            # Get all validation rules
+            cursor.execute("""
+                SELECT r.id, r.expected_text, r.expected_url_pattern,
+                       r.url_match_type, r.is_optional, r.priority,
+                       r.is_global, pt.name as page_type_name
+                FROM cta_validation_rules r
+                LEFT JOIN cta_page_types pt ON r.page_type_id = pt.id
+                ORDER BY r.is_global DESC, pt.name, r.priority DESC, r.expected_text
+            """)
+            rules = cursor.fetchall()
+
+            # Get URL assignments count by page type
+            cursor.execute("""
+                SELECT pt.name, COUNT(a.id) as url_count
+                FROM cta_page_types pt
+                LEFT JOIN cta_url_assignments a ON a.page_type_id = pt.id
+                GROUP BY pt.id, pt.name
+                ORDER BY pt.name
+            """)
+            assignment_counts = cursor.fetchall()
+
+        return render_template(
+            "crawler/cta_config.html",
+            page_types=page_types,
+            rules=rules,
+            assignment_counts=assignment_counts,
+        )
+
+    except Exception as e:
+        logger.error(f"Error loading CTA config: {e}", exc_info=True)
+        flash(f"Error loading CTA configuration: {str(e)}", "error")
+        return redirect(url_for("crawler.crawler_dashboard"))
+
+
+@crawler_bp.route("/cta-results", methods=["GET"])
+@login_required
+def cta_results():
+    """
+    Display CTA validation results.
+    Shows latest CTA checks with issues.
+    """
+    import json
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        with db_cursor(commit=False) as cursor:
+            # Get latest CTA validation checks with issues
+            cursor.execute("""
+                SELECT qc.id, du.url, qc.status, qc.score, qc.message,
+                       qc.details, qc.issues_found, qc.checked_at
+                FROM quality_checks qc
+                JOIN discovered_urls du ON qc.discovered_url_id = du.id
+                WHERE qc.check_type = 'cta_validation'
+                ORDER BY qc.checked_at DESC
+                LIMIT 100
+            """)
+            checks = cursor.fetchall()
+
+            # Parse JSON details
+            for check in checks:
+                if check['details']:
+                    check['details'] = json.loads(check['details'])
+
+            # Get summary stats
+            cursor.execute("""
+                SELECT
+                    COUNT(*) as total_checks,
+                    COUNT(*) FILTER (WHERE status = 'ok') as ok_count,
+                    COUNT(*) FILTER (WHERE status = 'warning') as warning_count,
+                    COUNT(*) FILTER (WHERE status = 'error') as error_count,
+                    AVG(score)::int as avg_score,
+                    SUM(issues_found) as total_issues
+                FROM quality_checks
+                WHERE check_type = 'cta_validation'
+                  AND checked_at > NOW() - INTERVAL '7 days'
+            """)
+            stats = cursor.fetchone()
+
+        return render_template(
+            "crawler/cta_results.html",
+            checks=checks,
+            stats=stats,
+        )
+
+    except Exception as e:
+        logger.error(f"Error loading CTA results: {e}", exc_info=True)
+        flash(f"Error loading CTA results: {str(e)}", "error")
+        return redirect(url_for("crawler.crawler_dashboard"))
