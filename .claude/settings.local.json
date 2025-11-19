@@ -10,7 +10,12 @@
       "Bash(python inspect_ctas.py:*)",
       "Bash(chmod:*)",
       "Bash(python scripts/seed_cta_rules.py:*)",
-      "Bash(python test_cta_checker.py:*)"
+      "Bash(python test_cta_checker.py:*)",
+      "mcp__sequential-thinking__sequentialthinking",
+      "Bash(pip install:*)",
+      "Bash(python test_objective_validations.py:*)",
+      "Bash(python run_cta_batch_validation.py:*)",
+      "Bash(python:*)"
     ],
     "deny": [],
     "ask": []

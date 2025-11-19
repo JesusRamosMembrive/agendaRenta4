@@ -3,47 +3,65 @@
 {% block title %}Configuración de CTAs - Agenda Renta4{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
+<div class="container mt-4 mb-5">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2>🎯 Configuración de Validación de CTAs</h2>
-        <a href="{{ url_for('crawler.crawler_dashboard') }}" class="btn btn-secondary">
+        <a href="{{ url_for('crawler.dashboard') }}" class="btn btn-secondary">
             Volver al Dashboard
         </a>
     </div>
 
+    <!-- Info Alert -->
+    <div class="alert alert-info mb-4">
+        <h5><strong>ℹ️ Cómo Funciona el Sistema de Validación</strong></h5>
+        <p class="mb-2">El sistema valida CTAs en dos niveles:</p>
+        <ol class="mb-2">
+            <li><strong>Validaciones Objetivas (Automáticas)</strong>: Detectan problemas sin necesidad de configuración
+                <ul>
+                    <li>🔗 Enlaces rotos (404, 500, timeouts)</li>
+                    <li>✏️ Errores ortográficos en el texto</li>
+                    <li>🏷️ Problemas HTML (href vacío o inválido)</li>
+                    <li>🔄 CTAs duplicados con diferentes destinos</li>
+                </ul>
+            </li>
+            <li><strong>Validaciones Basadas en Reglas (Opcionales)</strong>: Requieren configuración manual para validar CTAs específicos por tipo de página</li>
+        </ol>
+        <p class="mb-0"><strong>💡 Nota:</strong> Las validaciones objetivas funcionan inmediatamente en todas las URLs. Las reglas manuales son opcionales y solo necesarias si quieres validar CTAs específicos.</p>
+    </div>
+
     <!-- Summary Cards -->
-    <div class="row mb-4">
-        <div class="col-md-4">
-            <div class="card text-center">
+    <div class="row mb-5">
+        <div class="col-md-4 mb-4 px-3">
+            <div class="card text-center h-100">
                 <div class="card-body">
                     <h5 class="card-title">Tipos de Página</h5>
                     <h2>{{ page_types|length }}</h2>
-                    <p class="text-muted">Categorías configuradas</p>
+                    <p class="text-muted mb-0">Categorías configuradas</p>
                 </div>
             </div>
         </div>
-        <div class="col-md-4">
-            <div class="card text-center">
+        <div class="col-md-4 mb-4 px-3">
+            <div class="card text-center h-100">
                 <div class="card-body">
                     <h5 class="card-title">Reglas de Validación</h5>
                     <h2>{{ rules|length }}</h2>
-                    <p class="text-muted">CTAs configurados</p>
+                    <p class="text-muted mb-0">CTAs configurados</p>
                 </div>
             </div>
         </div>
-        <div class="col-md-4">
-            <div class="card text-center">
+        <div class="col-md-4 mb-4 px-3">
+            <div class="card text-center h-100">
                 <div class="card-body">
                     <h5 class="card-title">URLs Asignadas</h5>
                     <h2>{{ assignment_counts|sum(attribute='url_count') }}</h2>
-                    <p class="text-muted">URLs con reglas</p>
+                    <p class="text-muted mb-0">URLs con reglas</p>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- Page Types Section -->
-    <div class="card mb-4">
+    <div class="card mb-5">
         <div class="card-header">
             <h4>📁 Tipos de Página</h4>
         </div>
@@ -84,15 +102,15 @@
     </div>
 
     <!-- Validation Rules Section -->
-    <div class="card mb-4">
+    <div class="card mb-5">
         <div class="card-header">
             <h4>📋 Reglas de Validación</h4>
         </div>
         <div class="card-body">
             {% if rules %}
             <!-- Global Rules -->
-            <h5>🌍 Reglas Globales (aplican a todas las páginas)</h5>
-            <div class="table-responsive mb-4">
+            <h5 class="mt-3 mb-3">🌍 Reglas Globales (aplican a todas las páginas)</h5>
+            <div class="table-responsive mb-5">
                 <table class="table table-sm">
                     <thead>
                         <tr>
@@ -132,7 +150,8 @@
             </div>
 
             <!-- Specific Rules by Page Type -->
-            <h5>📄 Reglas Específicas por Tipo de Página</h5>
+            <hr class="my-4">
+            <h5 class="mt-4 mb-3">📄 Reglas Específicas por Tipo de Página</h5>
             <div class="accordion" id="rulesAccordion">
                 {% set current_page_type = None %}
                 {% for rule in rules if not rule.is_global %}
@@ -184,13 +203,13 @@
     </div>
 
     <!-- Quick Links -->
-    <div class="card">
+    <div class="card mt-5">
         <div class="card-body">
-            <h5>🔗 Enlaces Rápidos</h5>
+            <h5 class="mb-3">🔗 Enlaces Rápidos</h5>
             <a href="{{ url_for('crawler.cta_results') }}" class="btn btn-primary me-2">
                 Ver Resultados de Validación
             </a>
-            <a href="{{ url_for('crawler.quality_dashboard') }}" class="btn btn-secondary">
+            <a href="{{ url_for('crawler.quality') }}" class="btn btn-secondary">
                 Dashboard de Calidad
             </a>
         </div>

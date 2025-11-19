@@ -25,6 +25,70 @@ Se ha implementado un sistema completo de validación de CTAs (Call-To-Action) q
   - `templates/crawler/cta_config.html` - Configuración de CTAs
   - `templates/crawler/cta_results.html` - Resultados de validación
 
+## ✅ Validaciones Objetivas (Sin Reglas Requeridas)
+
+El sistema incluye validaciones que **NO requieren configuración de reglas** y se ejecutan automáticamente en todos los CTAs encontrados:
+
+### 1. 🔗 Enlaces Rotos
+Verifica que cada CTA apunta a una URL válida (no devuelve errores HTTP 4xx/5xx).
+
+**Detecta**:
+- URLs que retornan 404 (Not Found)
+- URLs que retornan 500 (Server Error)
+- URLs inaccesibles (timeout, DNS error)
+
+**No valida**:
+- URLs con `onclick:` (JavaScript handlers)
+- URLs no HTTP(S)
+
+### 2. ✏️ Ortografía
+Verifica que el texto del CTA no contiene errores ortográficos en español.
+
+**Detecta**:
+- Palabras mal escritas (español)
+- Sugiere correcciones automáticamente
+
+**Ignora**:
+- Palabras en MAYÚSCULAS (acrónimos)
+- Números
+- Términos del dominio (renta4, broker, fondos, etc.)
+
+**Requiere**: Librería `pyspellchecker` instalada
+
+### 3. 🏷️ Atributos HTML Básicos
+Verifica que el CTA tiene los atributos mínimos necesarios.
+
+**Detecta**:
+- CTAs sin `href` (vacío)
+- CTAs con `href="#"` (sin destino real)
+- CTAs con `href="javascript:void(0)"` (sin destino real)
+- CTAs sin texto visible
+
+### 4. 🔄 Duplicados Problemáticos
+Detecta CTAs con el mismo texto pero destinos diferentes en la misma página.
+
+**Detecta**:
+- Múltiples botones "Ver más" que llevan a URLs diferentes
+- Inconsistencias que pueden confundir al usuario
+
+**Reporta**: Como warning (puede ser intencional)
+
+### Ventajas de las Validaciones Objetivas
+
+✅ **No requieren documentación** - Funcionan sin reglas configuradas
+✅ **Detectan problemas obvios** - Reducen trabajo manual
+✅ **Funcionan en todas las páginas** - No dependen de asignaciones de tipo
+✅ **Previenen regresiones** - Alertan de cambios problemáticos
+✅ **Complementan las reglas** - Se ejecutan junto con validaciones basadas en reglas
+
+### Scoring Combinado
+
+El score final combina:
+- **70%**: Validación basada en reglas (si hay reglas configuradas)
+- **30%**: Validaciones objetivas (siempre)
+
+Si no hay reglas configuradas, solo se usan las validaciones objetivas (100%).
+
 ## 🚀 Cómo Usar
 
 ### 1. Ver Configuración Actual
@@ -292,6 +356,6 @@ crawler/routes.py                             # +115 líneas (rutas)
 
 ---
 
-**Última actualización**: 2025-11-08
-**Stage**: 5 - CTA Validation (MVP)
-**Estado**: ✅ Implementación completa (Opción A)
+**Última actualización**: 2025-11-19
+**Stage**: 5 - CTA Validation (MVP + Validaciones Objetivas)
+**Estado**: ✅ Implementación completa (Opción A + Validaciones Objetivas)

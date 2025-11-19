@@ -14,3 +14,6 @@ requests==2.31.0
 
 # Stage 4 - Spell Checker (migrated to Hunspell)
 spylls==0.1.7
+
+# Stage 5 - CTA Spell Checking
+pyspellchecker==0.8.1

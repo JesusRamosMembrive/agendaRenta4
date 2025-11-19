@@ -1254,7 +1254,7 @@ def cta_config():
     except Exception as e:
         logger.error(f"Error loading CTA config: {e}", exc_info=True)
         flash(f"Error loading CTA configuration: {str(e)}", "error")
-        return redirect(url_for("crawler.crawler_dashboard"))
+        return redirect(url_for("crawler.dashboard"))
 
 
 @crawler_bp.route("/cta-results", methods=["GET"])
@@ -1283,9 +1283,9 @@ def cta_results():
             """)
             checks = cursor.fetchall()
 
-            # Parse JSON details
+            # Parse JSON details (if stored as string)
             for check in checks:
-                if check['details']:
+                if check['details'] and isinstance(check['details'], str):
                     check['details'] = json.loads(check['details'])
 
             # Get summary stats
@@ -1312,4 +1312,4 @@ def cta_results():
     except Exception as e:
         logger.error(f"Error loading CTA results: {e}", exc_info=True)
         flash(f"Error loading CTA results: {str(e)}", "error")
-        return redirect(url_for("crawler.crawler_dashboard"))
+        return redirect(url_for("crawler.dashboard"))

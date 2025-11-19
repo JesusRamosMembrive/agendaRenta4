@@ -10,7 +10,7 @@
             <a href="{{ url_for('crawler.cta_config') }}" class="btn btn-outline-primary me-2">
                 Configuración
             </a>
-            <a href="{{ url_for('crawler.quality_dashboard') }}" class="btn btn-secondary">
+            <a href="{{ url_for('crawler.quality') }}" class="btn btn-secondary">
                 Volver
             </a>
         </div>
@@ -201,7 +201,7 @@
                 <h5>ℹ️ No hay resultados de validación</h5>
                 <p>No se han ejecutado validaciones de CTAs aún. Para ejecutar una validación:</p>
                 <ol>
-                    <li>Ve al <a href="{{ url_for('crawler.quality_dashboard') }}">Dashboard de Calidad</a></li>
+                    <li>Ve al <a href="{{ url_for('crawler.quality') }}">Dashboard de Calidad</a></li>
                     <li>Selecciona "Validación de CTAs" en los checks disponibles</li>
                     <li>Ejecuta la validación manualmente</li>
                 </ol>
