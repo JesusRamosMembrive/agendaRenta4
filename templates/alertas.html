@@ -5,6 +5,23 @@
 {% block content %}
 <div class="h1">Alertas — Avisos programados</div>
 
+<div class="panel" style="margin-bottom:16px; display:flex; gap:14px; align-items:center; background:linear-gradient(135deg, #f97316 0%, #fb923c 100%); color:#fff; border-left:4px solid rgba(255,255,255,0.7);">
+  <div style="font-size:34px; line-height:1">🔔</div>
+  <div style="flex:1;">
+    <div style="font-weight:700; font-size:16px;">Cómo usar las alertas</div>
+    <ul style="margin:6px 0 0 0; padding-left:18px; font-size:13px; line-height:1.5;">
+      <li>Una alerta = un tipo de tarea que toca revisar para todas las URLs.</li>
+      <li>Pulsa “✓ Resolver” cuando hayas completado ese tipo en el periodo actual.</li>
+      <li>Si necesitas cambiar la periodicidad o el día, ve a <strong>Configuración</strong>.</li>
+      <li>Si quieres dispararlas manualmente, usa el botón de abajo (“Generar alertas de hoy”).</li>
+    </ul>
+  </div>
+  <div style="display:flex; flex-direction:column; gap:6px; min-width:190px;">
+    <a class="btn ghost" href="{{ url_for('config.index') }}" style="background:rgba(255,255,255,0.15); color:#fff;">⚙️ Configurar</a>
+    <a class="btn ghost" href="{{ url_for('inicio') }}" style="background:rgba(255,255,255,0.15); color:#fff;">📋 Ir a tareas</a>
+  </div>
+</div>
+
 {% if pending_alerts %}
   {% set active_count = pending_alerts | selectattr('dismissed', 'equalto', 0) | list | length %}
   {% set dismissed_count = pending_alerts | selectattr('dismissed', 'equalto', 1) | list | length %}

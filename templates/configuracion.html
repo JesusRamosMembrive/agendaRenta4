@@ -5,6 +5,23 @@
 {% block content %}
 <div class="h1">Alertas de Tareas</div>
 
+<div class="panel" style="margin-bottom:16px; display:flex; gap:14px; align-items:center; background:linear-gradient(135deg, #0ea5e9 0%, #38bdf8 100%); color:#fff; border-left:4px solid rgba(255,255,255,0.7);">
+  <div style="font-size:34px; line-height:1">🧭</div>
+  <div style="flex:1;">
+    <div style="font-weight:700; font-size:16px;">Guía rápida</div>
+    <ul style="margin:6px 0 0 0; padding-left:18px; font-size:13px; line-height:1.5;">
+      <li>Elige cada cuánto quieres que te avisemos por tipo de tarea.</li>
+      <li>Si es semanal/quincenal, selecciona el día; si es mensual, el día del mes.</li>
+      <li>Activa “Correo electrónico” y añade tu email para recibir los avisos.</li>
+      <li>Cuando hayas configurado, visita <strong>Alertas</strong> para marcar como hechas.</li>
+    </ul>
+  </div>
+  <div style="display:flex; flex-direction:column; gap:6px; min-width:180px;">
+    <a class="btn ghost" href="{{ url_for('alertas') }}" style="background:rgba(255,255,255,0.15); color:#fff;">🔔 Ver alertas</a>
+    <a class="btn ghost" href="{{ url_for('inicio') }}" style="background:rgba(255,255,255,0.15); color:#fff;">📋 Ir a tareas</a>
+  </div>
+</div>
+
 <!-- ============================================================
      SECCIÓN 1: ALERTAS DE TAREAS
      ============================================================ -->
@@ -60,12 +77,32 @@
               </select>
             </td>
             <td>
+              {% set freq = task_type.alert.alert_frequency %}
+              {% set current_day = task_type.alert.alert_day or '1' %}
               <select
                 class="select alert-day"
                 style="width: 100%; font-size: 14px;"
                 data-task-type-id="{{ task_type.id }}"
-                id="alert-day-{{ task_type.id }}">
-                <!-- Options will be populated by JavaScript -->
+                id="alert-day-{{ task_type.id }}"
+                {% if freq == 'daily' %}disabled{% endif %}>
+                {% if freq == 'weekly' or freq == 'biweekly' %}
+                  {% set days = [
+                    ('monday', 'Lunes'),
+                    ('tuesday', 'Martes'),
+                    ('wednesday', 'Miércoles'),
+                    ('thursday', 'Jueves'),
+                    ('friday', 'Viernes'),
+                    ('saturday', 'Sábado'),
+                    ('sunday', 'Domingo')
+                  ] %}
+                  {% for value, label in days %}
+                    <option value="{{ value }}" {% if current_day == value %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                {% else %}
+                  {% for i in range(1, 32) %}
+                    <option value="{{ i }}" {% if current_day|string == i|string %}selected{% endif %}>Día {{ i }}</option>
+                  {% endfor %}
+                {% endif %}
               </select>
             </td>
             <td style="text-align: center;">
@@ -207,21 +244,23 @@ const initialAlertFrequencies = {
 // Función para actualizar opciones del selector de día según frecuencia
 function updateDayOptions(taskTypeId, frequency) {
   const daySelect = document.getElementById('alert-day-' + taskTypeId);
-  const currentValue = daySelect.value;
+  if (!daySelect) return;
+
+  // habilitar por defecto; se deshabilita solo en diario
+  daySelect.disabled = false;
+
+  const currentValue = daySelect.value || initialAlertDays[taskTypeId] || '';
 
   // Limpiar opciones actuales
   daySelect.innerHTML = '';
 
   if (frequency === 'daily') {
-    // Para diario, no necesita día específico
     daySelect.disabled = true;
     const option = document.createElement('option');
     option.value = '';
     option.textContent = 'Todos los días';
     daySelect.appendChild(option);
   } else if (frequency === 'weekly' || frequency === 'biweekly') {
-    // Para semanal/quincenal: días de la semana
-    daySelect.disabled = false;
     const daysOfWeek = [
       { value: 'monday', text: 'Lunes' },
       { value: 'tuesday', text: 'Martes' },
@@ -236,31 +275,28 @@ function updateDayOptions(taskTypeId, frequency) {
       const option = document.createElement('option');
       option.value = day.value;
       option.textContent = day.text;
-      if (currentValue === day.value) {
-        option.selected = true;
-      }
       daySelect.appendChild(option);
     });
 
-    // Si no hay valor seleccionado, seleccionar lunes por defecto
-    if (!currentValue || !['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].includes(currentValue)) {
+    // Restaurar valor o elegir lunes por defecto
+    if (['monday','tuesday','wednesday','thursday','friday','saturday','sunday'].includes(currentValue)) {
+      daySelect.value = currentValue;
+    } else {
       daySelect.value = 'monday';
     }
   } else {
     // Para mensual/trimestral/semestral/anual: días del mes (1-31)
-    daySelect.disabled = false;
     for (let i = 1; i <= 31; i++) {
       const option = document.createElement('option');
       option.value = i.toString();
       option.textContent = 'Día ' + i;
-      if (currentValue === i.toString()) {
-        option.selected = true;
-      }
       daySelect.appendChild(option);
     }
 
-    // Si no hay valor seleccionado, seleccionar día 1 por defecto
-    if (!currentValue || isNaN(parseInt(currentValue))) {
+    // Restaurar valor o elegir día 1 por defecto
+    if (!isNaN(parseInt(currentValue))) {
+      daySelect.value = currentValue;
+    } else {
       daySelect.value = '1';
     }
   }
@@ -270,16 +306,13 @@ function updateDayOptions(taskTypeId, frequency) {
 function initializeDaySelectors() {
   {% for task_type in task_types %}
   updateDayOptions({{ task_type.id }}, '{{ task_type.alert.alert_frequency }}');
-  // Restaurar el valor guardado
-  const daySelect{{ task_type.id }} = document.getElementById('alert-day-{{ task_type.id }}');
-  if (daySelect{{ task_type.id }} && !daySelect{{ task_type.id }}.disabled) {
-    daySelect{{ task_type.id }}.value = initialAlertDays[{{ task_type.id }}] || daySelect{{ task_type.id }}.value;
-  }
   {% endfor %}
 }
 
 // Inicializar al cargar la página
 document.addEventListener('DOMContentLoaded', initializeDaySelectors);
+// Llamada inmediata por si el evento ya se disparó antes de ejecutar este script
+initializeDaySelectors();
 
 document.getElementById('form-alerts').addEventListener('submit', function(e) {
   e.preventDefault();

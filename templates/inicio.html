@@ -5,6 +5,27 @@
 {% block content %}
 <div class="h1">Inicio — URLs del mes</div>
 
+<div class="panel" style="display:flex; gap:16px; align-items:center; margin-bottom:16px; background: linear-gradient(135deg, #2563eb 0%, #60a5fa 100%); color:#fff; border-left:4px solid rgba(255,255,255,0.7);">
+  <div style="font-size:36px; line-height:1">👩‍💻</div>
+  <div style="flex:1;">
+    <div style="font-weight:700; font-size:16px;">¿Qué hago ahora?</div>
+    <div style="display:flex; flex-wrap:wrap; gap:12px; margin-top:6px;">
+      <span style="background:rgba(255,255,255,0.15); padding:8px 10px; border-radius:8px;">1) Elige el periodo en la barra superior</span>
+      <span style="background:rgba(255,255,255,0.15); padding:8px 10px; border-radius:8px;">2) Marca cada tarea como ✓ OK o ⚠ Problema</span>
+      <span style="background:rgba(255,255,255,0.15); padding:8px 10px; border-radius:8px;">3) Escribe notas si hay incidencias (se guardan solas)</span>
+    </div>
+  </div>
+  <div style="display:flex; flex-direction:column; gap:6px; min-width:170px; text-align:right;">
+    <span style="font-weight:700; font-size:14px;">Pendientes: {{ task_counts.pending }}</span>
+    <span style="font-size:13px; opacity:0.9;">Problemas: {{ task_counts.problems }}</span>
+    <span style="font-size:13px; opacity:0.9;">Realizadas: {{ task_counts.completed }}</span>
+    <div style="display:flex; gap:6px; justify-content:flex-end; margin-top:4px;">
+      <a class="btn ghost" href="{{ url_for('config.index') }}" style="background:rgba(255,255,255,0.15); color:#fff;">⚙️ Configurar alertas</a>
+      <a class="btn ghost" href="{{ url_for('alertas') }}" style="background:rgba(255,255,255,0.15); color:#fff;">🔔 Alertas</a>
+    </div>
+  </div>
+</div>
+
 {% if sections %}
   <div class="table" role="table" aria-label="Listado de URLs y tareas">
     <table>
