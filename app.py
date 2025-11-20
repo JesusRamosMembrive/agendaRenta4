@@ -258,6 +258,8 @@ def _fetch_alerts_for_notification(cursor, reference_date):
     Returns:
         list: Alert dicts with keys: task_type_name, due_date, periodicity
     """
+    alerts = []
+    # System alerts
     cursor.execute(
         """
         SELECT
@@ -271,14 +273,31 @@ def _fetch_alerts_for_notification(cursor, reference_date):
     """,
         (reference_date,),
     )
-    return cursor.fetchall()
+    alerts.extend(cursor.fetchall())
+
+    # Custom alerts (personalizadas)
+    cursor.execute(
+        """
+        SELECT
+            title as task_type_name,
+            due_date,
+            'personalizada' as periodicity
+        FROM custom_pending_alerts
+        WHERE due_date = %s AND dismissed = FALSE
+        ORDER BY title ASC
+    """,
+        (reference_date,),
+    )
+    alerts.extend(cursor.fetchall())
+
+    return alerts
 
 
 def generate_alerts(reference_date: date = None) -> dict:
     """
     Generate pending alerts based on alert_settings configuration (orchestrator).
 
-    Creates one alert per task_type (not per section).
+    Creates one alert per task_type (not per section) and custom alerts (custom rules).
     This function should be run periodically (daily) to create alerts.
 
     Args:
@@ -302,7 +321,7 @@ def generate_alerts(reference_date: date = None) -> dict:
             """)
             alert_settings = cursor.fetchall()
 
-            # Process each alert setting
+            # Process each alert setting (tareas estándar)
             for alert_setting in alert_settings:
                 task_type_id = alert_setting["task_type_id"]
                 frequency = alert_setting["alert_frequency"]
@@ -324,6 +343,48 @@ def generate_alerts(reference_date: date = None) -> dict:
                 except Exception as e:
                     stats["errors"].append(
                         f"Error creating alert for task_type={task_type_id}: {str(e)}"
+                    )
+
+            # Custom alert rules
+            cursor.execute("""
+                SELECT id, title, notes, alert_frequency, alert_day, enabled, created_by
+                FROM custom_alert_rules
+                WHERE enabled = TRUE
+            """)
+            custom_rules = cursor.fetchall()
+
+            for rule in custom_rules:
+                frequency = rule["alert_frequency"]
+                alert_day = rule["alert_day"]
+
+                if not check_alert_day(reference_date, frequency, alert_day):
+                    stats["skipped"] += 1
+                    continue
+
+                try:
+                    cursor.execute(
+                        """
+                        INSERT INTO custom_pending_alerts
+                        (title, notes, due_date, created_by)
+                        VALUES (%s, %s, %s, %s)
+                        ON CONFLICT (title, due_date) DO NOTHING
+                    """,
+                        (
+                            rule["title"],
+                            rule["notes"],
+                            reference_date,
+                            rule.get("created_by") or current_user.full_name
+                            if current_user and not current_user.is_anonymous
+                            else None,
+                        ),
+                    )
+                    if cursor.rowcount > 0:
+                        stats["generated"] += 1
+                    else:
+                        stats["skipped"] += 1
+                except Exception as e:
+                    stats["errors"].append(
+                        f"Error creating custom alert '{rule['title']}': {str(e)}"
                     )
 
             # Fetch all alerts for today to send email notifications
@@ -1259,7 +1320,44 @@ def alertas():
         """)
 
         alerts_raw = cursor.fetchall()
-        all_alerts = [dict(row) for row in alerts_raw]
+        all_alerts = []
+
+        # System alerts
+        for row in alerts_raw:
+            alert_dict = dict(row)
+            alert_dict["source"] = "system"
+            all_alerts.append(alert_dict)
+
+        # Custom alerts (personalizadas)
+        cursor.execute("""
+            SELECT
+                id,
+                title,
+                notes,
+                due_date,
+                dismissed,
+                dismissed_at,
+                created_at,
+                COALESCE(created_by, 'Usuario') as created_by
+            FROM custom_pending_alerts
+            ORDER BY dismissed ASC, due_date ASC, id DESC
+        """)
+        custom_raw = cursor.fetchall()
+        for row in custom_raw:
+            all_alerts.append(
+                {
+                    "id": row["id"],
+                    "due_date": row["due_date"],
+                    "generated_at": row["created_at"],
+                    "dismissed": row["dismissed"],
+                    "dismissed_at": row["dismissed_at"],
+                    "task_type_name": row["title"],
+                    "periodicity": "Personalizada",
+                    "notes": row["notes"],
+                    "created_by": row["created_by"],
+                    "source": "custom",
+                }
+            )
 
     # Generate available periods
     available_periods = generate_available_periods()
@@ -1321,6 +1419,74 @@ def dismiss_alert(alert_id):
             {"success": True, "message": message, "dismissed": new_dismissed}
         )
 
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/alertas/custom/dismiss/<int:alert_id>", methods=["POST"])
+@login_required
+def dismiss_custom_alert(alert_id):
+    """
+    Toggle custom alert status (active ↔ dismissed)
+    """
+    try:
+        with db_cursor() as cursor:
+            cursor.execute(
+                "SELECT dismissed FROM custom_pending_alerts WHERE id = %s",
+                (alert_id,),
+            )
+            row = cursor.fetchone()
+
+            if not row:
+                return jsonify({"success": False, "error": "Alerta no encontrada"}), 404
+
+            new_dismissed = not row["dismissed"]
+
+            if new_dismissed:
+                cursor.execute(
+                    """
+                    UPDATE custom_pending_alerts
+                    SET dismissed = TRUE, dismissed_at = CURRENT_TIMESTAMP
+                    WHERE id = %s
+                """,
+                    (alert_id,),
+                )
+                message = "Alerta personalizada marcada como resuelta"
+            else:
+                cursor.execute(
+                    """
+                    UPDATE custom_pending_alerts
+                    SET dismissed = FALSE, dismissed_at = NULL
+                    WHERE id = %s
+                """,
+                    (alert_id,),
+                )
+                message = "Alerta personalizada reactivada"
+
+        return jsonify(
+            {"success": True, "message": message, "dismissed": new_dismissed}
+        )
+
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/alertas/custom/delete/<int:alert_id>", methods=["POST"])
+@login_required
+def delete_custom_alert(alert_id):
+    """
+    Elimina una alerta personalizada definitivamente
+    """
+    try:
+        with db_cursor() as cursor:
+            cursor.execute(
+                "DELETE FROM custom_pending_alerts WHERE id = %s", (alert_id,)
+            )
+
+            if cursor.rowcount == 0:
+                return jsonify({"success": False, "error": "Alerta no encontrada"}), 404
+
+        return jsonify({"success": True, "message": "Alerta personalizada eliminada"})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 
