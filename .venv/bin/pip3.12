@@ -1,4 +1,4 @@
-#!/home/jesusramos/WorkSpace/agendaRenta4/.venv/bin/python
+#!/home/jesusramos/Workspace/agendaRenta4/.venv/bin/python
 # -*- coding: utf-8 -*-
 import re
 import sys

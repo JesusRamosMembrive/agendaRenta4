@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+
+{% block title %}Resultados de Validación de CTAs - Agenda Renta4{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>🎯 Resultados de Validación de CTAs</h2>
+        <div>
+            <a href="{{ url_for('crawler.cta_config') }}" class="btn btn-outline-primary me-2">
+                Configuración
+            </a>
+            <a href="{{ url_for('crawler.quality') }}" class="btn btn-secondary">
+                Volver
+            </a>
+        </div>
+    </div>
+
+    <!-- Summary Stats -->
+    {% if stats %}
+    <div class="row mb-4">
+        <div class="col-md-2">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h6 class="card-title text-muted">Total Checks</h6>
+                    <h3>{{ stats.total_checks or 0 }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card text-center border-success">
+                <div class="card-body">
+                    <h6 class="card-title text-muted">OK</h6>
+                    <h3 class="text-success">{{ stats.ok_count or 0 }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card text-center border-warning">
+                <div class="card-body">
+                    <h6 class="card-title text-muted">Warnings</h6>
+                    <h3 class="text-warning">{{ stats.warning_count or 0 }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card text-center border-danger">
+                <div class="card-body">
+                    <h6 class="card-title text-muted">Errors</h6>
+                    <h3 class="text-danger">{{ stats.error_count or 0 }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h6 class="card-title text-muted">Score Promedio</h6>
+                    <h3>{{ stats.avg_score or 0 }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h6 class="card-title text-muted">Issues</h6>
+                    <h3>{{ stats.total_issues or 0 }}</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Results Table -->
+    <div class="card">
+        <div class="card-header">
+            <h4>📊 Últimas 100 Validaciones</h4>
+        </div>
+        <div class="card-body">
+            {% if checks %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>URL</th>
+                            <th>Estado</th>
+                            <th>Score</th>
+                            <th>Mensaje</th>
+                            <th>Issues</th>
+                            <th>Fecha</th>
+                            <th>Detalles</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for check in checks %}
+                        <tr>
+                            <td>
+                                <a href="{{ check.url }}" target="_blank" class="text-truncate d-inline-block" style="max-width: 300px;">
+                                    {{ check.url }}
+                                </a>
+                            </td>
+                            <td>
+                                {% if check.status == 'ok' %}
+                                <span class="badge bg-success">OK</span>
+                                {% elif check.status == 'warning' %}
+                                <span class="badge bg-warning">Warning</span>
+                                {% else %}
+                                <span class="badge bg-danger">Error</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <strong>{{ check.score }}</strong>/100
+                            </td>
+                            <td>{{ check.message }}</td>
+                            <td>
+                                {% if check.issues_found > 0 %}
+                                <span class="badge bg-danger">{{ check.issues_found }}</span>
+                                {% else %}
+                                <span class="badge bg-success">0</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ check.checked_at.strftime('%d/%m/%Y %H:%M') }}</td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#details-{{ check.id }}">
+                                    Ver Detalles
+                                </button>
+                            </td>
+                        </tr>
+                        <tr class="collapse" id="details-{{ check.id }}">
+                            <td colspan="7">
+                                <div class="card card-body">
+                                    {% if check.details %}
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <h6>📊 Estadísticas</h6>
+                                            <ul>
+                                                <li>Total de reglas: {{ check.details.total_rules }}</li>
+                                                <li>Reglas requeridas: {{ check.details.required_rules }}</li>
+                                                <li>Reglas opcionales: {{ check.details.optional_rules }}</li>
+                                                <li>CTAs encontrados: {{ check.details.found_ctas }}</li>
+                                            </ul>
+                                        </div>
+                                        <div class="col-md-6">
+                                            {% if check.details.missing_required %}
+                                            <h6 class="text-danger">❌ CTAs Requeridos Faltantes</h6>
+                                            <ul>
+                                                {% for cta in check.details.missing_required %}
+                                                <li>
+                                                    <strong>{{ cta.expected_text }}</strong>
+                                                    {% if cta.is_global %}
+                                                    <span class="badge bg-info">Global</span>
+                                                    {% else %}
+                                                    <span class="badge bg-secondary">{{ cta.page_type }}</span>
+                                                    {% endif %}
+                                                    <br>
+                                                    <small class="text-muted">Esperado: {{ cta.expected_url }}</small>
+                                                </li>
+                                                {% endfor %}
+                                            </ul>
+                                            {% endif %}
+
+                                            {% if check.details.incorrect_urls %}
+                                            <h6 class="text-warning">⚠️ CTAs con URL Incorrecta</h6>
+                                            <ul>
+                                                {% for cta in check.details.incorrect_urls %}
+                                                <li>
+                                                    <strong>{{ cta.cta_text }}</strong>
+                                                    <br>
+                                                    <small>Encontrado: <code>{{ cta.found_url }}</code></small>
+                                                    <br>
+                                                    <small>Esperado: <code>{{ cta.expected_url }}</code></small>
+                                                </li>
+                                                {% endfor %}
+                                            </ul>
+                                            {% endif %}
+
+                                            {% if check.details.matched_ctas %}
+                                            <h6 class="text-success">✅ CTAs Correctos ({{ check.details.matched_ctas|length }})</h6>
+                                            <ul class="small">
+                                                {% for cta in check.details.matched_ctas[:5] %}
+                                                <li>{{ cta.text }}</li>
+                                                {% endfor %}
+                                                {% if check.details.matched_ctas|length > 5 %}
+                                                <li><em>... y {{ check.details.matched_ctas|length - 5 }} más</em></li>
+                                                {% endif %}
+                                            </ul>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    {% else %}
+                                    <p class="text-muted">No hay detalles disponibles</p>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="alert alert-info">
+                <h5>ℹ️ No hay resultados de validación</h5>
+                <p>No se han ejecutado validaciones de CTAs aún. Para ejecutar una validación:</p>
+                <ol>
+                    <li>Ve al <a href="{{ url_for('crawler.quality') }}">Dashboard de Calidad</a></li>
+                    <li>Selecciona "Validación de CTAs" en los checks disponibles</li>
+                    <li>Ejecuta la validación manualmente</li>
+                </ol>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

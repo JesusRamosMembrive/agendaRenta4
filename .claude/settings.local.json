@@ -4,7 +4,18 @@
       "Bash(calidad/imagenes.py)",
       "Bash(calidad/enlaces.py)",
       "Bash(ls:*)",
-      "Bash(bandit:*)"
+      "Bash(bandit:*)",
+      "Bash(PGPASSWORD=dev-password psql:*)",
+      "mcp__firecrawl__firecrawl_scrape",
+      "Bash(python inspect_ctas.py:*)",
+      "Bash(chmod:*)",
+      "Bash(python scripts/seed_cta_rules.py:*)",
+      "Bash(python test_cta_checker.py:*)",
+      "mcp__sequential-thinking__sequentialthinking",
+      "Bash(pip install:*)",
+      "Bash(python test_objective_validations.py:*)",
+      "Bash(python run_cta_batch_validation.py:*)",
+      "Bash(python:*)"
     ],
     "deny": [],
     "ask": []

@@ -730,7 +730,7 @@ def inject_task_counts():
                 result = cursor.fetchone()
                 broken_count = result["count"] if result else 0
 
-                # Count image quality issues (status = 'error')
+                # Count image quality issues (any issues found)
                 cursor.execute(
                     """
                     SELECT COUNT(*) as count
@@ -738,14 +738,14 @@ def inject_task_counts():
                     JOIN discovered_urls du ON qc.discovered_url_id = du.id
                     WHERE du.crawl_run_id = %s
                       AND qc.check_type = 'image_quality'
-                      AND qc.status = 'error'
+                      AND qc.issues_found > 0
                 """,
                     (crawl_run["id"],),
                 )
                 result = cursor.fetchone()
                 image_issues_count = result["count"] if result else 0
 
-                # Count spelling issues (status = 'warning')
+                # Count spelling issues (any issues found)
                 cursor.execute(
                     """
                     SELECT COUNT(*) as count
@@ -753,7 +753,7 @@ def inject_task_counts():
                     JOIN discovered_urls du ON qc.discovered_url_id = du.id
                     WHERE du.crawl_run_id = %s
                       AND qc.check_type = 'spell_check'
-                      AND qc.status = 'warning'
+                      AND qc.issues_found > 0
                 """,
                     (crawl_run["id"],),
                 )

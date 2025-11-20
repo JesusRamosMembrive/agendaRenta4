@@ -1,0 +1,352 @@
+[
+  {
+    "url": "https://www.r4.com/planes-de-pensiones/categorias",
+    "status_code": 200,
+    "ctas_found": [
+      {
+        "text": "Contratar",
+        "href": "https://www.r4.com/portal?TX=goto&FWD=CONT_LND&PAG=0",
+        "classes": "btn-contratacion",
+        "tag": "a",
+        "detection_method": "class::btn"
+      },
+      {
+        "text": "Abre una cuenta",
+        "href": "https://www.r4.com/abrir-cuenta",
+        "classes": "button-white",
+        "tag": "a",
+        "detection_method": "class::button"
+      },
+      {
+        "text": "Abre una cuentaSi lo prefieres pruébanos 15 días",
+        "href": "",
+        "classes": "cta-block",
+        "tag": "div",
+        "detection_method": "class::cta"
+      }
+    ]
+  },
+  {
+    "url": "https://www.r4.com/academiar4/formulario-cursos",
+    "error": "404 Client Error: Not Found for url: https://www.r4.com/academiar4/formulario-cursos",
+    "ctas_found": []
+  },
+  {
+    "url": "https://www.r4.com/conferencias",
+    "error": "404 Client Error: Not Found for url: https://www.r4.com/academiar4.html",
+    "ctas_found": []
+  },
+  {
+    "url": "https://www.r4.com/clientes",
+    "status_code": 200,
+    "ctas_found": [
+      {
+        "text": "Contratar",
+        "href": "https://www.r4.com/portal?TX=goto&FWD=CONT_LND&PAG=0",
+        "classes": "btn-contratacion",
+        "tag": "a",
+        "detection_method": "class::btn"
+      },
+      {
+        "text": "Abre una cuenta",
+        "href": "https://www.r4.com/abrir-cuenta",
+        "classes": "button-white",
+        "tag": "a",
+        "detection_method": "class::button"
+      },
+      {
+        "text": "Ver idea de inversión",
+        "href": "https://www.r4.com/articulos-y-analisis/ideas/el-futuro-es-ahora",
+        "classes": "button-red button-href",
+        "tag": "a",
+        "detection_method": "class::button"
+      },
+      {
+        "text": "Descubrir carteras Easy",
+        "href": "https://www.r4.com/soluciones-easy/carteras-easy",
+        "classes": "button-red button-link-gene",
+        "tag": "a",
+        "detection_method": "class::button"
+      },
+      {
+        "text": "Ver fondo",
+        "href": "https://www.r4.com/fondos-de-inversion/fondos/ES0173130024",
+        "classes": "r4-button type-primary width-100",
+        "tag": "a",
+        "detection_method": "class::button"
+      },
+      {
+        "text": "Ver fondo",
+        "href": "https://www.r4.com/fondos-de-inversion/fondos/ES0173394034",
+        "classes": "r4-button type-primary width-100",
+        "tag": "a",
+        "detection_method": "class::button"
+      },
+      {
+        "text": "Ver fondo",
+        "href": "https://www.r4.com/fondos-de-inversion/fondos/ES0173130065",
+        "classes": "r4-button type-primary width-100",
+        "tag": "a",
+        "detection_method": "class::button"
+      },
+      {
+        "text": "Ver fondo",
+        "href": "https://www.r4.com/fondos-de-inversion/fondos/ES0173128002",
+        "classes": "r4-button type-primary width-100",
+        "tag": "a",
+        "detection_method": "class::button"
+      },
+      {
+        "text": "Ver más ideas de inversión",
+        "href": "https://www.r4.com/articulos-y-analisis/ideas",
+        "classes": "button-red",
+        "tag": "a",
+        "detection_method": "class::button"
+      },
+      {
+        "text": "Leer idea",
+        "href": "",
+        "classes": "link-button",
+        "tag": "span",
+        "detection_method": "class::button"
+      },
+      {
+        "text": "Leer estrategia",
+        "href": "",
+        "classes": "link-button",
+        "tag": "span",
+        "detection_method": "class::button"
+      },
+      {
+        "text": "Ver promoción",
+        "href": "https://www.r4.com/portal?FWD=CNT002&TX=goto&TP=1&DST=CYB&IDBV=0060",
+        "classes": "button-red button-link-gene",
+        "tag": "a",
+        "detection_method": "class::button"
+      },
+      {
+        "text": "Más información sobre asesoramiento",
+        "href": "https://www.r4.com/asesoramiento",
+        "classes": "button-red button-link-gene",
+        "tag": "a",
+        "detection_method": "class::button"
+      },
+      {
+        "text": "Recibir novedades por email",
+        "href": "https://www.r4.com/serviciosr4/info-comercial",
+        "classes": "button-red button-link-gene",
+        "tag": "a",
+        "detection_method": "class::button"
+      },
+      {
+        "text": "Ver curso",
+        "href": "https://www.tradersbusinessschool.com/promo-curso-renta-4/",
+        "classes": "button-red button-link-gene",
+        "tag": "a",
+        "detection_method": "class::button"
+      },
+      {
+        "text": "Ver todas las guías",
+        "href": "https://www.r4.com/que-necesitas/formacion/guias-inversor",
+        "classes": "button-trans",
+        "tag": "a",
+        "detection_method": "class::button"
+      },
+      {
+        "text": "Qué tipos de activos financieros existenLeer artículo",
+        "href": "",
+        "classes": "block-single with-button",
+        "tag": "div",
+        "detection_method": "class::button"
+      },
+      {
+        "text": "Leer artículo",
+        "href": "https://www.r4.com/inversion-para-todos/que-tipos-de-activos-financieros-existen/",
+        "classes": "link-button",
+        "tag": "a",
+        "detection_method": "class::button"
+      },
+      {
+        "text": "Conoce en qué consiste el TERLeer artículo",
+        "href": "",
+        "classes": "block-single with-button",
+        "tag": "div",
+        "detection_method": "class::button"
+      },
+      {
+        "text": "Leer artículo",
+        "href": "https://www.r4.com/inversion-para-todos/conoce-en-que-consiste-el-ter-de-un-fondo-de-inversion/",
+        "classes": "link-button",
+        "tag": "a",
+        "detection_method": "class::button"
+      },
+      {
+        "text": "¿Qué son las Socimis?Leer artículo",
+        "href": "",
+        "classes": "block-single with-button",
+        "tag": "div",
+        "detection_method": "class::button"
+      },
+      {
+        "text": "Leer artículo",
+        "href": "https://www.r4.com/inversion-para-todos/que-son-socimis/",
+        "classes": "link-button",
+        "tag": "a",
+        "detection_method": "class::button"
+      },
+      {
+        "text": "Si todavía tienes dudas contacta con un asesor",
+        "href": "/contacto",
+        "classes": "button-red",
+        "tag": "a",
+        "detection_method": "class::button"
+      },
+      {
+        "text": "Abre una cuentaSi lo prefieres pruébanos 15 días",
+        "href": "",
+        "classes": "cta-block",
+        "tag": "div",
+        "detection_method": "class::cta"
+      },
+      {
+        "text": "Invertir de 0 a 100 - Sesión 1 de 3",
+        "href": "/academiar4/formulario-cursos?id=4376",
+        "classes": "link-titulo-blanco",
+        "tag": "a",
+        "detection_method": "keyword_match"
+      }
+    ]
+  },
+  {
+    "url": "https://www.r4.com/",
+    "status_code": 200,
+    "ctas_found": [
+      {
+        "text": "Contratar",
+        "href": "https://www.r4.com/portal?TX=goto&FWD=CONT_LND&PAG=0",
+        "classes": "btn-contratacion",
+        "tag": "a",
+        "detection_method": "class::btn"
+      },
+      {
+        "text": "Abre una cuenta",
+        "href": "https://www.r4.com/abrir-cuenta",
+        "classes": "button-white",
+        "tag": "a",
+        "detection_method": "class::button"
+      },
+      {
+        "text": "abrir cuentaAbrir cuenta con Plan Easy",
+        "href": "",
+        "classes": "block-cc16 button-container grey-background",
+        "tag": "div",
+        "detection_method": "class::button"
+      },
+      {
+        "text": "abrir cuenta",
+        "href": "https://www.r4.com/new?TX=goto&FWD=APERTURA-CUENTA&PORTLET=APE001&",
+        "classes": "button-trans only-button",
+        "tag": "a",
+        "detection_method": "class::button"
+      },
+      {
+        "text": "Descubrir carteras Easy",
+        "href": "https://www.r4.com/soluciones-easy/carteras-easy",
+        "classes": "button-red button-link-gene",
+        "tag": "a",
+        "detection_method": "class::button"
+      },
+      {
+        "text": "Ver fondo",
+        "href": "https://www.r4.com/fondos-de-inversion/fondos/ES0173130024",
+        "classes": "r4-button type-primary width-100",
+        "tag": "a",
+        "detection_method": "class::button"
+      },
+      {
+        "text": "Ver fondo",
+        "href": "https://www.r4.com/fondos-de-inversion/fondos/ES0173394034",
+        "classes": "r4-button type-primary width-100",
+        "tag": "a",
+        "detection_method": "class::button"
+      },
+      {
+        "text": "Ver fondo",
+        "href": "https://www.r4.com/fondos-de-inversion/fondos/ES0173130065",
+        "classes": "r4-button type-primary width-100",
+        "tag": "a",
+        "detection_method": "class::button"
+      },
+      {
+        "text": "Ver fondo",
+        "href": "https://www.r4.com/fondos-de-inversion/fondos/ES0173128002",
+        "classes": "r4-button type-primary width-100",
+        "tag": "a",
+        "detection_method": "class::button"
+      },
+      {
+        "text": "Ver promoción",
+        "href": "https://www.r4.com/serviciosr4/planes-pensiones-autonomos-promo",
+        "classes": "button-red button-link-gene",
+        "tag": "a",
+        "detection_method": "class::button"
+      },
+      {
+        "text": "Ver plataforma bróker",
+        "href": "/broker-online/productos-de-inversion/bolsa",
+        "classes": "button-red button-link-gene",
+        "tag": "a",
+        "detection_method": "class::button"
+      },
+      {
+        "text": "Conocer Plan Easy",
+        "href": "https://www.r4.com/soluciones-easy/plan-easy",
+        "classes": "button-red button-link-gene",
+        "tag": "a",
+        "detection_method": "class::button"
+      },
+      {
+        "text": "Ver los 50 mejores fondos",
+        "href": "/fondos-de-inversion/seleccion50",
+        "classes": "button-red button-link-gene",
+        "tag": "a",
+        "detection_method": "class::button"
+      },
+      {
+        "text": "Servicio de asesoramiento",
+        "href": "https://www.r4.com/asesoramiento",
+        "classes": "button-red button-link-gene",
+        "tag": "a",
+        "detection_method": "class::button"
+      },
+      {
+        "text": "Contactar con nosotros",
+        "href": "https://www.r4.com/contacto",
+        "classes": "button-red button-link-gene",
+        "tag": "a",
+        "detection_method": "class::button"
+      },
+      {
+        "text": "Si todavía tienes dudas contacta con un asesor",
+        "href": "/contacto",
+        "classes": "button-red",
+        "tag": "a",
+        "detection_method": "class::button"
+      },
+      {
+        "text": "Abre una cuentaSi lo prefieres pruébanos 15 días",
+        "href": "",
+        "classes": "cta-block",
+        "tag": "div",
+        "detection_method": "class::cta"
+      },
+      {
+        "text": "Abrir cuenta con Plan Easy",
+        "href": "https://www.r4.com/portal?FWD=APERSY&TX=goto#contact_info",
+        "classes": "secondary-CTA",
+        "tag": "a",
+        "detection_method": "class::cta"
+      }
+    ]
+  }
+]

@@ -1,0 +1,218 @@
+{% extends "base.html" %}
+
+{% block title %}Configuración de CTAs - Agenda Renta4{% endblock %}
+
+{% block content %}
+<div class="container mt-4 mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>🎯 Configuración de Validación de CTAs</h2>
+        <a href="{{ url_for('crawler.dashboard') }}" class="btn btn-secondary">
+            Volver al Dashboard
+        </a>
+    </div>
+
+    <!-- Info Alert -->
+    <div class="alert alert-info mb-4">
+        <h5><strong>ℹ️ Cómo Funciona el Sistema de Validación</strong></h5>
+        <p class="mb-2">El sistema valida CTAs en dos niveles:</p>
+        <ol class="mb-2">
+            <li><strong>Validaciones Objetivas (Automáticas)</strong>: Detectan problemas sin necesidad de configuración
+                <ul>
+                    <li>🔗 Enlaces rotos (404, 500, timeouts)</li>
+                    <li>✏️ Errores ortográficos en el texto</li>
+                    <li>🏷️ Problemas HTML (href vacío o inválido)</li>
+                    <li>🔄 CTAs duplicados con diferentes destinos</li>
+                </ul>
+            </li>
+            <li><strong>Validaciones Basadas en Reglas (Opcionales)</strong>: Requieren configuración manual para validar CTAs específicos por tipo de página</li>
+        </ol>
+        <p class="mb-0"><strong>💡 Nota:</strong> Las validaciones objetivas funcionan inmediatamente en todas las URLs. Las reglas manuales son opcionales y solo necesarias si quieres validar CTAs específicos.</p>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row mb-5">
+        <div class="col-md-4 mb-4 px-3">
+            <div class="card text-center h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Tipos de Página</h5>
+                    <h2>{{ page_types|length }}</h2>
+                    <p class="text-muted mb-0">Categorías configuradas</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-4 px-3">
+            <div class="card text-center h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Reglas de Validación</h5>
+                    <h2>{{ rules|length }}</h2>
+                    <p class="text-muted mb-0">CTAs configurados</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-4 px-3">
+            <div class="card text-center h-100">
+                <div class="card-body">
+                    <h5 class="card-title">URLs Asignadas</h5>
+                    <h2>{{ assignment_counts|sum(attribute='url_count') }}</h2>
+                    <p class="text-muted mb-0">URLs con reglas</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Page Types Section -->
+    <div class="card mb-5">
+        <div class="card-header">
+            <h4>📁 Tipos de Página</h4>
+        </div>
+        <div class="card-body">
+            {% if page_types %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Nombre</th>
+                            <th>Descripción</th>
+                            <th>Patrón de URL</th>
+                            <th>URLs Asignadas</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for pt in page_types %}
+                        <tr>
+                            <td><strong>{{ pt.name }}</strong></td>
+                            <td>{{ pt.description or '-' }}</td>
+                            <td><code>{{ pt.url_pattern or 'N/A' }}</code></td>
+                            <td>
+                                {% for ac in assignment_counts %}
+                                    {% if ac.name == pt.name %}
+                                        <span class="badge bg-info">{{ ac.url_count }} URLs</span>
+                                    {% endif %}
+                                {% endfor %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-muted">No hay tipos de página configurados</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Validation Rules Section -->
+    <div class="card mb-5">
+        <div class="card-header">
+            <h4>📋 Reglas de Validación</h4>
+        </div>
+        <div class="card-body">
+            {% if rules %}
+            <!-- Global Rules -->
+            <h5 class="mt-3 mb-3">🌍 Reglas Globales (aplican a todas las páginas)</h5>
+            <div class="table-responsive mb-5">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Texto Esperado</th>
+                            <th>URL Esperada</th>
+                            <th>Tipo de Match</th>
+                            <th>Prioridad</th>
+                            <th>Opcional</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for rule in rules if rule.is_global %}
+                        <tr>
+                            <td><strong>{{ rule.expected_text }}</strong></td>
+                            <td><code class="small">{{ rule.expected_url_pattern or 'N/A' }}</code></td>
+                            <td><span class="badge bg-secondary">{{ rule.url_match_type }}</span></td>
+                            <td>
+                                {% if rule.priority == 2 %}
+                                <span class="badge bg-danger">Crítico</span>
+                                {% elif rule.priority == 1 %}
+                                <span class="badge bg-warning">Alto</span>
+                                {% else %}
+                                <span class="badge bg-info">Normal</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if rule.is_optional %}
+                                <span class="badge bg-light text-dark">Opcional</span>
+                                {% else %}
+                                <span class="badge bg-success">Requerido</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Specific Rules by Page Type -->
+            <hr class="my-4">
+            <h5 class="mt-4 mb-3">📄 Reglas Específicas por Tipo de Página</h5>
+            <div class="accordion" id="rulesAccordion">
+                {% set current_page_type = None %}
+                {% for rule in rules if not rule.is_global %}
+                    {% if rule.page_type_name != current_page_type %}
+                        {% if current_page_type is not none %}
+                            </tbody></table></div></div></div>
+                        {% endif %}
+                        {% set current_page_type = rule.page_type_name %}
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="heading{{ loop.index }}">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ loop.index }}">
+                                    {{ current_page_type }}
+                                </button>
+                            </h2>
+                            <div id="collapse{{ loop.index }}" class="accordion-collapse collapse" data-bs-parent="#rulesAccordion">
+                                <div class="accordion-body">
+                                    <table class="table table-sm">
+                                        <thead>
+                                            <tr>
+                                                <th>Texto Esperado</th>
+                                                <th>URL Esperada</th>
+                                                <th>Match</th>
+                                                <th>Opcional</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                    {% endif %}
+                    <tr>
+                        <td><strong>{{ rule.expected_text }}</strong></td>
+                        <td><code class="small">{{ rule.expected_url_pattern or 'N/A' }}</code></td>
+                        <td><span class="badge bg-secondary">{{ rule.url_match_type }}</span></td>
+                        <td>
+                            {% if rule.is_optional %}
+                            <span class="badge bg-light text-dark">Sí</span>
+                            {% else %}
+                            <span class="badge bg-success">No</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+                {% if rules|selectattr('is_global', 'equalto', False)|list|length > 0 %}
+                    </tbody></table></div></div></div>
+                {% endif %}
+            </div>
+            {% else %}
+            <p class="text-muted">No hay reglas de validación configuradas</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Quick Links -->
+    <div class="card mt-5">
+        <div class="card-body">
+            <h5 class="mb-3">🔗 Enlaces Rápidos</h5>
+            <a href="{{ url_for('crawler.cta_results') }}" class="btn btn-primary me-2">
+                Ver Resultados de Validación
+            </a>
+            <a href="{{ url_for('crawler.quality') }}" class="btn btn-secondary">
+                Dashboard de Calidad
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
