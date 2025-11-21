@@ -995,7 +995,13 @@ def pendientes():
     List of ALL pending tasks (not marked as OK or Problem)
     Generates all possible combinations and excludes completed/problem tasks
     """
-    period = session.get("current_period", datetime.now().strftime("%Y-%m"))
+    # Get selected period from query params or session (default: current month)
+    period = request.args.get("period")
+    if not period:
+        period = session.get("current_period", datetime.now().strftime("%Y-%m"))
+    else:
+        session["current_period"] = period
+
     current_period = datetime.now().strftime("%Y-%m")
 
     with db_cursor(commit=False) as cursor:
@@ -1067,7 +1073,13 @@ def problemas():
     List of tasks with problems (status='problem')
     Shows tasks from last 90 days (3 months) that have issues
     """
-    period = session.get("current_period", datetime.now().strftime("%Y-%m"))
+    # Get selected period from query params or session (default: current month)
+    period = request.args.get("period")
+    if not period:
+        period = session.get("current_period", datetime.now().strftime("%Y-%m"))
+    else:
+        session["current_period"] = period
+
     current_period = datetime.now().strftime("%Y-%m")
 
     # Calculate cutoff date (problems retention period)
@@ -1125,7 +1137,12 @@ def realizadas():
     List of completed tasks (status='ok')
     Shows complete history of all tasks marked as OK
     """
-    period = session.get("current_period", datetime.now().strftime("%Y-%m"))
+    # Get selected period from query params or session (default: current month)
+    period = request.args.get("period")
+    if not period:
+        period = session.get("current_period", datetime.now().strftime("%Y-%m"))
+    else:
+        session["current_period"] = period
 
     with db_cursor(commit=False) as cursor:
         # Query all completed tasks (status='ok') from complete history
@@ -1302,7 +1319,12 @@ def alertas():
     Display ALL alerts (both active and dismissed)
     One alert per task_type, not per section
     """
-    period = session.get("current_period", datetime.now().strftime("%Y-%m"))
+    # Get selected period from query params or session (default: current month)
+    period = request.args.get("period")
+    if not period:
+        period = session.get("current_period", datetime.now().strftime("%Y-%m"))
+    else:
+        session["current_period"] = period
 
     with db_cursor(commit=False) as cursor:
         # Get ALL alerts with task type info (both active and dismissed)

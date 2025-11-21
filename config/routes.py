@@ -6,7 +6,7 @@ All configuration-related routes extracted from app.py
 import calendar
 from datetime import date, datetime, timedelta
 
-from flask import Blueprint, jsonify, render_template, request
+from flask import Blueprint, jsonify, render_template, request, session
 from flask_login import current_user, login_required
 
 from constants import ANNUAL_MONTH, QUARTERLY_MONTHS, SEMIANNUAL_MONTHS, WEEKDAY_MAP
@@ -179,7 +179,14 @@ def index():
     """
     Configuration page - Alerts and Notification preferences
     """
-    current_period = datetime.now().strftime("%Y-%m")
+    # Get selected period from query params or session (default: current month)
+    period = request.args.get("period")
+    if not period:
+        period = session.get("current_period", datetime.now().strftime("%Y-%m"))
+    else:
+        session["current_period"] = period
+
+    current_period = period
 
     with db_cursor() as cursor:
         # Reparar reglas personalizadas antiguas que no tengan task_type asociado
@@ -303,6 +310,7 @@ def index():
         notification_prefs=notification_prefs,
         custom_alert_rules=custom_alert_rules,
         custom_alerts=custom_alerts,
+        period=period,
         available_periods=available_periods,
         current_user=current_user,
     )
@@ -314,6 +322,13 @@ def urls():
     """
     URL management page (CRUD operations)
     """
+    # Get selected period from query params or session (default: current month)
+    period = request.args.get("period")
+    if not period:
+        period = session.get("current_period", datetime.now().strftime("%Y-%m"))
+    else:
+        session["current_period"] = period
+
     with db_cursor(commit=False) as cursor:
         # Get all sections (URLs)
         cursor.execute("""
@@ -329,6 +344,7 @@ def urls():
     return render_template(
         "configuracion_urls.html",
         sections=sections,
+        period=period,
         available_periods=available_periods,
         current_user=current_user,
     )
@@ -340,11 +356,19 @@ def herramientas():
     """
     Automatic analysis tools configuration page
     """
+    # Get selected period from query params or session (default: current month)
+    period = request.args.get("period")
+    if not period:
+        period = session.get("current_period", datetime.now().strftime("%Y-%m"))
+    else:
+        session["current_period"] = period
+
     # Generate available periods for consistency with other config pages
     available_periods = generate_available_periods()
 
     return render_template(
         "configuracion_herramientas.html",
+        period=period,
         available_periods=available_periods,
         current_user=current_user,
     )
