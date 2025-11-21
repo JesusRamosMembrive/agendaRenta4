@@ -5,6 +5,23 @@
 {% block content %}
 <div class="h1">Alertas de Tareas</div>
 
+<div class="panel" style="margin-bottom:16px; display:flex; gap:14px; align-items:center; background:linear-gradient(135deg, #0ea5e9 0%, #38bdf8 100%); color:#fff; border-left:4px solid rgba(255,255,255,0.7);">
+  <div style="font-size:34px; line-height:1">🧭</div>
+  <div style="flex:1;">
+    <div style="font-weight:700; font-size:16px;">Guía rápida</div>
+    <ul style="margin:6px 0 0 0; padding-left:18px; font-size:13px; line-height:1.5;">
+      <li>Elige cada cuánto quieres que te avisemos por tipo de tarea.</li>
+      <li>Si es semanal/quincenal, selecciona el día; si es mensual, el día del mes.</li>
+      <li>Activa “Correo electrónico” y añade tu email para recibir los avisos.</li>
+      <li>Cuando hayas configurado, visita <strong>Alertas</strong> para marcar como hechas.</li>
+    </ul>
+  </div>
+  <div style="display:flex; flex-direction:column; gap:6px; min-width:180px;">
+    <a class="btn ghost" href="{{ url_for('alertas') }}" style="background:rgba(255,255,255,0.15); color:#fff;">🔔 Ver alertas</a>
+    <a class="btn ghost" href="{{ url_for('inicio') }}" style="background:rgba(255,255,255,0.15); color:#fff;">📋 Ir a tareas</a>
+  </div>
+</div>
+
 <!-- ============================================================
      SECCIÓN 1: ALERTAS DE TAREAS
      ============================================================ -->
@@ -60,12 +77,32 @@
               </select>
             </td>
             <td>
+              {% set freq = task_type.alert.alert_frequency %}
+              {% set current_day = task_type.alert.alert_day or '1' %}
               <select
                 class="select alert-day"
                 style="width: 100%; font-size: 14px;"
                 data-task-type-id="{{ task_type.id }}"
-                id="alert-day-{{ task_type.id }}">
-                <!-- Options will be populated by JavaScript -->
+                id="alert-day-{{ task_type.id }}"
+                {% if freq == 'daily' %}disabled{% endif %}>
+                {% if freq == 'weekly' or freq == 'biweekly' %}
+                  {% set days = [
+                    ('monday', 'Lunes'),
+                    ('tuesday', 'Martes'),
+                    ('wednesday', 'Miércoles'),
+                    ('thursday', 'Jueves'),
+                    ('friday', 'Viernes'),
+                    ('saturday', 'Sábado'),
+                    ('sunday', 'Domingo')
+                  ] %}
+                  {% for value, label in days %}
+                    <option value="{{ value }}" {% if current_day == value %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                {% else %}
+                  {% for i in range(1, 32) %}
+                    <option value="{{ i }}" {% if current_day|string == i|string %}selected{% endif %}>Día {{ i }}</option>
+                  {% endfor %}
+                {% endif %}
               </select>
             </td>
             <td style="text-align: center;">
@@ -182,6 +219,88 @@
   </form>
 </div>
 
+<!-- ============================================================
+     SECCIÓN 3: ALERTAS PERSONALIZADAS (RECURRENTES)
+     ============================================================ -->
+<div class="panel" style="margin-bottom: 24px;">
+  <h2 style="margin: 0 0 16px; font-size: 18px; color: var(--text); font-weight: 600;">
+    🧩 Alertas personalizadas
+  </h2>
+  <p style="color: var(--muted); margin-bottom: 16px; font-size: 14px;">
+    Define avisos recurrentes con su propia frecuencia. Se generan igual que las alertas de los tipos principales y aparecerán en la página de Alertas.
+  </p>
+
+  <form id="form-custom-alert" class="ui-form" style="display:grid; gap:12px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); align-items:flex-start;">
+    <div style="display:flex; flex-direction:column; gap:6px;">
+      <label style="font-weight:600;">Título *</label>
+      <input type="text" name="title" id="custom-title" class="input" placeholder="Ej: Revisar campaña especial" required />
+    </div>
+    <div style="display:flex; flex-direction:column; gap:6px;">
+      <label style="font-weight:600;">Frecuencia *</label>
+      <select name="alert_frequency" id="custom-frequency" class="select">
+        <option value="daily">Diaria</option>
+        <option value="weekly">Semanal</option>
+        <option value="biweekly">Quincenal</option>
+        <option value="monthly" selected>Mensual</option>
+        <option value="quarterly">Trimestral</option>
+        <option value="semiannual">Semestral</option>
+        <option value="annual">Anual</option>
+      </select>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:6px;">
+      <label style="font-weight:600;">Día de aviso *</label>
+      {% set default_day_options = [] %}
+      <select name="alert_day" id="custom-day" class="select">
+        {% for i in range(1, 32) %}
+          <option value="{{ i }}" {% if i == 1 %}selected{% endif %}>Día {{ i }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:6px; grid-column:1/-1;">
+      <label style="font-weight:600;">Notas (opcional)</label>
+      <textarea name="notes" id="custom-notes" class="textarea" rows="2" placeholder="Detalles de lo que hay que revisar"></textarea>
+    </div>
+    <div style="grid-column:1/-1; text-align:right;">
+      <button type="submit" class="btn primary">➕ Crear alerta personalizada</button>
+    </div>
+  </form>
+
+  {% if custom_alert_rules %}
+    <div class="table" style="margin-top:12px;">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:30%;">Título</th>
+            <th style="width:15%;">Frecuencia</th>
+            <th style="width:15%;">Día</th>
+            <th style="width:30%;">Notas</th>
+            <th style="width:10%;">Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="custom-alerts-table">
+          {% for r in custom_alert_rules %}
+            <tr data-custom-rule-id="{{ r.id }}">
+              <td><strong>{{ r.title }}</strong></td>
+              <td>{{ r.alert_frequency }}</td>
+              <td>{{ r.alert_day or '—' }}</td>
+              <td>{{ r.notes or '-' }}</td>
+              <td>
+                <div style="display:flex; gap:8px; align-items:center;">
+                  <label class="toggle-switch" title="Activar/Desactivar">
+                    <input type="checkbox" class="js-toggle-custom-rule" data-rule-id="{{ r.id }}" {% if r.enabled %}checked{% endif %}>
+                    <span class="toggle-slider"></span>
+                  </label>
+                  <button type="button" class="btn btn-sm ghost js-delete-custom-rule" data-rule-id="{{ r.id }}">🗑</button>
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
@@ -207,21 +326,23 @@ const initialAlertFrequencies = {
 // Función para actualizar opciones del selector de día según frecuencia
 function updateDayOptions(taskTypeId, frequency) {
   const daySelect = document.getElementById('alert-day-' + taskTypeId);
-  const currentValue = daySelect.value;
+  if (!daySelect) return;
+
+  // habilitar por defecto; se deshabilita solo en diario
+  daySelect.disabled = false;
+
+  const currentValue = daySelect.value || initialAlertDays[taskTypeId] || '';
 
   // Limpiar opciones actuales
   daySelect.innerHTML = '';
 
   if (frequency === 'daily') {
-    // Para diario, no necesita día específico
     daySelect.disabled = true;
     const option = document.createElement('option');
     option.value = '';
     option.textContent = 'Todos los días';
     daySelect.appendChild(option);
   } else if (frequency === 'weekly' || frequency === 'biweekly') {
-    // Para semanal/quincenal: días de la semana
-    daySelect.disabled = false;
     const daysOfWeek = [
       { value: 'monday', text: 'Lunes' },
       { value: 'tuesday', text: 'Martes' },
@@ -236,31 +357,28 @@ function updateDayOptions(taskTypeId, frequency) {
       const option = document.createElement('option');
       option.value = day.value;
       option.textContent = day.text;
-      if (currentValue === day.value) {
-        option.selected = true;
-      }
       daySelect.appendChild(option);
     });
 
-    // Si no hay valor seleccionado, seleccionar lunes por defecto
-    if (!currentValue || !['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].includes(currentValue)) {
+    // Restaurar valor o elegir lunes por defecto
+    if (['monday','tuesday','wednesday','thursday','friday','saturday','sunday'].includes(currentValue)) {
+      daySelect.value = currentValue;
+    } else {
       daySelect.value = 'monday';
     }
   } else {
     // Para mensual/trimestral/semestral/anual: días del mes (1-31)
-    daySelect.disabled = false;
     for (let i = 1; i <= 31; i++) {
       const option = document.createElement('option');
       option.value = i.toString();
       option.textContent = 'Día ' + i;
-      if (currentValue === i.toString()) {
-        option.selected = true;
-      }
       daySelect.appendChild(option);
     }
 
-    // Si no hay valor seleccionado, seleccionar día 1 por defecto
-    if (!currentValue || isNaN(parseInt(currentValue))) {
+    // Restaurar valor o elegir día 1 por defecto
+    if (!isNaN(parseInt(currentValue))) {
+      daySelect.value = currentValue;
+    } else {
       daySelect.value = '1';
     }
   }
@@ -270,22 +388,21 @@ function updateDayOptions(taskTypeId, frequency) {
 function initializeDaySelectors() {
   {% for task_type in task_types %}
   updateDayOptions({{ task_type.id }}, '{{ task_type.alert.alert_frequency }}');
-  // Restaurar el valor guardado
-  const daySelect{{ task_type.id }} = document.getElementById('alert-day-{{ task_type.id }}');
-  if (daySelect{{ task_type.id }} && !daySelect{{ task_type.id }}.disabled) {
-    daySelect{{ task_type.id }}.value = initialAlertDays[{{ task_type.id }}] || daySelect{{ task_type.id }}.value;
-  }
   {% endfor %}
 }
 
 // Inicializar al cargar la página
 document.addEventListener('DOMContentLoaded', initializeDaySelectors);
+// Llamada inmediata por si el evento ya se disparó antes de ejecutar este script
+initializeDaySelectors();
 
-document.getElementById('form-alerts').addEventListener('submit', function(e) {
-  e.preventDefault();
+const formAlerts = document.getElementById('form-alerts');
+if (formAlerts) {
+  formAlerts.addEventListener('submit', function(e) {
+    e.preventDefault();
 
-  const alertsData = [];
-  const rows = document.querySelectorAll('#form-alerts tbody tr');
+    const alertsData = [];
+    const rows = document.querySelectorAll('#form-alerts tbody tr');
 
   rows.forEach(row => {
     const taskTypeId = row.dataset.taskTypeId;
@@ -321,13 +438,16 @@ document.getElementById('form-alerts').addEventListener('submit', function(e) {
     console.error('Error:', error);
     alert('❌ Error al guardar la configuración');
   });
-});
+  });
+}
 
 // ============================================================
 // NOTIFICACIONES
 // ============================================================
-document.getElementById('form-notifications').addEventListener('submit', function(e) {
-  e.preventDefault();
+const formNotifications = document.getElementById('form-notifications');
+if (formNotifications) {
+  formNotifications.addEventListener('submit', function(e) {
+    e.preventDefault();
 
   const formData = new FormData();
   formData.append('email', document.getElementById('email').value);
@@ -358,6 +478,187 @@ document.getElementById('form-notifications').addEventListener('submit', functio
     console.error('Error:', error);
     alert('❌ Error al guardar las preferencias');
   });
+  });
+}
+
+// ============================================================
+// ALERTAS PERSONALIZADAS (REGLAS)
+// ============================================================
+document.addEventListener('DOMContentLoaded', function() {
+  const customForm = document.getElementById('form-custom-alert');
+  if (customForm) {
+    customForm.addEventListener('submit', function(e) {
+      e.preventDefault();
+      const formData = new FormData(customForm);
+
+      fetch('{{ url_for("config.add_custom_alert_rule") }}', {
+        method: 'POST',
+        body: formData
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          alert('✅ ' + data.message);
+          window.location.reload();
+        } else {
+          alert('❌ Error: ' + (data.error || 'No se pudo crear la alerta'));
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        alert('❌ Error al crear la alerta');
+      });
+    });
+  }
 });
 
+// Rellenar día para regla personalizada
+function updateCustomDayOptions(frequency) {
+  const daySelect = document.getElementById('custom-day');
+  if (!daySelect) return;
+  daySelect.disabled = false;
+  const current = daySelect.value;
+  daySelect.innerHTML = '';
+
+  if (frequency === 'daily') {
+    daySelect.disabled = true;
+    const opt = document.createElement('option');
+    opt.value = '';
+    opt.textContent = 'Todos los días';
+    daySelect.appendChild(opt);
+  } else if (frequency === 'weekly' || frequency === 'biweekly') {
+    const days = [
+      ['monday', 'Lunes'],
+      ['tuesday', 'Martes'],
+      ['wednesday', 'Miércoles'],
+      ['thursday', 'Jueves'],
+      ['friday', 'Viernes'],
+      ['saturday', 'Sábado'],
+      ['sunday', 'Domingo'],
+    ];
+    days.forEach(([val, label]) => {
+      const opt = document.createElement('option');
+      opt.value = val;
+      opt.textContent = label;
+      daySelect.appendChild(opt);
+    });
+    daySelect.value = current && days.some(d => d[0] === current) ? current : 'monday';
+  } else {
+    for (let i = 1; i <= 31; i++) {
+      const opt = document.createElement('option');
+      opt.value = i.toString();
+      opt.textContent = 'Día ' + i;
+      daySelect.appendChild(opt);
+    }
+    daySelect.value = current && !isNaN(parseInt(current)) ? current : '1';
+  }
+}
+updateCustomDayOptions(document.getElementById('custom-frequency')?.value || 'monthly');
+const customFrequencySelect = document.getElementById('custom-frequency');
+if (customFrequencySelect) {
+  customFrequencySelect.addEventListener('change', (event) => {
+    updateCustomDayOptions(event.target.value);
+  });
+}
+
+function deleteCustomRule(id) {
+  showConfirmModal('¿Eliminar esta alerta personalizada y sus tareas asociadas?', () => {
+    fetch(`/configuracion/alerta-personalizada/delete/${id}`, { method: 'POST' })
+      .then(r => {
+        if (!r.ok) throw new Error(`Error HTTP ${r.status}`);
+        return r.json();
+      })
+      .then(data => {
+        if (data.success) {
+          const row = document.querySelector(`tr[data-custom-rule-id="${id}"]`);
+          if (row) row.remove();
+          // Recargar para limpiar contadores/listados si aplica
+          window.location.reload();
+        } else {
+          alert('❌ Error: ' + (data.error || 'No se pudo eliminar'));
+        }
+      })
+      .catch(err => {
+        console.error(err);
+        alert('❌ Error al eliminar la regla');
+      });
+  });
+}
+
+function toggleCustomRule(id, checkbox) {
+  fetch(`/configuracion/alerta-personalizada/toggle/${id}`, { method: 'POST' })
+    .then(r => r.json())
+    .then(data => {
+      if (!data.success) {
+        alert('❌ Error: ' + (data.error || 'No se pudo actualizar'));
+        checkbox.checked = !checkbox.checked;
+      }
+    })
+    .catch(err => {
+      console.error(err);
+      alert('❌ Error de conexión');
+      checkbox.checked = !checkbox.checked;
+    });
+}
+
+// Bind botón papelera sin inline
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.js-delete-custom-rule').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.ruleId;
+      if (id) deleteCustomRule(id);
+    });
+  });
+
+  document.querySelectorAll('.js-toggle-custom-rule').forEach(cb => {
+    cb.addEventListener('change', () => {
+      toggleCustomRule(cb.dataset.ruleId, cb);
+    });
+  });
+});
+
+// Exponer funciones al scope global por compatibilidad
+window.deleteCustomRule = deleteCustomRule;
+window.toggleCustomRule = toggleCustomRule;
+window.updateCustomDayOptions = updateCustomDayOptions;
+
+// Modal de confirmación sencillo
+function showConfirmModal(message, onConfirm) {
+  const overlay = document.createElement('div');
+  overlay.style.position = 'fixed';
+  overlay.style.inset = '0';
+  overlay.style.background = 'rgba(0,0,0,0.45)';
+  overlay.style.display = 'flex';
+  overlay.style.alignItems = 'center';
+  overlay.style.justifyContent = 'center';
+  overlay.style.zIndex = '9999';
+
+  const modal = document.createElement('div');
+  modal.style.background = 'var(--card)';
+  modal.style.color = 'var(--text)';
+  modal.style.padding = '18px';
+  modal.style.borderRadius = '12px';
+  modal.style.boxShadow = '0 12px 30px rgba(0,0,0,0.15)';
+  modal.style.maxWidth = '360px';
+  modal.style.width = '90%';
+
+  modal.innerHTML = `
+    <div style="font-weight:700; margin-bottom:8px;">Confirmar acción</div>
+    <div style="margin-bottom:16px; color:var(--muted);">${message}</div>
+    <div style="display:flex; gap:10px; justify-content:flex-end;">
+      <button type="button" class="btn ghost" id="cancel-confirm">Cancelar</button>
+      <button type="button" class="btn primary" id="ok-confirm">Eliminar</button>
+    </div>
+  `;
+
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+
+  modal.querySelector('#cancel-confirm').onclick = () => overlay.remove();
+  modal.querySelector('#ok-confirm').onclick = () => {
+    overlay.remove();
+    if (onConfirm) onConfirm();
+  };
+}
+</script>
 {% endblock %}

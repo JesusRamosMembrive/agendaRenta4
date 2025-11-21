@@ -17,7 +17,7 @@ def should_create_task_for_period(period, periodicity):
 
     Args:
         period: Periodo en formato "YYYY-MM" (ej: "2025-11")
-        periodicity: Tipo de periodicidad ("weekly", "monthly", "quarterly", "biannual", "yearly")
+        periodicity: Tipo de periodicidad ("daily", "weekly", "biweekly", "monthly", "quarterly", "biannual", "semiannual", "annual", "yearly")
 
     Returns:
         True si se debe crear la tarea, False si no
@@ -26,6 +26,14 @@ def should_create_task_for_period(period, periodicity):
         year, month = map(int, period.split("-"))
     except:
         return False
+
+    # Daily: siempre crea
+    if periodicity == "daily":
+        return True
+
+    # Biweekly: se considera semanal a efectos de creación de tareas (1 por mes)
+    if periodicity == "biweekly":
+        return True
 
     # Monthly: siempre crear (se crea todos los meses)
     if periodicity == "monthly":
@@ -42,11 +50,11 @@ def should_create_task_for_period(period, periodicity):
         return month in [1, 4, 7, 10]
 
     # Biannual: solo en meses 1 y 7 (enero, julio)
-    if periodicity == "biannual":
+    if periodicity in ("biannual", "semiannual"):
         return month in [1, 7]
 
-    # Yearly: solo en mes 1 (enero)
-    if periodicity == "yearly":
+    # Yearly/Annual: solo en mes 1 (enero)
+    if periodicity in ("yearly", "annual"):
         return month == 1
 
     return False

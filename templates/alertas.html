@@ -5,6 +5,23 @@
 {% block content %}
 <div class="h1">Alertas — Avisos programados</div>
 
+<div class="panel" style="margin-bottom:16px; display:flex; gap:14px; align-items:center; background:linear-gradient(135deg, #f97316 0%, #fb923c 100%); color:#fff; border-left:4px solid rgba(255,255,255,0.7);">
+  <div style="font-size:34px; line-height:1">🔔</div>
+  <div style="flex:1;">
+    <div style="font-weight:700; font-size:16px;">Cómo usar las alertas</div>
+    <ul style="margin:6px 0 0 0; padding-left:18px; font-size:13px; line-height:1.5;">
+      <li>Una alerta = un tipo de tarea que toca revisar para todas las URLs.</li>
+      <li>Pulsa “✓ Resolver” cuando hayas completado ese tipo en el periodo actual.</li>
+      <li>Si necesitas cambiar la periodicidad o el día, ve a <strong>Configuración</strong>.</li>
+      <li>Si quieres dispararlas manualmente, usa el botón de abajo (“Generar alertas de hoy”).</li>
+    </ul>
+  </div>
+  <div style="display:flex; flex-direction:column; gap:6px; min-width:190px;">
+    <a class="btn ghost" href="{{ url_for('config.index') }}" style="background:rgba(255,255,255,0.15); color:#fff;">⚙️ Configurar</a>
+    <a class="btn ghost" href="{{ url_for('inicio') }}" style="background:rgba(255,255,255,0.15); color:#fff;">📋 Ir a tareas</a>
+  </div>
+</div>
+
 {% if pending_alerts %}
   {% set active_count = pending_alerts | selectattr('dismissed', 'equalto', 0) | list | length %}
   {% set dismissed_count = pending_alerts | selectattr('dismissed', 'equalto', 1) | list | length %}
@@ -21,16 +38,17 @@
     <table>
       <thead>
         <tr>
-          <th class="sticky" style="width:15%">Fecha Aviso</th>
-          <th class="sticky" style="width:35%">Tipo de Tarea</th>
-          <th class="sticky" style="width:20%">Periodicidad</th>
-          <th class="sticky" style="width:15%">Generada</th>
-          <th class="sticky" style="width:15%">Acciones</th>
+          <th class="sticky" style="width:13%">Fecha Aviso</th>
+          <th class="sticky" style="width:32%">Tipo / Título</th>
+          <th class="sticky" style="width:18%">Periodicidad</th>
+          <th class="sticky" style="width:17%">Notas</th>
+          <th class="sticky" style="width:10%">Generada</th>
+          <th class="sticky" style="width:10%">Acciones</th>
         </tr>
       </thead>
       <tbody>
         {% for alert in pending_alerts %}
-          <tr data-alert-id="{{ alert.id }}" data-dismissed="{{ alert.dismissed }}"
+          <tr data-alert-id="{{ alert.id }}" data-alert-source="{{ alert.source }}" data-dismissed="{{ alert.dismissed }}"
               style="{% if alert.dismissed %}opacity: 0.5; background: rgba(16, 185, 129, 0.05);{% endif %}">
             <!-- Fecha de Aviso -->
             <td>
@@ -46,9 +64,18 @@
                   <span style="color: #10b981; font-size: 1.2em;">✓</span>
                 {% endif %}
                 <div>
-                  <strong style="font-size: 1.05em;">{{ alert.task_type_name }}</strong>
+                  <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                    <strong style="font-size: 1.05em;">{{ alert.task_type_name }}</strong>
+                    {% if alert.source == 'custom' %}
+                      <span style="background: rgba(99, 102, 241, 0.15); color:#4338ca; font-size:11px; padding:4px 8px; border-radius:999px;">Personalizada</span>
+                    {% endif %}
+                  </div>
                   <p style="margin: 4px 0 0 0; color: #6b7280; font-size: 0.85em;">
-                    Revisar todas las URLs para esta tarea
+                    {% if alert.source == 'custom' %}
+                      Aviso manual creado por {{ alert.created_by or 'usuario' }}
+                    {% else %}
+                      Revisar todas las URLs para esta tarea
+                    {% endif %}
                   </p>
                 </div>
               </div>
@@ -60,6 +87,15 @@
                 <span style="color: #6b7280; font-size: 0.9em;">{{ alert.periodicity }}</span>
               {% else %}
                 <span style="color: #9ca3af; font-style: italic;">-</span>
+              {% endif %}
+            </td>
+
+            <!-- Notas -->
+            <td style="color:#6b7280; font-size:0.9em;">
+              {% if alert.notes %}
+                {{ alert.notes }}
+              {% else %}
+                <span style="color:#9ca3af;">-</span>
               {% endif %}
             </td>
 
@@ -89,6 +125,15 @@
                   ✓ Resolver
                 {% endif %}
               </button>
+              {% if alert.source == 'custom' %}
+                <button
+                  type="button"
+                  class="btn btn-sm ghost"
+                  onclick="deleteCustom({{ alert.id }})"
+                  title="Eliminar alerta personalizada">
+                  🗑
+                </button>
+              {% endif %}
             </td>
           </tr>
         {% endfor %}
@@ -101,6 +146,7 @@
     <ul style="margin: 8px 0; padding-left: 20px; font-size: 0.9em;">
       <li>Las alertas se generan automáticamente según la configuración de periodicidad de cada tipo de tarea</li>
       <li>Cada alerta te recuerda revisar <strong>todas las URLs</strong> para ese tipo de tarea específico</li>
+      <li>Las alertas <strong>personalizadas</strong> son avisos puntuales que puedes crear en Configuración y eliminar cuando ya no apliquen</li>
       <li>Haz clic en <strong>"✓ Resolver"</strong> cuando hayas completado la revisión. Las alertas resueltas se muestran con menor opacidad y fondo verde</li>
       <li>Si marcas una alerta como resuelta por error, puedes hacer clic en <strong>"↻ Reactivar"</strong> para devolverla a estado activo</li>
       <li>Las alertas resueltas permanecen visibles en la lista para que puedas revisarlas o reactivarlas si es necesario</li>
@@ -145,14 +191,20 @@ function toggleAlert(alertId) {
   const row = document.querySelector(`tr[data-alert-id="${alertId}"]`);
   if (!row) return;
 
-  const isDismissed = row.dataset.dismissed === '1';
+  const source = row.dataset.alertSource || 'system';
+  const dismissedVal = (row.dataset.dismissed || '').toLowerCase();
+  const isDismissed = dismissedVal === '1' || dismissedVal === 'true';
   const action = isDismissed ? 'reactivar' : 'resolver';
 
   if (!confirm(`¿${action.charAt(0).toUpperCase() + action.slice(1)} esta alerta?`)) {
     return;
   }
 
-  fetch(`/alertas/dismiss/${alertId}`, {
+  const endpoint = source === 'custom'
+    ? `/alertas/custom/dismiss/${alertId}`
+    : `/alertas/dismiss/${alertId}`;
+
+  fetch(endpoint, {
     method: 'POST'
   })
   .then(response => response.json())
@@ -210,6 +262,25 @@ function toggleAlert(alertId) {
     console.error('Error:', error);
     alert('Error de conexión al cambiar estado de la alerta');
   });
+}
+
+function deleteCustom(alertId) {
+  if (!confirm('¿Eliminar esta alerta personalizada?')) return;
+
+  fetch(`/alertas/custom/delete/${alertId}`, { method: 'POST' })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        const row = document.querySelector(`tr[data-alert-id="${alertId}"]`);
+        if (row) row.remove();
+      } else {
+        alert('No se pudo eliminar: ' + (data.error || 'Error desconocido'));
+      }
+    })
+    .catch(err => {
+      console.error(err);
+      alert('Error de conexión al eliminar la alerta personalizada');
+    });
 }
 
 // Generate alerts manually (admin function)
