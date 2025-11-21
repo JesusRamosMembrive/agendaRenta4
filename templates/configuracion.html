@@ -237,7 +237,7 @@
     </div>
     <div style="display:flex; flex-direction:column; gap:6px;">
       <label style="font-weight:600;">Frecuencia *</label>
-      <select name="alert_frequency" id="custom-frequency" class="select" onchange="updateCustomDayOptions(this.value)">
+      <select name="alert_frequency" id="custom-frequency" class="select">
         <option value="daily">Diaria</option>
         <option value="weekly">Semanal</option>
         <option value="biweekly">Quincenal</option>
@@ -396,11 +396,13 @@ document.addEventListener('DOMContentLoaded', initializeDaySelectors);
 // Llamada inmediata por si el evento ya se disparó antes de ejecutar este script
 initializeDaySelectors();
 
-document.getElementById('form-alerts').addEventListener('submit', function(e) {
-  e.preventDefault();
+const formAlerts = document.getElementById('form-alerts');
+if (formAlerts) {
+  formAlerts.addEventListener('submit', function(e) {
+    e.preventDefault();
 
-  const alertsData = [];
-  const rows = document.querySelectorAll('#form-alerts tbody tr');
+    const alertsData = [];
+    const rows = document.querySelectorAll('#form-alerts tbody tr');
 
   rows.forEach(row => {
     const taskTypeId = row.dataset.taskTypeId;
@@ -436,13 +438,16 @@ document.getElementById('form-alerts').addEventListener('submit', function(e) {
     console.error('Error:', error);
     alert('❌ Error al guardar la configuración');
   });
-});
+  });
+}
 
 // ============================================================
 // NOTIFICACIONES
 // ============================================================
-document.getElementById('form-notifications').addEventListener('submit', function(e) {
-  e.preventDefault();
+const formNotifications = document.getElementById('form-notifications');
+if (formNotifications) {
+  formNotifications.addEventListener('submit', function(e) {
+    e.preventDefault();
 
   const formData = new FormData();
   formData.append('email', document.getElementById('email').value);
@@ -473,36 +478,39 @@ document.getElementById('form-notifications').addEventListener('submit', functio
     console.error('Error:', error);
     alert('❌ Error al guardar las preferencias');
   });
-});
+  });
+}
 
 // ============================================================
 // ALERTAS PERSONALIZADAS (REGLAS)
 // ============================================================
-const customForm = document.getElementById('form-custom-alert');
-if (customForm) {
-  customForm.addEventListener('submit', function(e) {
-    e.preventDefault();
-    const formData = new FormData(customForm);
+document.addEventListener('DOMContentLoaded', function() {
+  const customForm = document.getElementById('form-custom-alert');
+  if (customForm) {
+    customForm.addEventListener('submit', function(e) {
+      e.preventDefault();
+      const formData = new FormData(customForm);
 
-    fetch('{{ url_for("config.add_custom_alert_rule") }}', {
-      method: 'POST',
-      body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-      if (data.success) {
-        alert('✅ ' + data.message);
-        window.location.reload();
-      } else {
-        alert('❌ Error: ' + (data.error || 'No se pudo crear la alerta'));
-      }
-    })
-    .catch(error => {
-      console.error('Error:', error);
-      alert('❌ Error al crear la alerta');
+      fetch('{{ url_for("config.add_custom_alert_rule") }}', {
+        method: 'POST',
+        body: formData
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          alert('✅ ' + data.message);
+          window.location.reload();
+        } else {
+          alert('❌ Error: ' + (data.error || 'No se pudo crear la alerta'));
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        alert('❌ Error al crear la alerta');
+      });
     });
-  });
-}
+  }
+});
 
 // Rellenar día para regla personalizada
 function updateCustomDayOptions(frequency) {
@@ -546,6 +554,12 @@ function updateCustomDayOptions(frequency) {
   }
 }
 updateCustomDayOptions(document.getElementById('custom-frequency')?.value || 'monthly');
+const customFrequencySelect = document.getElementById('custom-frequency');
+if (customFrequencySelect) {
+  customFrequencySelect.addEventListener('change', (event) => {
+    updateCustomDayOptions(event.target.value);
+  });
+}
 
 function deleteCustomRule(id) {
   showConfirmModal('¿Eliminar esta alerta personalizada y sus tareas asociadas?', () => {
@@ -646,5 +660,5 @@ function showConfirmModal(message, onConfirm) {
     if (onConfirm) onConfirm();
   };
 }
-
+</script>
 {% endblock %}

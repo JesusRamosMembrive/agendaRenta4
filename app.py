@@ -1206,6 +1206,7 @@ def update_task():
                     """
                     INSERT INTO tasks (section_id, task_type_id, period, status, completed_date, completed_by)
                     VALUES (%s, %s, %s, %s, %s, %s)
+                    RETURNING id
                 """,
                     (
                         section_id,
@@ -1216,7 +1217,7 @@ def update_task():
                         completed_by,
                     ),
                 )
-                new_task_id = cursor.lastrowid
+                new_task_id = cursor.fetchone()["id"]
 
         return jsonify({"success": True, "task_id": new_task_id})
 

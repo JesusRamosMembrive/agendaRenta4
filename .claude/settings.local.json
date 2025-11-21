@@ -15,7 +15,11 @@
       "Bash(pip install:*)",
       "Bash(python test_objective_validations.py:*)",
       "Bash(python run_cta_batch_validation.py:*)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Skill(document-skills:xlsx)",
+      "Bash(cat:*)",
+      "Bash(timeout 3 python:*)",
+      "Bash(curl:*)"
     ],
     "deny": [],
     "ask": []
