@@ -485,6 +485,30 @@ document.addEventListener('DOMContentLoaded', initializeDaySelectors);
 // Llamada inmediata por si el evento ya se disparó antes de ejecutar este script
 initializeDaySelectors();
 
+// Manejar cambio de estado del toggle para actualizar color del borde lateral
+document.addEventListener('DOMContentLoaded', function() {
+  const toggles = document.querySelectorAll('.alert-enabled');
+
+  toggles.forEach(toggle => {
+    toggle.addEventListener('change', function() {
+      const taskTypeId = this.dataset.taskTypeId;
+      const card = document.querySelector(`.card-status[data-task-type-id="${taskTypeId}"]`);
+
+      if (card) {
+        if (this.checked) {
+          // Activado: borde verde (success)
+          card.classList.remove('status-muted');
+          card.classList.add('status-success');
+        } else {
+          // Desactivado: borde gris (muted)
+          card.classList.remove('status-success');
+          card.classList.add('status-muted');
+        }
+      }
+    });
+  });
+});
+
 const formAlerts = document.getElementById('form-alerts');
 if (formAlerts) {
   formAlerts.addEventListener('submit', function(e) {
@@ -675,18 +699,50 @@ function deleteCustomRule(id) {
 }
 
 function toggleCustomRule(id, checkbox) {
+  // Actualizar color del borde de la tarjeta inmediatamente
+  const card = document.querySelector(`.card-status[data-custom-rule-id="${id}"]`);
+  if (card) {
+    if (checkbox.checked) {
+      card.classList.remove('status-muted');
+      card.classList.add('status-success');
+    } else {
+      card.classList.remove('status-success');
+      card.classList.add('status-muted');
+    }
+  }
+
   fetch(`/configuracion/alerta-personalizada/toggle/${id}`, { method: 'POST' })
     .then(r => r.json())
     .then(data => {
       if (!data.success) {
         alert('❌ Error: ' + (data.error || 'No se pudo actualizar'));
         checkbox.checked = !checkbox.checked;
+        // Revertir cambio visual en caso de error
+        if (card) {
+          if (checkbox.checked) {
+            card.classList.remove('status-muted');
+            card.classList.add('status-success');
+          } else {
+            card.classList.remove('status-success');
+            card.classList.add('status-muted');
+          }
+        }
       }
     })
     .catch(err => {
       console.error(err);
       alert('❌ Error de conexión');
       checkbox.checked = !checkbox.checked;
+      // Revertir cambio visual en caso de error
+      if (card) {
+        if (checkbox.checked) {
+          card.classList.remove('status-muted');
+          card.classList.add('status-success');
+        } else {
+          card.classList.remove('status-success');
+          card.classList.add('status-muted');
+        }
+      }
     });
 }
 

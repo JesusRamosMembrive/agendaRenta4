@@ -381,6 +381,7 @@ a {
 .card-status.status-warning::before { background: var(--warning); }
 .card-status.status-danger::before { background: var(--danger); }
 .card-status.status-primary::before { background: var(--primary); }
+.card-status.status-muted::before { background: var(--muted); }
 
 /* Card grid layout */
 .card-grid {
