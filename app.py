@@ -347,7 +347,7 @@ def generate_alerts(reference_date: date = None) -> dict:
 
             # Custom alert rules
             cursor.execute("""
-                SELECT id, title, notes, alert_frequency, alert_day, enabled, created_by
+                SELECT id, title, notes, alert_frequency, alert_day, deadline_date, enabled, created_by
                 FROM custom_alert_rules
                 WHERE enabled = TRUE
             """)
@@ -356,8 +356,20 @@ def generate_alerts(reference_date: date = None) -> dict:
             for rule in custom_rules:
                 frequency = rule["alert_frequency"]
                 alert_day = rule["alert_day"]
+                deadline_date = rule.get("deadline_date")
 
-                if not check_alert_day(reference_date, frequency, alert_day):
+                if frequency == "deadline" and not deadline_date:
+                    stats["errors"].append(
+                        f"Regla '{rule['title']}' sin fecha límite configurada"
+                    )
+                    continue
+
+                if not check_alert_day(
+                    reference_date,
+                    frequency,
+                    alert_day,
+                    deadline_date=deadline_date,
+                ):
                     stats["skipped"] += 1
                     continue
 
@@ -515,6 +527,38 @@ def _check_annual_alert(reference_date, alert_day):
     return _check_monthly_alert(reference_date, alert_day)
 
 
+def _parse_date_value(value):
+    """Parse string/obj to date; devuelve None si falla."""
+    if not value:
+        return None
+    if isinstance(value, date):
+        return value
+    try:
+        return datetime.strptime(str(value), "%Y-%m-%d").date()
+    except (ValueError, TypeError):
+        return None
+
+
+def _check_deadline_alert(reference_date, alert_day, deadline_date=None):
+    """
+    Reglas para alertas con fecha límite:
+    - Más de 7 días: un aviso semanal (mismos días de la semana que el deadline)
+    - Última semana: avisos a falta de 7, 4, 2 y 1 día
+    """
+    deadline_obj = _parse_date_value(deadline_date)
+    if not deadline_obj:
+        return False
+
+    days_until = (deadline_obj - reference_date).days
+    if days_until <= 0:
+        return False
+
+    if days_until <= 7:
+        return days_until in {7, 4, 2, 1}
+
+    return days_until % 7 == 0
+
+
 # Strategy mapping: frequency -> checker function
 ALERT_CHECKERS = {
     "daily": _check_daily_alert,
@@ -527,7 +571,9 @@ ALERT_CHECKERS = {
 }
 
 
-def check_alert_day(reference_date: date, frequency: str, alert_day: str) -> bool:
+def check_alert_day(
+    reference_date: date, frequency: str, alert_day: str, deadline_date=None
+) -> bool:
     """
     Check if the reference_date matches the alert configuration (Strategy Pattern).
 
@@ -535,13 +581,19 @@ def check_alert_day(reference_date: date, frequency: str, alert_day: str) -> boo
 
     Args:
         reference_date: Date object to check
-        frequency: Alert frequency (daily, weekly, biweekly, monthly, quarterly, semiannual, annual)
+        frequency: Alert frequency (daily, weekly, biweekly, monthly, quarterly, semiannual, annual, deadline)
         alert_day: Specific day configuration (day of week or day of month)
+        deadline_date: Fecha objetivo para reglas deadline
 
     Returns:
         bool: True if alert should be generated for this date
     """
-    checker = ALERT_CHECKERS.get(frequency)
+    freq = (frequency or "").lower()
+
+    if freq == "deadline":
+        return _check_deadline_alert(reference_date, alert_day, deadline_date)
+
+    checker = ALERT_CHECKERS.get(freq)
 
     if not checker:
         # Unknown frequency - log warning and return False

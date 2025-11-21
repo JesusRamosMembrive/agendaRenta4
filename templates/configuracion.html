@@ -117,6 +117,7 @@
               <option value="quarterly" {% if task_type.alert.alert_frequency == 'quarterly' %}selected{% endif %}>Trimestral</option>
               <option value="semiannual" {% if task_type.alert.alert_frequency == 'semiannual' %}selected{% endif %}>Semestral</option>
               <option value="annual" {% if task_type.alert.alert_frequency == 'annual' %}selected{% endif %}>Anual</option>
+              <option value="deadline" {% if task_type.alert.alert_frequency == 'deadline' %}selected{% endif %}>Deadline</option>
             </select>
           </div>
 
@@ -313,18 +314,30 @@
           <option value="quarterly">Trimestral</option>
           <option value="semiannual">Semestral</option>
           <option value="annual">Anual</option>
+          <option value="deadline">Deadline</option>
         </select>
       </div>
       <div>
-        <label style="font-size: var(--text-xs); font-weight: var(--font-semibold); color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: var(--space-xs);">
-          Día de aviso *
-        </label>
-        {% set default_day_options = [] %}
-        <select name="alert_day" id="custom-day" class="select">
-          {% for i in range(1, 32) %}
-            <option value="{{ i }}" {% if i == 1 %}selected{% endif %}>Día {{ i }}</option>
-          {% endfor %}
-        </select>
+        <div id="custom-day-wrapper">
+          <label style="font-size: var(--text-xs); font-weight: var(--font-semibold); color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: var(--space-xs);">
+            Día de aviso *
+          </label>
+          {% set default_day_options = [] %}
+          <select name="alert_day" id="custom-day" class="select">
+            {% for i in range(1, 32) %}
+              <option value="{{ i }}" {% if i == 1 %}selected{% endif %}>Día {{ i }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div id="custom-deadline-wrapper" style="display: none;">
+          <label style="font-size: var(--text-xs); font-weight: var(--font-semibold); color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: var(--space-xs);">
+            Fecha límite *
+          </label>
+          <input type="date" name="deadline_date" id="custom-deadline" class="input" disabled />
+          <p style="font-size: var(--text-xs); color: var(--muted); margin: var(--space-xs) 0 0 0;">
+            Avisaremos semanalmente hasta la última semana (7, 4, 2 y 1 día)
+          </p>
+        </div>
       </div>
       <div>
         <label style="font-size: var(--text-xs); font-weight: var(--font-semibold); color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: var(--space-xs);">
@@ -360,7 +373,19 @@
                     <i data-lucide="repeat" class="icon-xs"></i>
                     {{ r.alert_frequency }}
                   </span>
-                  {% if r.alert_day %}
+                  {% if r.alert_frequency == 'deadline' %}
+                    {% if r.deadline_date %}
+                    <span class="badge badge-muted badge-sm">
+                      <i data-lucide="calendar-clock" class="icon-xs"></i>
+                      Deadline {{ r.deadline_date|format_date }}
+                    </span>
+                    {% else %}
+                    <span class="badge badge-danger badge-sm">
+                      <i data-lucide="alert-circle" class="icon-xs"></i>
+                      Falta fecha límite
+                    </span>
+                    {% endif %}
+                  {% elif r.alert_day %}
                   <span class="badge badge-muted badge-sm">
                     <i data-lucide="calendar-days" class="icon-xs"></i>
                     Día {{ r.alert_day }}
@@ -455,6 +480,12 @@ function updateDayOptions(taskTypeId, frequency) {
     } else {
       daySelect.value = 'monday';
     }
+  } else if (frequency === 'deadline') {
+    daySelect.disabled = true;
+    const option = document.createElement('option');
+    option.value = '';
+    option.textContent = 'Fecha límite (configura abajo)';
+    daySelect.appendChild(option);
   } else {
     // Para mensual/trimestral/semestral/anual: días del mes (1-31)
     for (let i = 1; i <= 31; i++) {
@@ -628,7 +659,18 @@ document.addEventListener('DOMContentLoaded', function() {
 // Rellenar día para regla personalizada
 function updateCustomDayOptions(frequency) {
   const daySelect = document.getElementById('custom-day');
+  const dayWrapper = document.getElementById('custom-day-wrapper');
+  const deadlineWrapper = document.getElementById('custom-deadline-wrapper');
+  const deadlineInput = document.getElementById('custom-deadline');
   if (!daySelect) return;
+
+  // Reset visibilidad y deshabilitar deadline por defecto
+  if (deadlineWrapper) deadlineWrapper.style.display = 'none';
+  if (deadlineInput) {
+    deadlineInput.disabled = true;
+  }
+  if (dayWrapper) dayWrapper.style.display = '';
+
   daySelect.disabled = false;
   const current = daySelect.value;
   daySelect.innerHTML = '';
@@ -656,6 +698,19 @@ function updateCustomDayOptions(frequency) {
       daySelect.appendChild(opt);
     });
     daySelect.value = current && days.some(d => d[0] === current) ? current : 'monday';
+  } else if (frequency === 'deadline') {
+    // Mostrar selector de fecha límite y ocultar día recurrente
+    if (dayWrapper) dayWrapper.style.display = 'none';
+    daySelect.disabled = true;
+    const opt = document.createElement('option');
+    opt.value = '';
+    opt.textContent = 'Usa fecha límite';
+    daySelect.appendChild(opt);
+    if (deadlineWrapper) deadlineWrapper.style.display = '';
+    if (deadlineInput) {
+      deadlineInput.disabled = false;
+      deadlineInput.focus();
+    }
   } else {
     for (let i = 1; i <= 31; i++) {
       const opt = document.createElement('option');
