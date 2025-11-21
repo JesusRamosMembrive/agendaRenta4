@@ -3,145 +3,364 @@
 {% block title %}Inicio - Agenda Renta4{% endblock %}
 
 {% block content %}
-<div class="h1">Inicio — URLs del mes</div>
+<!-- ===================================================================
+     Page Header
+     =================================================================== -->
+<div class="page-header">
+  <h1 class="page-title">Dashboard — URLs del mes</h1>
+  <p class="page-description">
+    Revisa y marca cada URL según el estado de sus tareas
+  </p>
+</div>
 
-<div class="panel" style="display:flex; gap:16px; align-items:center; margin-bottom:16px; background: linear-gradient(135deg, #2563eb 0%, #60a5fa 100%); color:#fff; border-left:4px solid rgba(255,255,255,0.7);">
-  <div style="font-size:36px; line-height:1">👩‍💻</div>
-  <div style="flex:1;">
-    <div style="font-weight:700; font-size:16px;">¿Qué hago ahora?</div>
-    <div style="display:flex; flex-wrap:wrap; gap:12px; margin-top:6px;">
-      <span style="background:rgba(255,255,255,0.15); padding:8px 10px; border-radius:8px;">1) Elige el periodo en la barra superior</span>
-      <span style="background:rgba(255,255,255,0.15); padding:8px 10px; border-radius:8px;">2) Marca cada tarea como ✓ OK o ⚠ Problema</span>
-      <span style="background:rgba(255,255,255,0.15); padding:8px 10px; border-radius:8px;">3) Escribe notas si hay incidencias (se guardan solas)</span>
+<!-- ===================================================================
+     Quick Stats - 3 Cards Horizontales
+     =================================================================== -->
+<div style="display: flex; gap: var(--space-md); margin-bottom: var(--space-xl);">
+  <!-- Pendientes Card -->
+  <a href="{{ url_for('pendientes') }}" class="card card-interactive" style="flex: 1; text-decoration: none; color: inherit;">
+    <div style="display: flex; align-items: center; gap: var(--space-md);">
+      <div style="width: 48px; height: 48px; border-radius: var(--radius-md); background: linear-gradient(135deg, var(--warning) 0%, var(--warning-hover) 100%); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+        <i data-lucide="clock" class="icon-lg" style="color: white;"></i>
+      </div>
+      <div style="flex: 1;">
+        <div style="font-size: var(--text-xs); font-weight: var(--font-semibold); color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: var(--space-xs);">
+          Pendientes
+        </div>
+        <div style="font-size: 32px; font-weight: var(--font-bold); color: var(--text); line-height: 1;">
+          {{ task_counts.pending }}
+        </div>
+      </div>
     </div>
-  </div>
-  <div style="display:flex; flex-direction:column; gap:6px; min-width:170px; text-align:right;">
-    <span style="font-weight:700; font-size:14px;">Pendientes: {{ task_counts.pending }}</span>
-    <span style="font-size:13px; opacity:0.9;">Problemas: {{ task_counts.problems }}</span>
-    <span style="font-size:13px; opacity:0.9;">Realizadas: {{ task_counts.completed }}</span>
-    <div style="display:flex; gap:6px; justify-content:flex-end; margin-top:4px;">
-      <a class="btn ghost" href="{{ url_for('config.index') }}" style="background:rgba(255,255,255,0.15); color:#fff;">⚙️ Configurar alertas</a>
-      <a class="btn ghost" href="{{ url_for('alertas') }}" style="background:rgba(255,255,255,0.15); color:#fff;">🔔 Alertas</a>
+  </a>
+
+  <!-- Problemas Card -->
+  <a href="{{ url_for('problemas') }}" class="card card-interactive" style="flex: 1; text-decoration: none; color: inherit;">
+    <div style="display: flex; align-items: center; gap: var(--space-md);">
+      <div style="width: 48px; height: 48px; border-radius: var(--radius-md); background: linear-gradient(135deg, var(--danger) 0%, var(--danger-hover) 100%); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+        <i data-lucide="alert-triangle" class="icon-lg" style="color: white;"></i>
+      </div>
+      <div style="flex: 1;">
+        <div style="font-size: var(--text-xs); font-weight: var(--font-semibold); color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: var(--space-xs);">
+          Problemas
+        </div>
+        <div style="font-size: 32px; font-weight: var(--font-bold); color: var(--text); line-height: 1;">
+          {{ task_counts.problems }}
+        </div>
+      </div>
+    </div>
+  </a>
+
+  <!-- Realizadas Card -->
+  <a href="{{ url_for('realizadas') }}" class="card card-interactive" style="flex: 1; text-decoration: none; color: inherit;">
+    <div style="display: flex; align-items: center; gap: var(--space-md);">
+      <div style="width: 48px; height: 48px; border-radius: var(--radius-md); background: linear-gradient(135deg, var(--success) 0%, var(--success-hover) 100%); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+        <i data-lucide="check-circle" class="icon-lg" style="color: white;"></i>
+      </div>
+      <div style="flex: 1;">
+        <div style="font-size: var(--text-xs); font-weight: var(--font-semibold); color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: var(--space-xs);">
+          Realizadas
+        </div>
+        <div style="font-size: 32px; font-weight: var(--font-bold); color: var(--text); line-height: 1;">
+          {{ task_counts.completed }}
+        </div>
+      </div>
+    </div>
+  </a>
+</div>
+
+<!-- ===================================================================
+     Guía Rápida Card
+     =================================================================== -->
+<div class="card card-glass" style="margin-bottom: var(--space-xl); border-left: 4px solid var(--primary);">
+  <div style="display: flex; align-items: flex-start; gap: var(--space-lg);">
+    <div style="width: 56px; height: 56px; border-radius: var(--radius-md); background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+      <i data-lucide="clipboard-list" class="icon-2xl" style="color: white;"></i>
+    </div>
+
+    <div style="flex: 1;">
+      <div style="display: flex; align-items: center; gap: var(--space-sm); margin-bottom: var(--space-md);">
+        <i data-lucide="help-circle" class="icon-sm icon-primary"></i>
+        <span style="font-weight: var(--font-semibold); color: var(--text); font-size: var(--text-base);">
+          ¿Qué hago ahora?
+        </span>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-sm);">
+        <div style="display: flex; align-items: flex-start; gap: var(--space-xs);">
+          <div style="width: 20px; height: 20px; border-radius: 50%; background: var(--primary); color: white; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: var(--font-bold); flex-shrink: 0; margin-top: 2px;">1</div>
+          <div>
+            <div style="font-weight: var(--font-semibold); color: var(--text); font-size: var(--text-sm); margin-bottom: 2px;">Elige el periodo</div>
+            <div style="color: var(--muted); font-size: var(--text-xs); line-height: var(--leading-relaxed);">Selecciona en la barra superior</div>
+          </div>
+        </div>
+
+        <div style="display: flex; align-items: flex-start; gap: var(--space-xs);">
+          <div style="width: 20px; height: 20px; border-radius: 50%; background: var(--primary); color: white; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: var(--font-bold); flex-shrink: 0; margin-top: 2px;">2</div>
+          <div>
+            <div style="font-weight: var(--font-semibold); color: var(--text); font-size: var(--text-sm); margin-bottom: 2px;">Marca cada tarea</div>
+            <div style="color: var(--muted); font-size: var(--text-xs); line-height: var(--leading-relaxed);">✓ OK o ⚠ Problema</div>
+          </div>
+        </div>
+
+        <div style="display: flex; align-items: flex-start; gap: var(--space-xs);">
+          <div style="width: 20px; height: 20px; border-radius: 50%; background: var(--primary); color: white; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: var(--font-bold); flex-shrink: 0; margin-top: 2px;">3</div>
+          <div>
+            <div style="font-weight: var(--font-semibold); color: var(--text); font-size: var(--text-sm); margin-bottom: 2px;">Escribe notas</div>
+            <div style="color: var(--muted); font-size: var(--text-xs); line-height: var(--leading-relaxed);">Si hay incidencias (auto-guardado)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: var(--space-sm);">
+      <a href="{{ url_for('config.index') }}" class="btn ghost" style="white-space: nowrap; display: inline-flex; align-items: center; gap: var(--space-xs);">
+        <i data-lucide="settings" class="icon-sm"></i>
+        <span>Configurar</span>
+      </a>
+      <a href="{{ url_for('alertas') }}" class="btn ghost" style="white-space: nowrap; display: inline-flex; align-items: center; gap: var(--space-xs);">
+        <i data-lucide="bell" class="icon-sm"></i>
+        <span>Alertas</span>
+      </a>
     </div>
   </div>
 </div>
 
+<!-- ===================================================================
+     URLs List - Card-based
+     =================================================================== -->
 {% if sections %}
-  <div class="table" role="table" aria-label="Listado de URLs y tareas">
-    <table>
-      <thead>
-        <tr>
-          <th class="sticky" style="width:22%">URL / Página</th>
-          {% for task_type in task_types %}
-            <th class="sticky task-head">{{ task_type.display_name }}</th>
-          {% endfor %}
-          <th class="sticky task-head" style="width:120px">Status</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for section in sections %}
-          <!-- Fila principal con URL y radios -->
-          <tr class="url-row" data-section-url="{{ section.url }}" data-section-id="{{ section.id }}">
-            <!-- Columna URL -->
-            <td class="url-col" title="{{ section.url }}">
-              <a href="{{ section.url }}" target="_blank" rel="noopener noreferrer" style="color: inherit; text-decoration: none;">
-                {{ section.name }}
-              </a>
-            </td>
+  <div style="display: flex; flex-direction: column; gap: var(--space-md);">
+    {% for section in sections %}
+    <div class="card card-interactive url-card" data-section-id="{{ section.id }}">
+      <!-- Card Header with URL and Status -->
+      <div style="display: flex; align-items: center; gap: var(--space-md); margin-bottom: var(--space-md); padding-bottom: var(--space-md); border-bottom: 1px solid var(--border);">
+        <div style="flex: 1;">
+          <div style="display: flex; align-items: center; gap: var(--space-sm); margin-bottom: var(--space-xs);">
+            <i data-lucide="link" class="icon-sm icon-muted"></i>
+            <a href="{{ section.url }}" target="_blank" rel="noopener noreferrer"
+               style="font-weight: var(--font-semibold); color: var(--text); text-decoration: none; font-size: var(--text-base);"
+               class="url-link">
+              {{ section.name }}
+            </a>
+            <i data-lucide="external-link" class="icon-xs icon-muted"></i>
+          </div>
+          <div style="color: var(--muted); font-size: var(--text-xs); font-family: 'Courier New', monospace;">
+            {{ section.url }}
+          </div>
+        </div>
 
-            <!-- Columnas de tipos de tareas (8 columnas con botones toggle) -->
-            {% for task_type in task_types %}
-              {% set task = section.tasks_by_type.get(task_type.id) %}
-              <td>
-                <div class="cell-group" role="group" aria-label="{{ task_type.display_name }} {{ section.name }}">
-                  <div class="task-buttons"
-                       data-task-id="{{ task.id if task else '' }}"
-                       data-section-id="{{ section.id }}"
-                       data-task-type-id="{{ task_type.id }}"
-                       data-period="{{ period }}"
-                       data-current-status="{{ task.status if task else 'pending' }}">
+        <!-- Status Indicator -->
+        <div style="display: flex; align-items: center; gap: var(--space-sm);">
+          <span style="font-size: var(--text-xs); color: var(--muted); font-weight: var(--font-semibold); text-transform: uppercase; letter-spacing: 0.5px;">Estado</span>
+          <span class="status-dot sd-neutral url-status-dot" aria-label="Status" style="width: 12px; height: 12px;"></span>
+        </div>
+      </div>
 
-                    <button type="button"
-                            class="task-btn task-btn-ok {% if task and task.status == 'ok' %}active{% endif %}"
-                            data-status="ok"
-                            title="Marcar como OK">
-                      ✓
-                    </button>
+      <!-- Task Types Grid -->
+      <div style="display: grid; grid-template-columns: repeat(8, 1fr); gap: var(--space-sm); margin-bottom: var(--space-md); align-items: center;">
+        {% for task_type in task_types %}
+          {% set task = section.tasks_by_type.get(task_type.id) %}
 
-                    <button type="button"
-                            class="task-btn task-btn-problem {% if task and task.status == 'problem' %}active{% endif %}"
-                            data-status="problem"
-                            title="Marcar como Problema">
-                      ⚠
-                    </button>
-                  </div>
-                </div>
-              </td>
-            {% endfor %}
+          <!-- Task Type Label -->
+          <div style="font-size: var(--text-xs); font-weight: var(--font-semibold); color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px;">
+            {{ task_type.display_name }}
+          </div>
 
-            <!-- Columna Status (dot con color) -->
-            <td>
-              <span class="status-dot sd-neutral" aria-label="Status"></span>
-            </td>
-          </tr>
+          <!-- Task Buttons -->
+          <div class="task-type-card"
+               data-task-id="{{ task.id if task else '' }}"
+               data-section-id="{{ section.id }}"
+               data-task-type-id="{{ task_type.id }}"
+               data-period="{{ period }}"
+               data-current-status="{{ task.status if task else 'pending' }}"
+               style="display: flex; gap: 4px;">
+            <button type="button"
+                    class="task-btn task-btn-ok {% if task and task.status == 'ok' %}active{% endif %}"
+                    data-status="ok"
+                    title="Marcar como OK"
+                    style="width: 28px; height: 28px; padding: 0; border-radius: var(--radius-sm); border: 1.5px solid var(--border); background: var(--bg); color: var(--text); cursor: pointer; transition: var(--transition); display: flex; align-items: center; justify-content: center;">
+              <i data-lucide="check" class="icon-xs"></i>
+            </button>
 
-          <!-- Fila de observaciones (se muestra solo si hay problemas) -->
-          <tr class="url-detail">
-            <td colspan="{{ task_types|length + 2 }}">
-              <div class="label" style="margin-bottom:6px">
-                Observaciones para {{ section.name }}
-              </div>
-              <form method="post" action="{{ url_for('save_observations') }}">
-                <input type="hidden" name="section_id" value="{{ section.id }}" />
-                <input type="hidden" name="period" value="{{ period }}" />
-                <textarea
-                  class="obs"
-                  name="observations"
-                  placeholder="Describe las incidencias encontradas..."
-                  data-section-id="{{ section.id }}"
-                >{% if section.observations %}{{ section.observations }}{% endif %}</textarea>
-                <div style="margin-top: 8px; text-align: right;">
-                  <button type="submit" class="btn primary">Guardar observaciones</button>
-                </div>
-              </form>
-            </td>
-          </tr>
+            <button type="button"
+                    class="task-btn task-btn-problem {% if task and task.status == 'problem' %}active{% endif %}"
+                    data-status="problem"
+                    title="Marcar como Problema"
+                    style="width: 28px; height: 28px; padding: 0; border-radius: var(--radius-sm); border: 1.5px solid var(--border); background: var(--bg); color: var(--text); cursor: pointer; transition: var(--transition); display: flex; align-items: center; justify-content: center;">
+              <i data-lucide="alert-triangle" class="icon-xs"></i>
+            </button>
+          </div>
         {% endfor %}
-      </tbody>
-    </table>
+      </div>
+
+      <!-- Observaciones Section (hidden by default, shown when problems exist) -->
+      <div class="observations-section" style="display: none; padding-top: var(--space-md); border-top: 1px solid var(--border);">
+        <label style="font-size: var(--text-xs); font-weight: var(--font-semibold); color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: var(--space-xs); margin-bottom: var(--space-sm);">
+          <i data-lucide="file-text" class="icon-xs"></i>
+          <span>Observaciones para {{ section.name }}</span>
+        </label>
+
+        <form method="post" action="{{ url_for('save_observations') }}" class="observations-form">
+          <input type="hidden" name="section_id" value="{{ section.id }}" />
+          <input type="hidden" name="period" value="{{ period }}" />
+          <textarea
+            class="textarea obs-textarea"
+            name="observations"
+            placeholder="Describe las incidencias encontradas..."
+            data-section-id="{{ section.id }}"
+            rows="3"
+            style="width: 100%; resize: vertical;">{% if section.observations %}{{ section.observations }}{% endif %}</textarea>
+          <div style="margin-top: var(--space-sm); text-align: right;">
+            <button type="submit" class="btn primary btn-sm" style="display: inline-flex; align-items: center; gap: var(--space-xs);">
+              <i data-lucide="save" class="icon-xs"></i>
+              <span>Guardar observaciones</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+    {% endfor %}
   </div>
 
-  <div class="panel" style="margin-top:14px; color:#a7afc5">
-    <strong>Instrucciones:</strong>
-    <ul style="margin: 8px 0; padding-left: 20px;">
-      <li>Haz clic en "Ok" si todo está correcto</li>
-      <li>Haz clic en "Problema" si hay incidencias</li>
-      <li>Puedes desmarcar haciendo clic de nuevo en la opción seleccionada</li>
-      <li>El círculo de Status indica: <span class="status-dot sd-green"></span> todo OK, <span class="status-dot sd-orange"></span> hay problemas, <span class="status-dot sd-red"></span> muchos problemas</li>
-      <li>Las observaciones aparecen automáticamente cuando marcas algún problema</li>
-    </ul>
+  <!-- Instructions Card -->
+  <div class="card card-sm" style="margin-top: var(--space-xl);">
+    <div style="display: flex; align-items: flex-start; gap: var(--space-md);">
+      <i data-lucide="info" class="icon-sm icon-primary" style="flex-shrink: 0; margin-top: 2px;"></i>
+      <div style="flex: 1;">
+        <div style="font-weight: var(--font-semibold); color: var(--text); margin-bottom: var(--space-sm); font-size: var(--text-sm);">
+          Instrucciones de uso
+        </div>
+        <ul style="margin: 0; padding-left: var(--space-lg); color: var(--muted); font-size: var(--text-xs); line-height: var(--leading-relaxed);">
+          <li>Haz clic en "OK" si todo está correcto</li>
+          <li>Haz clic en "Problema" si hay incidencias</li>
+          <li>Puedes desmarcar haciendo clic de nuevo en la opción seleccionada</li>
+          <li>El círculo de Estado indica: <span class="status-dot sd-green" style="display: inline-block; vertical-align: middle;"></span> todo OK, <span class="status-dot sd-orange" style="display: inline-block; vertical-align: middle;"></span> hay problemas, <span class="status-dot sd-red" style="display: inline-block; vertical-align: middle;"></span> muchos problemas</li>
+          <li>Las observaciones aparecen automáticamente cuando marcas algún problema</li>
+        </ul>
+      </div>
+    </div>
   </div>
 
 {% else %}
-  <div class="panel">
-    <h3>No hay secciones disponibles</h3>
-    <p>No se encontraron URLs para revisar en este periodo.</p>
-    <p style="margin-top: 12px;">
-      <a href="{{ url_for('config.index') }}" class="btn primary">Ir a Configuración</a>
+  <!-- Empty State -->
+  <div class="card" style="text-align: center; padding: var(--space-2xl);">
+    <div style="width: 64px; height: 64px; margin: 0 auto var(--space-lg); border-radius: 50%; background: linear-gradient(135deg, var(--muted-light) 0%, var(--border) 100%); display: flex; align-items: center; justify-content: center;">
+      <i data-lucide="inbox" class="icon-xl icon-muted"></i>
+    </div>
+    <h3 style="margin: 0 0 var(--space-sm) 0; font-size: var(--text-xl); font-weight: var(--font-semibold); color: var(--text);">
+      No hay secciones disponibles
+    </h3>
+    <p style="margin: 0 0 var(--space-lg) 0; color: var(--muted); font-size: var(--text-sm);">
+      No se encontraron URLs para revisar en este periodo.
     </p>
+    <a href="{{ url_for('config.index') }}" class="btn primary" style="display: inline-flex; align-items: center; gap: var(--space-sm);">
+      <i data-lucide="settings" class="icon-sm"></i>
+      <span>Ir a Configuración</span>
+    </a>
   </div>
 {% endif %}
 {% endblock %}
 
 {% block extra_js %}
+<style>
+/* Task Button Styles */
+.task-btn {
+  transition: all 0.2s ease;
+}
+
+.task-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.task-btn-ok.active {
+  background: linear-gradient(135deg, var(--success) 0%, var(--success-hover) 100%) !important;
+  border-color: var(--success) !important;
+  color: white !important;
+}
+
+.task-btn-ok.active i {
+  color: white !important;
+}
+
+.task-btn-problem.active {
+  background: linear-gradient(135deg, var(--danger) 0%, var(--danger-hover) 100%) !important;
+  border-color: var(--danger) !important;
+  color: white !important;
+}
+
+.task-btn-problem.active i {
+  color: white !important;
+}
+
+/* URL Link Hover */
+.url-link:hover {
+  color: var(--primary) !important;
+}
+
+/* Card Hover Effect */
+.url-card {
+  transition: all 0.3s ease;
+}
+
+.url-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+/* Card Active/Selected State */
+.url-card.selected {
+  border-left: 4px solid var(--success) !important;
+  background: linear-gradient(to right, rgba(34, 197, 94, 0.05), transparent) !important;
+}
+</style>
+
 <script>
 // Auto-submit cuando se hace click en un botón de estado
 document.addEventListener('DOMContentLoaded', function() {
   const taskButtons = document.querySelectorAll('.task-btn');
 
+  // Handle card selection (highlight on click)
+  const urlCards = document.querySelectorAll('.url-card');
+
+  // Load selected card from localStorage
+  const selectedCardId = localStorage.getItem('selectedUrlCard');
+  if (selectedCardId) {
+    const savedCard = document.querySelector(`.url-card[data-section-id="${selectedCardId}"]`);
+    if (savedCard) {
+      savedCard.classList.add('selected');
+    }
+  }
+
+  // Add click handler to each card
+  urlCards.forEach(card => {
+    card.addEventListener('click', function(e) {
+      // Don't toggle if clicking on a button or link
+      if (e.target.closest('button') || e.target.closest('a') || e.target.closest('textarea')) {
+        return;
+      }
+
+      const sectionId = this.dataset.sectionId;
+
+      // Toggle selected state
+      if (this.classList.contains('selected')) {
+        this.classList.remove('selected');
+        localStorage.removeItem('selectedUrlCard');
+      } else {
+        // Remove selected from all cards
+        urlCards.forEach(c => c.classList.remove('selected'));
+        // Add selected to this card
+        this.classList.add('selected');
+        // Save to localStorage
+        localStorage.setItem('selectedUrlCard', sectionId);
+      }
+    });
+  });
+
   taskButtons.forEach(button => {
     button.addEventListener('click', function() {
-      const container = this.closest('.task-buttons');
+      const container = this.closest('.task-type-card');
       const clickedStatus = this.dataset.status;
       const currentStatus = container.dataset.currentStatus;
       const taskId = container.dataset.taskId;
@@ -169,9 +388,12 @@ document.addEventListener('DOMContentLoaded', function() {
       // Save to server
       saveTaskStatus(container, newStatus);
 
-      // Update status dot for this row
-      const row = this.closest('.url-row');
-      updateRowStatus(row);
+      // Update status dot for this URL card
+      const card = this.closest('.url-card');
+      updateCardStatus(card);
+
+      // Show/hide observations section
+      updateObservationsVisibility(card);
     });
   });
 
@@ -216,7 +438,7 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   // Auto-save observaciones con debounce
-  const textareas = document.querySelectorAll('textarea.obs');
+  const textareas = document.querySelectorAll('textarea.obs-textarea');
   textareas.forEach(textarea => {
     let timeout = null;
 
@@ -244,25 +466,26 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
 
-  // Initialize status dots on page load
-  document.querySelectorAll('.url-row').forEach(row => {
-    updateRowStatus(row);
+  // Initialize status dots and observations visibility on page load
+  document.querySelectorAll('.url-card').forEach(card => {
+    updateCardStatus(card);
+    updateObservationsVisibility(card);
   });
 });
 
 // Function to update status dot based on task buttons
-function updateRowStatus(row) {
-  const taskButtons = row.querySelectorAll('.task-buttons');
-  const statusDot = row.querySelector('.status-dot');
+function updateCardStatus(card) {
+  const taskContainers = card.querySelectorAll('.task-type-card');
+  const statusDot = card.querySelector('.url-status-dot');
 
   if (!statusDot) return;
 
   let oks = 0;
   let problems = 0;
-  const totalTasks = taskButtons.length;
+  const totalTasks = taskContainers.length;
 
   // Count active OK and Problem buttons
-  taskButtons.forEach(container => {
+  taskContainers.forEach(container => {
     const okBtn = container.querySelector('.task-btn-ok.active');
     const problemBtn = container.querySelector('.task-btn-problem.active');
 
@@ -271,20 +494,45 @@ function updateRowStatus(row) {
   });
 
   // Update status dot class based on rules
-  statusDot.className = 'status-dot sd-neutral';
+  statusDot.className = 'status-dot url-status-dot sd-neutral';
 
   if (problems === 0 && oks === totalTasks) {
     // All OK - green
-    statusDot.className = 'status-dot sd-green';
+    statusDot.className = 'status-dot url-status-dot sd-green';
   } else if (problems > 4) {
     // More than 4 problems - red
-    statusDot.className = 'status-dot sd-red';
+    statusDot.className = 'status-dot url-status-dot sd-red';
   } else if (problems > 0) {
     // 1-4 problems - orange
-    statusDot.className = 'status-dot sd-orange';
+    statusDot.className = 'status-dot url-status-dot sd-orange';
   }
 
-  console.log('Row status updated:', { oks, problems, totalTasks, class: statusDot.className });
+  console.log('Card status updated:', { oks, problems, totalTasks, class: statusDot.className });
+}
+
+// Function to show/hide observations section based on problems
+function updateObservationsVisibility(card) {
+  const taskContainers = card.querySelectorAll('.task-type-card');
+  const observationsSection = card.querySelector('.observations-section');
+
+  if (!observationsSection) return;
+
+  let hasProblems = false;
+
+  // Check if any task has problems
+  taskContainers.forEach(container => {
+    const problemBtn = container.querySelector('.task-btn-problem.active');
+    if (problemBtn) {
+      hasProblems = true;
+    }
+  });
+
+  // Show/hide observations section
+  if (hasProblems) {
+    observationsSection.style.display = 'block';
+  } else {
+    observationsSection.style.display = 'none';
+  }
 }
 </script>
 {% endblock %}

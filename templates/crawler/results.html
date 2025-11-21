@@ -3,103 +3,245 @@
 {% block title %}Crawler - URLs Descubiertas{% endblock %}
 
 {% block content %}
-<div class="container">
-    <h1>📋 URLs Descubiertas</h1>
-
+<!-- ===============================================================
+     Page Header
+     =============================================================== -->
+<div class="page-header">
+  <h1 class="page-title">URLs Descubiertas</h1>
+  <p class="page-description">
     {% if crawl_run %}
-    <!-- Crawl Run Info -->
-    <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
-        <h3>Crawl Run #{{ crawl_run.id }}</h3>
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
-            <div>
-                <strong>Estado:</strong>
-                {% if crawl_run.status == 'completed' %}
-                    <span style="color: #10b981;">✓ Completado</span>
-                {% elif crawl_run.status == 'running' %}
-                    <span style="color: #f59e0b;">⏳ En progreso</span>
-                {% elif crawl_run.status == 'failed' %}
-                    <span style="color: #ef4444;">✗ Fallido</span>
-                {% endif %}
-            </div>
-            <div><strong>Iniciado:</strong> {{ crawl_run.started_at.strftime('%d/%m/%Y %H:%M') if crawl_run.started_at else '-' }}</div>
-            <div><strong>Finalizado:</strong> {{ crawl_run.finished_at.strftime('%d/%m/%Y %H:%M') if crawl_run.finished_at else '-' }}</div>
-            <div><strong>URLs:</strong> {{ crawl_run.urls_discovered or 0 }}</div>
-            <div><strong>Rotas:</strong> {{ crawl_run.urls_broken or 0 }}</div>
-        </div>
-    </div>
+      Resultados del Crawl Run #{{ crawl_run.id }}
     {% else %}
-    <!-- Summary Info -->
-    <div style="margin-bottom: 20px;">
-        <p>Total: <strong>{{ total }}</strong> URLs descubiertas</p>
-        <a href="{{ url_for('crawler.dashboard') }}" class="btn">← Volver al Dashboard</a>
-    </div>
+      Lista completa de todas las URLs descubiertas
     {% endif %}
-
-    <!-- URLs Table -->
-    {% if urls %}
-    <table>
-        <thead>
-            <tr>
-                <th>URL</th>
-                <th>Profundidad</th>
-                <th>Descubierta</th>
-                <th>Estado</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for url in urls %}
-            <tr {% if url.is_broken %}style="background: #fee2e2;"{% endif %}>
-                <td>
-                    <a href="{{ url.url }}" target="_blank" style="word-break: break-all; color: {% if url.is_broken %}#991b1b{% else %}#3b82f6{% endif %};">
-                        {{ url.url }}
-                    </a>
-                </td>
-                <td>
-                    <span style="display: inline-block; padding: 2px 8px; background: #dbeafe; color: #1e40af; border-radius: 4px;">
-                        Nivel {{ url.depth }}
-                    </span>
-                </td>
-                <td>{{ url.discovered_at.strftime('%d/%m/%Y %H:%M') if url.discovered_at else '-' }}</td>
-                <td>
-                    {% if url.status_code %}
-                        {% if url.status_code == 200 %}
-                            <span style="color: #10b981;">✓ {{ url.status_code }}</span>
-                        {% elif url.status_code >= 400 %}
-                            <span style="color: #ef4444;">✗ {{ url.status_code }}</span>
-                        {% else %}
-                            {{ url.status_code }}
-                        {% endif %}
-                    {% else %}
-                        <span style="color: #9ca3af;">- Pendiente</span>
-                    {% endif %}
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-
-    <!-- Pagination (if not crawl_run specific) -->
-    {% if not crawl_run and total_pages > 1 %}
-    <div style="margin-top: 30px; text-align: center;">
-        {% if page > 1 %}
-            <a href="{{ url_for('crawler.results', page=page-1) }}" class="btn">← Anterior</a>
-        {% endif %}
-
-        <span style="margin: 0 20px;">
-            Página {{ page }} de {{ total_pages }}
-        </span>
-
-        {% if page < total_pages %}
-            <a href="{{ url_for('crawler.results', page=page+1) }}" class="btn">Siguiente →</a>
-        {% endif %}
-    </div>
-    {% endif %}
-
-    {% else %}
-    <div style="padding: 40px; text-align: center; background: #f3f4f6; border-radius: 8px; color: #374151;">
-        <p style="margin: 0 0 10px 0; font-size: 16px; font-weight: 600;">No hay URLs descubiertas todavía.</p>
-        <p style="margin: 0; font-size: 14px;"><a href="{{ url_for('crawler.dashboard') }}" style="color: #2563eb; text-decoration: underline;">Iniciar un crawl</a> para comenzar.</p>
-    </div>
-    {% endif %}
+  </p>
 </div>
+
+{% if crawl_run %}
+  <!-- ===============================================================
+       Crawl Run Info Card
+       =============================================================== -->
+  <div class="card" style="margin-bottom: var(--space-xl); border-left: 4px solid var(--primary);">
+    <h3 style="margin: 0 0 var(--space-md) 0; font-size: var(--text-xl); font-weight: var(--font-bold); color: var(--text); display: flex; align-items: center; gap: var(--space-sm);">
+      <i data-lucide="activity" class="icon-md"></i>
+      <span>Crawl Run #{{ crawl_run.id }}</span>
+    </h3>
+
+    <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: var(--space-lg);">
+      <!-- Estado -->
+      <div>
+        <div style="display: flex; align-items: center; gap: var(--space-xs); margin-bottom: var(--space-xs);">
+          <i data-lucide="info" class="icon-xs" style="color: var(--muted);"></i>
+          <span style="font-size: var(--text-xs); font-weight: var(--font-semibold); color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px;">
+            Estado
+          </span>
+        </div>
+        {% if crawl_run.status == 'completed' %}
+          <div class="badge badge-success">
+            <i data-lucide="check-circle" class="icon-xs"></i>
+            <span>Completado</span>
+          </div>
+        {% elif crawl_run.status == 'running' %}
+          <div class="badge badge-warning">
+            <i data-lucide="loader" class="icon-xs"></i>
+            <span>En progreso</span>
+          </div>
+        {% elif crawl_run.status == 'failed' %}
+          <div class="badge badge-danger">
+            <i data-lucide="x-circle" class="icon-xs"></i>
+            <span>Fallido</span>
+          </div>
+        {% endif %}
+      </div>
+
+      <!-- Iniciado -->
+      <div>
+        <div style="display: flex; align-items: center; gap: var(--space-xs); margin-bottom: var(--space-xs);">
+          <i data-lucide="play-circle" class="icon-xs" style="color: var(--muted);"></i>
+          <span style="font-size: var(--text-xs); font-weight: var(--font-semibold); color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px;">
+            Iniciado
+          </span>
+        </div>
+        <div style="font-weight: var(--font-semibold); color: var(--text); font-size: var(--text-sm);">
+          {{ crawl_run.started_at.strftime('%d/%m/%Y %H:%M') if crawl_run.started_at else '-' }}
+        </div>
+      </div>
+
+      <!-- Finalizado -->
+      <div>
+        <div style="display: flex; align-items: center; gap: var(--space-xs); margin-bottom: var(--space-xs);">
+          <i data-lucide="check-circle" class="icon-xs" style="color: var(--muted);"></i>
+          <span style="font-size: var(--text-xs); font-weight: var(--font-semibold); color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px;">
+            Finalizado
+          </span>
+        </div>
+        <div style="font-weight: var(--font-semibold); color: var(--text); font-size: var(--text-sm);">
+          {{ crawl_run.finished_at.strftime('%d/%m/%Y %H:%M') if crawl_run.finished_at else '-' }}
+        </div>
+      </div>
+
+      <!-- URLs -->
+      <div>
+        <div style="display: flex; align-items: center; gap: var(--space-xs); margin-bottom: var(--space-xs);">
+          <i data-lucide="globe" class="icon-xs" style="color: var(--muted);"></i>
+          <span style="font-size: var(--text-xs); font-weight: var(--font-semibold); color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px;">
+            URLs
+          </span>
+        </div>
+        <div style="font-weight: var(--font-bold); color: var(--primary); font-size: var(--text-lg);">
+          {{ crawl_run.urls_discovered or 0 }}
+        </div>
+      </div>
+
+      <!-- Rotas -->
+      <div>
+        <div style="display: flex; align-items: center; gap: var(--space-xs); margin-bottom: var(--space-xs);">
+          <i data-lucide="link-2-off" class="icon-xs" style="color: var(--muted);"></i>
+          <span style="font-size: var(--text-xs); font-weight: var(--font-semibold); color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px;">
+            Rotas
+          </span>
+        </div>
+        <div style="font-weight: var(--font-bold); color: var(--danger); font-size: var(--text-lg);">
+          {{ crawl_run.urls_broken or 0 }}
+        </div>
+      </div>
+    </div>
+  </div>
+{% else %}
+  <!-- ===============================================================
+       Summary Info
+       =============================================================== -->
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-xl);">
+    <div style="display: flex; align-items: center; gap: var(--space-sm);">
+      <i data-lucide="database" class="icon-md" style="color: var(--primary);"></i>
+      <span style="font-size: var(--text-lg); color: var(--text);">
+        Total: <strong style="color: var(--primary);">{{ total }}</strong> URLs descubiertas
+      </span>
+    </div>
+    <a href="{{ url_for('crawler.dashboard') }}" class="btn ghost" style="text-decoration: none;">
+      <i data-lucide="arrow-left" class="icon-xs"></i>
+      <span>Volver al Dashboard</span>
+    </a>
+  </div>
+{% endif %}
+
+<!-- ===============================================================
+     URLs Table
+     =============================================================== -->
+{% if urls %}
+  <div class="card" style="overflow-x: auto; padding: 0;">
+    <table style="width: 100%; border-collapse: collapse;">
+      <thead>
+        <tr style="background: var(--bg-secondary); border-bottom: 2px solid var(--border);">
+          <th style="padding: var(--space-md); text-align: left; font-weight: var(--font-semibold); color: var(--text); font-size: var(--text-sm);">URL</th>
+          <th style="padding: var(--space-md); text-align: center; font-weight: var(--font-semibold); color: var(--text); font-size: var(--text-sm);">Profundidad</th>
+          <th style="padding: var(--space-md); text-align: left; font-weight: var(--font-semibold); color: var(--text); font-size: var(--text-sm);">Descubierta</th>
+          <th style="padding: var(--space-md); text-align: center; font-weight: var(--font-semibold); color: var(--text); font-size: var(--text-sm);">Estado</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for url in urls %}
+        <tr style="border-bottom: 1px solid var(--border); transition: background 0.2s; {% if url.is_broken %}background: var(--danger-light);{% endif %}"
+            onmouseover="this.style.background='var(--bg-secondary)'"
+            onmouseout="this.style.background='{% if url.is_broken %}var(--danger-light){% else %}transparent{% endif %}'">
+          <td style="padding: var(--space-md);">
+            <a href="{{ url.url }}"
+               target="_blank"
+               style="word-break: break-all; color: {% if url.is_broken %}var(--danger){% else %}var(--primary){% endif %}; text-decoration: none; transition: opacity 0.2s;"
+               onmouseover="this.style.opacity='0.7'"
+               onmouseout="this.style.opacity='1'">
+              {{ url.url }}
+            </a>
+          </td>
+          <td style="padding: var(--space-md); text-align: center;">
+            <div class="badge" style="background: var(--primary-light); color: var(--primary);">
+              <i data-lucide="layers" class="icon-xs"></i>
+              <span>Nivel {{ url.depth }}</span>
+            </div>
+          </td>
+          <td style="padding: var(--space-md); color: var(--text-secondary); font-size: var(--text-sm);">
+            {{ url.discovered_at.strftime('%d/%m/%Y %H:%M') if url.discovered_at else '-' }}
+          </td>
+          <td style="padding: var(--space-md); text-align: center;">
+            {% if url.status_code %}
+              {% if url.status_code == 200 %}
+                <div class="badge badge-success">
+                  <i data-lucide="check" class="icon-xs"></i>
+                  <span>{{ url.status_code }}</span>
+                </div>
+              {% elif url.status_code >= 400 %}
+                <div class="badge badge-danger">
+                  <i data-lucide="x" class="icon-xs"></i>
+                  <span>{{ url.status_code }}</span>
+                </div>
+              {% else %}
+                <div class="badge" style="background: var(--warning-light); color: var(--warning);">
+                  <span>{{ url.status_code }}</span>
+                </div>
+              {% endif %}
+            {% else %}
+              <span style="color: var(--muted); font-style: italic; font-size: var(--text-sm);">Pendiente</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ===============================================================
+       Pagination
+       =============================================================== -->
+  {% if not crawl_run and total_pages > 1 %}
+  <div style="margin-top: var(--space-xl); display: flex; justify-content: center; align-items: center; gap: var(--space-md);">
+    {% if page > 1 %}
+      <a href="{{ url_for('crawler.results', page=page-1) }}" class="btn ghost" style="text-decoration: none;">
+        <i data-lucide="chevron-left" class="icon-xs"></i>
+        <span>Anterior</span>
+      </a>
+    {% else %}
+      <button class="btn ghost" disabled style="opacity: 0.5; cursor: not-allowed;">
+        <i data-lucide="chevron-left" class="icon-xs"></i>
+        <span>Anterior</span>
+      </button>
+    {% endif %}
+
+    <span style="padding: var(--space-sm) var(--space-md); background: var(--bg-secondary); border-radius: var(--radius-sm); color: var(--text); font-weight: var(--font-semibold); font-size: var(--text-sm);">
+      Página {{ page }} de {{ total_pages }}
+    </span>
+
+    {% if page < total_pages %}
+      <a href="{{ url_for('crawler.results', page=page+1) }}" class="btn ghost" style="text-decoration: none;">
+        <span>Siguiente</span>
+        <i data-lucide="chevron-right" class="icon-xs"></i>
+      </a>
+    {% else %}
+      <button class="btn ghost" disabled style="opacity: 0.5; cursor: not-allowed;">
+        <span>Siguiente</span>
+        <i data-lucide="chevron-right" class="icon-xs"></i>
+      </button>
+    {% endif %}
+  </div>
+  {% endif %}
+
+{% else %}
+  <!-- ===============================================================
+       Empty State
+       =============================================================== -->
+  <div class="card" style="text-align: center; padding: var(--space-2xl); border: 2px dashed var(--border);">
+    <div style="width: 80px; height: 80px; margin: 0 auto var(--space-lg); border-radius: 50%; background: var(--bg-secondary); display: flex; align-items: center; justify-content: center;">
+      <i data-lucide="search-x" class="icon-2xl" style="color: var(--muted);"></i>
+    </div>
+    <h3 style="margin: 0 0 var(--space-sm) 0; font-size: var(--text-xl); font-weight: var(--font-bold); color: var(--text);">
+      No hay URLs descubiertas todavía
+    </h3>
+    <p style="margin: 0 0 var(--space-lg) 0; color: var(--text-secondary); font-size: var(--text-base);">
+      Inicia un crawl desde el dashboard para comenzar a descubrir URLs.
+    </p>
+    <a href="{{ url_for('crawler.dashboard') }}" class="btn primary" style="text-decoration: none;">
+      <i data-lucide="play-circle" class="icon-xs"></i>
+      <span>Ir al Dashboard</span>
+    </a>
+  </div>
+{% endif %}
 {% endblock %}

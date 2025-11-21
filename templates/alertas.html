@@ -3,22 +3,51 @@
 {% block title %}Alertas - Agenda Renta4{% endblock %}
 
 {% block content %}
-<div class="h1">Alertas — Avisos programados</div>
+<!-- ===================================================================
+     Page Header
+     =================================================================== -->
+<div class="page-header">
+  <h1 class="page-title">Alertas — Avisos programados</h1>
+  <p class="page-description">
+    Gestiona las alertas automáticas y personalizadas del sistema
+  </p>
+</div>
 
-<div class="panel" style="margin-bottom:16px; display:flex; gap:14px; align-items:center; background:linear-gradient(135deg, #f97316 0%, #fb923c 100%); color:#fff; border-left:4px solid rgba(255,255,255,0.7);">
-  <div style="font-size:34px; line-height:1">🔔</div>
-  <div style="flex:1;">
-    <div style="font-weight:700; font-size:16px;">Cómo usar las alertas</div>
-    <ul style="margin:6px 0 0 0; padding-left:18px; font-size:13px; line-height:1.5;">
-      <li>Una alerta = un tipo de tarea que toca revisar para todas las URLs.</li>
-      <li>Pulsa “✓ Resolver” cuando hayas completado ese tipo en el periodo actual.</li>
-      <li>Si necesitas cambiar la periodicidad o el día, ve a <strong>Configuración</strong>.</li>
-      <li>Si quieres dispararlas manualmente, usa el botón de abajo (“Generar alertas de hoy”).</li>
-    </ul>
-  </div>
-  <div style="display:flex; flex-direction:column; gap:6px; min-width:190px;">
-    <a class="btn ghost" href="{{ url_for('config.index') }}" style="background:rgba(255,255,255,0.15); color:#fff;">⚙️ Configurar</a>
-    <a class="btn ghost" href="{{ url_for('inicio') }}" style="background:rgba(255,255,255,0.15); color:#fff;">📋 Ir a tareas</a>
+<!-- ===================================================================
+     Guía Rápida Card
+     =================================================================== -->
+<div class="card card-glass" style="margin-bottom: var(--space-xl); border-left: 4px solid var(--warning);">
+  <div style="display: flex; align-items: flex-start; gap: var(--space-lg);">
+    <div style="width: 56px; height: 56px; border-radius: var(--radius-md); background: linear-gradient(135deg, var(--warning) 0%, var(--warning-hover) 100%); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+      <i data-lucide="bell-ring" class="icon-2xl" style="color: white;"></i>
+    </div>
+
+    <div style="flex: 1;">
+      <div style="display: flex; align-items: center; gap: var(--space-sm); margin-bottom: var(--space-md);">
+        <i data-lucide="info" class="icon-sm icon-primary"></i>
+        <span style="font-weight: var(--font-semibold); color: var(--text); font-size: var(--text-base);">
+          Cómo usar las alertas
+        </span>
+      </div>
+
+      <ul style="margin: 0; padding-left: var(--space-lg); color: var(--muted); font-size: var(--text-sm); line-height: var(--leading-relaxed);">
+        <li>Una alerta = un tipo de tarea que toca revisar para todas las URLs</li>
+        <li>Pulsa "Resolver" cuando hayas completado ese tipo en el periodo actual</li>
+        <li>Si necesitas cambiar la periodicidad o el día, ve a Configuración</li>
+        <li>Si quieres dispararlas manualmente, usa el botón de abajo</li>
+      </ul>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: var(--space-sm);">
+      <a href="{{ url_for('config.index') }}" class="btn ghost" style="white-space: nowrap; display: inline-flex; align-items: center; gap: var(--space-xs);">
+        <i data-lucide="settings" class="icon-sm"></i>
+        <span>Configurar</span>
+      </a>
+      <a href="{{ url_for('inicio') }}" class="btn ghost" style="white-space: nowrap; display: inline-flex; align-items: center; gap: var(--space-xs);">
+        <i data-lucide="clipboard-list" class="icon-sm"></i>
+        <span>Ir a tareas</span>
+      </a>
+    </div>
   </div>
 </div>
 
@@ -26,173 +55,305 @@
   {% set active_count = pending_alerts | selectattr('dismissed', 'equalto', 0) | list | length %}
   {% set dismissed_count = pending_alerts | selectattr('dismissed', 'equalto', 1) | list | length %}
 
-  <div class="panel" style="margin-bottom: 20px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); border-left: 4px solid #fbbf24;">
-    <strong style="color: #fffbeb;">⚠️ Alertas activas:</strong> <span style="color: #fffbeb; font-weight: 600;">{{ active_count }}</span>
-    <span style="color: #fef3c7; margin-left: 16px;">Resueltas: {{ dismissed_count }}</span>
-    <p style="margin: 8px 0 0 0; color: #fef3c7; font-size: 0.9em;">
-      Estas alertas se generaron automáticamente según la periodicidad configurada
-    </p>
+  <!-- ===================================================================
+       Stats Cards
+       =================================================================== -->
+  <div style="display: flex; gap: var(--space-md); margin-bottom: var(--space-xl);">
+    <!-- Alertas Activas -->
+    <div class="card" style="flex: 1; border-left: 4px solid var(--warning);">
+      <div style="display: flex; align-items: center; gap: var(--space-md);">
+        <div style="width: 48px; height: 48px; border-radius: var(--radius-md); background: linear-gradient(135deg, var(--warning) 0%, var(--warning-hover) 100%); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+          <i data-lucide="alert-circle" class="icon-lg" style="color: white;"></i>
+        </div>
+        <div style="flex: 1;">
+          <div style="font-size: var(--text-xs); font-weight: var(--font-semibold); color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: var(--space-xs);">
+            Alertas Activas
+          </div>
+          <div style="font-size: 32px; font-weight: var(--font-bold); color: var(--text); line-height: 1;">
+            {{ active_count }}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Alertas Resueltas -->
+    <div class="card" style="flex: 1; border-left: 4px solid var(--success);">
+      <div style="display: flex; align-items: center; gap: var(--space-md);">
+        <div style="width: 48px; height: 48px; border-radius: var(--radius-md); background: linear-gradient(135deg, var(--success) 0%, var(--success-hover) 100%); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+          <i data-lucide="check-circle-2" class="icon-lg" style="color: white;"></i>
+        </div>
+        <div style="flex: 1;">
+          <div style="font-size: var(--text-xs); font-weight: var(--font-semibold); color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: var(--space-xs);">
+            Resueltas
+          </div>
+          <div style="font-size: 32px; font-weight: var(--font-bold); color: var(--text); line-height: 1;">
+            {{ dismissed_count }}
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
-  <div class="table" role="table" aria-label="Listado de alertas pendientes">
-    <table>
-      <thead>
-        <tr>
-          <th class="sticky" style="width:13%">Fecha Aviso</th>
-          <th class="sticky" style="width:32%">Tipo / Título</th>
-          <th class="sticky" style="width:18%">Periodicidad</th>
-          <th class="sticky" style="width:17%">Notas</th>
-          <th class="sticky" style="width:10%">Generada</th>
-          <th class="sticky" style="width:10%">Acciones</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for alert in pending_alerts %}
-          <tr data-alert-id="{{ alert.id }}" data-alert-source="{{ alert.source }}" data-dismissed="{{ alert.dismissed }}"
-              style="{% if alert.dismissed %}opacity: 0.5; background: rgba(16, 185, 129, 0.05);{% endif %}">
-            <!-- Fecha de Aviso -->
-            <td>
-              <strong style="color: {% if alert.dismissed %}#10b981{% else %}#f59e0b{% endif %};">
-                {{ alert.due_date|format_date }}
-              </strong>
-            </td>
+  <!-- ===================================================================
+       Alertas List - Card-based
+       =================================================================== -->
+  <div class="alerts-grid">
+    {% for alert in pending_alerts %}
+    <div class="card alert-card {% if alert.dismissed %}alert-dismissed{% endif %}"
+         data-alert-id="{{ alert.id }}"
+         data-alert-source="{{ alert.source }}"
+         data-dismissed="{{ alert.dismissed }}">
 
-            <!-- Tipo de Tarea -->
-            <td>
-              <div style="display: flex; align-items: center; gap: 8px;">
-                {% if alert.dismissed %}
-                  <span style="color: #10b981; font-size: 1.2em;">✓</span>
-                {% endif %}
-                <div>
-                  <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-                    <strong style="font-size: 1.05em;">{{ alert.task_type_name }}</strong>
-                    {% if alert.source == 'custom' %}
-                      <span style="background: rgba(99, 102, 241, 0.15); color:#4338ca; font-size:11px; padding:4px 8px; border-radius:999px;">Personalizada</span>
-                    {% endif %}
-                  </div>
-                  <p style="margin: 4px 0 0 0; color: #6b7280; font-size: 0.85em;">
-                    {% if alert.source == 'custom' %}
-                      Aviso manual creado por {{ alert.created_by or 'usuario' }}
-                    {% else %}
-                      Revisar todas las URLs para esta tarea
-                    {% endif %}
-                  </p>
-                </div>
-              </div>
-            </td>
-
-            <!-- Periodicidad -->
-            <td>
-              {% if alert.periodicity %}
-                <span style="color: #6b7280; font-size: 0.9em;">{{ alert.periodicity }}</span>
-              {% else %}
-                <span style="color: #9ca3af; font-style: italic;">-</span>
-              {% endif %}
-            </td>
-
-            <!-- Notas -->
-            <td style="color:#6b7280; font-size:0.9em;">
-              {% if alert.notes %}
-                {{ alert.notes }}
-              {% else %}
-                <span style="color:#9ca3af;">-</span>
-              {% endif %}
-            </td>
-
-            <!-- Generada el -->
-            <td>
-              <span style="color: #6b7280; font-size: 0.85em;">
-                {{ alert.generated_at|format_date }}
+      <!-- Card Header -->
+      <div style="display: flex; align-items: flex-start; gap: var(--space-md); margin-bottom: var(--space-md); padding-bottom: var(--space-md); border-bottom: 1px solid var(--border);">
+        <div style="flex: 1;">
+          <!-- Title Row -->
+          <div style="display: flex; align-items: center; gap: var(--space-sm); margin-bottom: var(--space-xs);">
+            {% if alert.dismissed %}
+              <i data-lucide="check-circle" class="icon-sm" style="color: var(--success);"></i>
+            {% else %}
+              <i data-lucide="bell" class="icon-sm" style="color: var(--warning);"></i>
+            {% endif %}
+            <span style="font-weight: var(--font-semibold); color: var(--text); font-size: var(--text-lg);">
+              {{ alert.task_type_name }}
+            </span>
+            {% if alert.source == 'custom' %}
+              <span class="badge badge-primary badge-sm">
+                <i data-lucide="user" class="icon-xs"></i>
+                <span>Personalizada</span>
               </span>
-              {% if alert.dismissed and alert.dismissed_at %}
-                <br>
-                <span style="color: #10b981; font-size: 0.75em;">
-                  Resuelta: {{ alert.dismissed_at|format_date }}
-                </span>
-              {% endif %}
-            </td>
+            {% endif %}
+          </div>
 
-            <!-- Acciones -->
-            <td>
-              <button
-                type="button"
-                class="btn btn-sm {% if alert.dismissed %}ghost{% else %}primary{% endif %}"
-                onclick="toggleAlert({{ alert.id }})"
-                title="{% if alert.dismissed %}Reactivar alerta{% else %}Marcar como resuelta{% endif %}">
-                {% if alert.dismissed %}
-                  ↻ Reactivar
-                {% else %}
-                  ✓ Resolver
-                {% endif %}
-              </button>
-              {% if alert.source == 'custom' %}
-                <button
-                  type="button"
-                  class="btn btn-sm ghost"
-                  onclick="deleteCustom({{ alert.id }})"
-                  title="Eliminar alerta personalizada">
-                  🗑
-                </button>
-              {% endif %}
-            </td>
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+          <!-- Description -->
+          <div style="color: var(--muted); font-size: var(--text-sm);">
+            {% if alert.source == 'custom' %}
+              Aviso manual creado por {{ alert.created_by or 'usuario' }}
+            {% else %}
+              Revisar todas las URLs para esta tarea
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Due Date Badge -->
+        <div style="text-align: right;">
+          <div style="font-size: var(--text-xs); color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: var(--space-xs);">
+            Fecha de aviso
+          </div>
+          <span class="badge {% if alert.dismissed %}badge-success{% else %}badge-warning{% endif %}" style="font-size: var(--text-base); padding: var(--space-xs) var(--space-sm);">
+            {{ alert.due_date|format_date }}
+          </span>
+        </div>
+      </div>
+
+      <!-- Card Body - Details Grid -->
+      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-md); margin-bottom: var(--space-md);">
+        <!-- Periodicidad -->
+        <div>
+          <div style="font-size: var(--text-xs); font-weight: var(--font-semibold); color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: var(--space-xs); display: flex; align-items: center; gap: var(--space-xs);">
+            <i data-lucide="repeat" class="icon-xs"></i>
+            <span>Periodicidad</span>
+          </div>
+          <div style="color: var(--text); font-size: var(--text-sm);">
+            {% if alert.periodicity %}
+              {{ alert.periodicity }}
+            {% else %}
+              <span style="color: var(--muted); font-style: italic;">-</span>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Generada -->
+        <div>
+          <div style="font-size: var(--text-xs); font-weight: var(--font-semibold); color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: var(--space-xs); display: flex; align-items: center; gap: var(--space-xs);">
+            <i data-lucide="calendar" class="icon-xs"></i>
+            <span>Generada</span>
+          </div>
+          <div style="color: var(--text); font-size: var(--text-sm);">
+            {{ alert.generated_at|format_date }}
+          </div>
+          {% if alert.dismissed and alert.dismissed_at %}
+            <div style="color: var(--success); font-size: var(--text-xs); margin-top: var(--space-xs);">
+              <i data-lucide="check" class="icon-xs"></i>
+              Resuelta: {{ alert.dismissed_at|format_date }}
+            </div>
+          {% endif %}
+        </div>
+
+        <!-- Notas -->
+        <div>
+          <div style="font-size: var(--text-xs); font-weight: var(--font-semibold); color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: var(--space-xs); display: flex; align-items: center; gap: var(--space-xs);">
+            <i data-lucide="file-text" class="icon-xs"></i>
+            <span>Notas</span>
+          </div>
+          <div style="color: var(--text); font-size: var(--text-sm);">
+            {% if alert.notes %}
+              {{ alert.notes }}
+            {% else %}
+              <span style="color: var(--muted); font-style: italic;">Sin notas</span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <!-- Card Actions -->
+      <div style="display: flex; gap: var(--space-sm); padding-top: var(--space-md); border-top: 1px solid var(--border);">
+        <button
+          type="button"
+          class="btn {% if alert.dismissed %}ghost{% else %}primary{% endif %} btn-sm"
+          onclick="toggleAlert({{ alert.id }})"
+          title="{% if alert.dismissed %}Reactivar alerta{% else %}Marcar como resuelta{% endif %}"
+          style="display: inline-flex; align-items: center; gap: var(--space-xs);">
+          {% if alert.dismissed %}
+            <i data-lucide="rotate-ccw" class="icon-xs"></i>
+            <span>Reactivar</span>
+          {% else %}
+            <i data-lucide="check" class="icon-xs"></i>
+            <span>Resolver</span>
+          {% endif %}
+        </button>
+
+        {% if alert.source == 'custom' %}
+          <button
+            type="button"
+            class="btn ghost btn-sm"
+            onclick="deleteCustom({{ alert.id }})"
+            title="Eliminar alerta personalizada"
+            style="display: inline-flex; align-items: center; gap: var(--space-xs);">
+            <i data-lucide="trash-2" class="icon-xs"></i>
+            <span>Eliminar</span>
+          </button>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
   </div>
 
-  <div class="panel" style="margin-top: 14px; color: #6b7280;">
-    <strong>💡 Información sobre alertas:</strong>
-    <ul style="margin: 8px 0; padding-left: 20px; font-size: 0.9em;">
-      <li>Las alertas se generan automáticamente según la configuración de periodicidad de cada tipo de tarea</li>
-      <li>Cada alerta te recuerda revisar <strong>todas las URLs</strong> para ese tipo de tarea específico</li>
-      <li>Las alertas <strong>personalizadas</strong> son avisos puntuales que puedes crear en Configuración y eliminar cuando ya no apliquen</li>
-      <li>Haz clic en <strong>"✓ Resolver"</strong> cuando hayas completado la revisión. Las alertas resueltas se muestran con menor opacidad y fondo verde</li>
-      <li>Si marcas una alerta como resuelta por error, puedes hacer clic en <strong>"↻ Reactivar"</strong> para devolverla a estado activo</li>
-      <li>Las alertas resueltas permanecen visibles en la lista para que puedas revisarlas o reactivarlas si es necesario</li>
-      <li>Ve a la página de <strong>Inicio</strong> para marcar las tareas individuales como OK o Problema</li>
-      <li>Para configurar la periodicidad de las alertas, ve a la página de <strong>Configuración</strong></li>
-    </ul>
+  <!-- ===================================================================
+       Info Card
+       =================================================================== -->
+  <div class="card card-sm" style="margin-top: var(--space-xl);">
+    <div style="display: flex; align-items: flex-start; gap: var(--space-md);">
+      <i data-lucide="lightbulb" class="icon-sm icon-primary" style="flex-shrink: 0; margin-top: 2px;"></i>
+      <div style="flex: 1;">
+        <div style="font-weight: var(--font-semibold); color: var(--text); margin-bottom: var(--space-sm); font-size: var(--text-sm);">
+          Información sobre alertas
+        </div>
+        <ul style="margin: 0; padding-left: var(--space-lg); color: var(--muted); font-size: var(--text-xs); line-height: var(--leading-relaxed);">
+          <li>Las alertas se generan automáticamente según la configuración de periodicidad</li>
+          <li>Cada alerta te recuerda revisar <strong>todas las URLs</strong> para ese tipo de tarea</li>
+          <li>Las alertas <strong>personalizadas</strong> son avisos puntuales que puedes eliminar cuando ya no apliquen</li>
+          <li>Haz clic en "Resolver" cuando hayas completado la revisión</li>
+          <li>Las alertas resueltas se muestran con menor opacidad y pueden reactivarse</li>
+        </ul>
+      </div>
+    </div>
   </div>
 
-  <!-- Button to manually generate alerts (admin only) -->
-  <div class="panel" style="margin-top: 14px; background: rgba(91, 140, 255, 0.05); border-left: 3px solid var(--primary);">
-    <strong style="color: var(--primary);">🔧 Admin:</strong>
-    <p style="margin: 8px 0; font-size: 0.9em; color: var(--muted);">
-      Generar alertas manualmente para probar el sistema
-    </p>
-    <button
-      type="button"
-      class="btn primary"
-      onclick="generateAlerts()"
-      style="margin-top: 8px;">
-      🔄 Generar Alertas de Hoy
-    </button>
+  <!-- ===================================================================
+       Admin Panel
+       =================================================================== -->
+  <div class="card" style="margin-top: var(--space-lg); border-left: 4px solid var(--primary);">
+    <div style="display: flex; align-items: center; gap: var(--space-md);">
+      <i data-lucide="shield-check" class="icon-lg icon-primary"></i>
+      <div style="flex: 1;">
+        <div style="font-weight: var(--font-semibold); color: var(--text); margin-bottom: var(--space-xs);">
+          Panel de administración
+        </div>
+        <div style="color: var(--muted); font-size: var(--text-sm);">
+          Generar alertas manualmente para probar el sistema
+        </div>
+      </div>
+      <button
+        type="button"
+        class="btn primary"
+        onclick="generateAlerts()"
+        style="display: inline-flex; align-items: center; gap: var(--space-xs);">
+        <i data-lucide="refresh-cw" class="icon-sm"></i>
+        <span>Generar Alertas de Hoy</span>
+      </button>
+    </div>
   </div>
 
 {% else %}
-  <div class="panel" style="text-align: center; padding: 40px; background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); border-left: 4px solid #10b981;">
-    <div style="font-size: 48px; margin-bottom: 16px;">✅</div>
-    <h3 style="color: #065f46; margin: 0 0 8px 0;">No hay alertas pendientes</h3>
-    <p style="color: #047857; margin: 0;">
+  <!-- ===================================================================
+       Empty State
+       =================================================================== -->
+  <div class="card" style="text-align: center; padding: var(--space-2xl);">
+    <div style="width: 64px; height: 64px; margin: 0 auto var(--space-lg); border-radius: 50%; background: linear-gradient(135deg, var(--success-light) 0%, var(--success) 100%); display: flex; align-items: center; justify-content: center;">
+      <i data-lucide="check-circle" class="icon-xl" style="color: white;"></i>
+    </div>
+    <h3 style="margin: 0 0 var(--space-sm) 0; font-size: var(--text-xl); font-weight: var(--font-semibold); color: var(--text);">
+      No hay alertas pendientes
+    </h3>
+    <p style="margin: 0 0 var(--space-lg) 0; color: var(--muted); font-size: var(--text-sm);">
       Todas las alertas han sido resueltas. ¡Buen trabajo!
     </p>
-    <p style="margin-top: 12px;">
-      <a href="{{ url_for('inicio') }}" class="btn primary">Ir a Inicio</a>
-    </p>
+    <a href="{{ url_for('inicio') }}" class="btn primary" style="display: inline-flex; align-items: center; gap: var(--space-sm);">
+      <i data-lucide="home" class="icon-sm"></i>
+      <span>Ir a Inicio</span>
+    </a>
   </div>
 {% endif %}
 {% endblock %}
 
 {% block extra_js %}
+<style>
+/* Alerts Grid - 3 columns */
+.alerts-grid {
+  display: grid !important;
+  grid-template-columns: repeat(3, 1fr) !important;
+  gap: var(--space-md);
+  width: 100%;
+}
+
+/* Override any global card grid-column rules */
+.alerts-grid .alert-card {
+  grid-column: span 1 !important;
+  transition: all 0.3s ease;
+  min-width: 0;
+}
+
+.alerts-grid .alert-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.alert-card.alert-dismissed {
+  opacity: 0.6;
+  background: linear-gradient(to right, rgba(34, 197, 94, 0.03), transparent);
+}
+
+/* Ensure long text wraps properly in alert cards */
+.alert-card a,
+.alert-card span,
+.alert-card div {
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1400px) {
+  .alerts-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .alerts-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+</style>
+
 <script>
 // Toggle alert status (active ↔ dismissed)
 function toggleAlert(alertId) {
-  const row = document.querySelector(`tr[data-alert-id="${alertId}"]`);
-  if (!row) return;
+  const card = document.querySelector(`.alert-card[data-alert-id="${alertId}"]`);
+  if (!card) return;
 
-  const source = row.dataset.alertSource || 'system';
-  const dismissedVal = (row.dataset.dismissed || '').toLowerCase();
+  const source = card.dataset.alertSource || 'system';
+  const dismissedVal = (card.dataset.dismissed || '').toLowerCase();
   const isDismissed = dismissedVal === '1' || dismissedVal === 'true';
   const action = isDismissed ? 'reactivar' : 'resolver';
 
@@ -210,49 +371,7 @@ function toggleAlert(alertId) {
   .then(response => response.json())
   .then(data => {
     if (data.success) {
-      // Update row data attribute
-      row.dataset.dismissed = data.dismissed.toString();
-
-      // Update row styling
-      if (data.dismissed) {
-        // Mark as dismissed
-        row.style.opacity = '0.5';
-        row.style.background = 'rgba(16, 185, 129, 0.05)';
-      } else {
-        // Mark as active
-        row.style.opacity = '1';
-        row.style.background = '';
-      }
-
-      // Update date color
-      const dateCell = row.querySelector('td:first-child strong');
-      if (dateCell) {
-        dateCell.style.color = data.dismissed ? '#10b981' : '#f59e0b';
-      }
-
-      // Update task type cell with checkmark
-      const taskCell = row.querySelector('td:nth-child(2)');
-      if (taskCell) {
-        const checkmark = taskCell.querySelector('span[style*="color: #10b981"]');
-        if (data.dismissed && !checkmark) {
-          // Add checkmark
-          const div = taskCell.querySelector('div');
-          div.innerHTML = '<span style="color: #10b981; font-size: 1.2em;">✓</span>' + div.innerHTML;
-        } else if (!data.dismissed && checkmark) {
-          // Remove checkmark
-          checkmark.remove();
-        }
-      }
-
-      // Update button
-      const button = row.querySelector('button');
-      if (button) {
-        button.className = data.dismissed ? 'btn btn-sm ghost' : 'btn btn-sm primary';
-        button.title = data.dismissed ? 'Reactivar alerta' : 'Marcar como resuelta';
-        button.innerHTML = data.dismissed ? '↻ Reactivar' : '✓ Resolver';
-      }
-
-      // Update counters in header banner
+      // Reload page to reflect changes
       location.reload();
     } else {
       alert('Error al cambiar estado de la alerta: ' + (data.error || 'Error desconocido'));
@@ -271,8 +390,12 @@ function deleteCustom(alertId) {
     .then(r => r.json())
     .then(data => {
       if (data.success) {
-        const row = document.querySelector(`tr[data-alert-id="${alertId}"]`);
-        if (row) row.remove();
+        const card = document.querySelector(`.alert-card[data-alert-id="${alertId}"]`);
+        if (card) {
+          card.style.opacity = '0';
+          card.style.transform = 'translateY(-20px)';
+          setTimeout(() => card.remove(), 300);
+        }
       } else {
         alert('No se pudo eliminar: ' + (data.error || 'Error desconocido'));
       }

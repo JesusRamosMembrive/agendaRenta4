@@ -3,23 +3,35 @@
 {% block title %}Gestión de URLs - Agenda Renta4{% endblock %}
 
 {% block content %}
-<div class="h1">Gestión de URLs</div>
+<!-- ===============================================================
+     Page Header
+     =============================================================== -->
+<div class="page-header">
+  <h1 class="page-title">Gestión de URLs</h1>
+  <p class="page-description">
+    Administra las URLs para revisión periódica
+  </p>
+</div>
 
-<!-- ============================================================
+<!-- ===============================================================
      GESTIÓN DE URLs
-     ============================================================ -->
-<div class="panel">
-  <h2 style="margin: 0 0 16px; font-size: 18px; color: var(--text); font-weight: 600;">
-    🌐 URLs para Revisión Periódica
+     =============================================================== -->
+<div class="card" style="margin-bottom: var(--space-xl);">
+  <h2 style="margin: 0 0 var(--space-sm) 0; font-size: var(--text-xl); color: var(--text); font-weight: var(--font-bold); display: flex; align-items: center; gap: var(--space-sm);">
+    <i data-lucide="globe" class="icon-md"></i>
+    <span>URLs para Revisión Periódica</span>
   </h2>
-  <p style="color: var(--muted); margin-bottom: 20px; font-size: 14px;">
+  <p style="color: var(--muted); margin-bottom: var(--space-xl); font-size: var(--text-sm);">
     Añade, edita o elimina las URLs que deseas revisar periódicamente.
   </p>
 
   <!-- Formulario para agregar nueva URL -->
-  <div class="panel" style="margin-bottom: 20px; background: var(--card); border: 1px solid var(--border);">
-    <h3 style="margin: 0 0 12px; font-size: 15px; font-weight: 600;">➕ Añadir Nueva URL</h3>
-    <form id="form-add-url" style="display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap;">
+  <div class="card" style="margin-bottom: var(--space-xl); background: var(--bg-secondary); border-left: 4px solid var(--success);">
+    <h3 style="margin: 0 0 var(--space-md) 0; font-size: var(--text-lg); font-weight: var(--font-semibold); display: flex; align-items: center; gap: var(--space-xs);">
+      <i data-lucide="plus-circle" class="icon-sm"></i>
+      <span>Añadir Nueva URL</span>
+    </h3>
+    <form id="form-add-url" style="display: flex; gap: var(--space-md); align-items: flex-end; flex-wrap: wrap;">
       <div style="flex: 1; min-width: 200px;">
         <label class="label">Nombre</label>
         <input
@@ -43,62 +55,66 @@
           style="width: 100%;">
       </div>
       <button type="submit" class="btn primary" style="white-space: nowrap;">
-        ➕ Añadir URL
+        <i data-lucide="plus" class="icon-xs"></i>
+        <span>Añadir URL</span>
       </button>
     </form>
   </div>
 
   <!-- Lista de URLs existentes -->
-  <div class="table">
-    <table id="urls-table">
+  <div style="overflow-x: auto;">
+    <table id="urls-table" style="width: 100%; border-collapse: collapse;">
       <thead>
-        <tr>
-          <th style="width: 25%">Nombre</th>
-          <th style="width: 40%">URL</th>
-          <th style="width: 12%; text-align: center;">Estado</th>
-          <th style="width: 23%; text-align: right;">Acciones</th>
+        <tr style="border-bottom: 2px solid var(--border);">
+          <th style="width: 25%; padding: var(--space-md); text-align: left; font-weight: var(--font-semibold); color: var(--text); font-size: var(--text-sm);">Nombre</th>
+          <th style="width: 40%; padding: var(--space-md); text-align: left; font-weight: var(--font-semibold); color: var(--text); font-size: var(--text-sm);">URL</th>
+          <th style="width: 12%; padding: var(--space-md); text-align: center; font-weight: var(--font-semibold); color: var(--text); font-size: var(--text-sm);">Estado</th>
+          <th style="width: 23%; padding: var(--space-md); text-align: right; font-weight: var(--font-semibold); color: var(--text); font-size: var(--text-sm);">Acciones</th>
         </tr>
       </thead>
       <tbody>
         {% for section in sections %}
-        <tr data-url-id="{{ section.id }}" class="url-row">
-          <td>
-            <span class="url-name">{{ section.name }}</span>
+        <tr data-url-id="{{ section.id }}" class="url-row" style="border-bottom: 1px solid var(--border);">
+          <td style="padding: var(--space-md);">
+            <span class="url-name" style="font-weight: var(--font-medium); color: var(--text);">{{ section.name }}</span>
             <input
               type="text"
               class="input url-name-edit"
               value="{{ section.name }}"
               style="display: none; width: 100%;">
           </td>
-          <td>
-            <span class="url-url" style="word-break: break-all;">{{ section.url }}</span>
+          <td style="padding: var(--space-md);">
+            <span class="url-url" style="word-break: break-all; color: var(--text-secondary); font-size: var(--text-sm);">{{ section.url }}</span>
             <input
               type="url"
               class="input url-url-edit"
               value="{{ section.url }}"
               style="display: none; width: 100%;">
           </td>
-          <td style="text-align: center;">
-            <span class="badge {% if section.active %}bd-done{% else %}bd-pend{% endif %}">
-              {% if section.active %}✅ Activa{% else %}⏸️ Inactiva{% endif %}
+          <td style="text-align: center; padding: var(--space-md);">
+            <span class="badge {% if section.active %}badge-success{% else %}badge-muted{% endif %}">
+              <i data-lucide="{% if section.active %}check-circle{% else %}pause-circle{% endif %}" class="icon-xs"></i>
+              <span>{% if section.active %}Activa{% else %}Inactiva{% endif %}</span>
             </span>
           </td>
-          <td style="text-align: right;">
-            <div class="url-actions">
-              <button class="btn ghost btn-edit" onclick="editUrl({{ section.id }})" title="Editar">
-                ✏️
+          <td style="text-align: right; padding: var(--space-md);">
+            <div class="url-actions" style="display: flex; gap: var(--space-xs); justify-content: flex-end;">
+              <button class="btn ghost btn-edit" onclick="editUrl({{ section.id }})" title="Editar" style="padding: var(--space-xs) var(--space-sm);">
+                <i data-lucide="edit-2" class="icon-xs"></i>
               </button>
-              <button class="btn ghost btn-toggle" onclick="toggleUrl({{ section.id }})" title="Activar/Desactivar">
-                {% if section.active %}⏸️{% else %}▶️{% endif %}
+              <button class="btn ghost btn-toggle" onclick="toggleUrl({{ section.id }})" title="Activar/Desactivar" style="padding: var(--space-xs) var(--space-sm);">
+                <i data-lucide="{% if section.active %}pause{% else %}play{% endif %}" class="icon-xs"></i>
               </button>
-              <button class="btn ghost btn-delete" onclick="deleteUrl({{ section.id }})" title="Eliminar" style="color: var(--danger);">
-                🗑️
+              <button class="btn ghost btn-delete" onclick="deleteUrl({{ section.id }})" title="Eliminar" style="padding: var(--space-xs) var(--space-sm); color: var(--danger);">
+                <i data-lucide="trash-2" class="icon-xs"></i>
               </button>
-              <button class="btn primary btn-save" onclick="saveUrl({{ section.id }})" style="display: none;">
-                💾 Guardar
+              <button class="btn primary btn-save" onclick="saveUrl({{ section.id }})" style="display: none; padding: var(--space-xs) var(--space-sm);">
+                <i data-lucide="save" class="icon-xs"></i>
+                <span>Guardar</span>
               </button>
-              <button class="btn ghost btn-cancel" onclick="cancelEdit({{ section.id }})" style="display: none;">
-                ❌ Cancelar
+              <button class="btn ghost btn-cancel" onclick="cancelEdit({{ section.id }})" style="display: none; padding: var(--space-xs) var(--space-sm);">
+                <i data-lucide="x" class="icon-xs"></i>
+                <span>Cancelar</span>
               </button>
             </div>
           </td>
@@ -108,13 +124,18 @@
     </table>
   </div>
 
-  <div class="panel" style="margin-top: 14px; color: var(--muted); background: transparent; border: none; padding: 0;">
-    <strong>💡 Nota:</strong>
-    <ul style="margin: 8px 0; padding-left: 20px; font-size: 0.9em;">
-      <li>Las URLs inactivas no aparecerán en la página de Inicio ni contarán para tareas pendientes</li>
-      <li>Solo puedes eliminar URLs que no tengan tareas asociadas</li>
-      <li>Puedes desactivar temporalmente una URL sin eliminarla</li>
-    </ul>
+  <div class="card" style="margin-top: var(--space-lg); background: var(--bg-secondary); border-left: 4px solid var(--primary);">
+    <div style="display: flex; align-items: flex-start; gap: var(--space-md);">
+      <i data-lucide="info" class="icon-md" style="color: var(--primary); flex-shrink: 0;"></i>
+      <div>
+        <strong style="color: var(--text); display: block; margin-bottom: var(--space-xs);">Información importante:</strong>
+        <ul style="margin: 0; padding-left: var(--space-lg); font-size: var(--text-sm); line-height: 1.8; color: var(--text-secondary);">
+          <li>Las URLs inactivas no aparecerán en la página de Inicio ni contarán para tareas pendientes</li>
+          <li>Solo puedes eliminar URLs que no tengan tareas asociadas</li>
+          <li>Puedes desactivar temporalmente una URL sin eliminarla</li>
+        </ul>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -122,6 +143,11 @@
 
 {% block extra_js %}
 <script>
+// Initialize Lucide icons
+document.addEventListener('DOMContentLoaded', function() {
+  lucide.createIcons();
+});
+
 // ============================================================
 // CRUD DE URLs
 // ============================================================
@@ -165,8 +191,10 @@ function editUrl(urlId) {
   row.querySelector('.btn-edit').style.display = 'none';
   row.querySelector('.btn-toggle').style.display = 'none';
   row.querySelector('.btn-delete').style.display = 'none';
-  row.querySelector('.btn-save').style.display = 'inline-block';
-  row.querySelector('.btn-cancel').style.display = 'inline-block';
+  row.querySelector('.btn-save').style.display = 'inline-flex';
+  row.querySelector('.btn-cancel').style.display = 'inline-flex';
+
+  lucide.createIcons();
 }
 
 // Guardar edición
