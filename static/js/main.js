@@ -276,3 +276,79 @@ document.addEventListener('DOMContentLoaded', setupSearch);
   // Actualizar icono al cargar (el tema ya está aplicado por el script inline)
   updateIcon();
 })();
+
+// ===========================================================================
+// 7) Colapsar/Expandir Secciones del Sidebar
+// ===========================================================================
+(function() {
+  function initSidebarSections() {
+    // Cargar estado guardado de localStorage
+    const savedStates = JSON.parse(localStorage.getItem('sidebarSections') || '{}');
+
+    // Por defecto, todas las secciones están expandidas
+    const defaultStates = {
+      'config': true,
+      'tareas': true,
+      'crawler': true,
+      'calidad': true,
+      'dev': true
+    };
+
+    // Combinar estados guardados con defaults
+    const sectionStates = { ...defaultStates, ...savedStates };
+
+    // Aplicar estados guardados a cada sección
+    document.querySelectorAll('.nav-section-header').forEach(header => {
+      const section = header.dataset.section;
+      const content = document.getElementById(`nav-${section}`);
+      const chevron = header.querySelector('.section-chevron');
+
+      if (!content) return;
+
+      // Aplicar estado inicial
+      const isExpanded = sectionStates[section];
+      if (!isExpanded) {
+        content.style.display = 'none';
+        if (chevron) {
+          chevron.style.transform = 'rotate(-90deg)';
+        }
+      }
+
+      // Event listener para toggle
+      header.addEventListener('click', function() {
+        const currentlyHidden = content.style.display === 'none';
+
+        if (currentlyHidden) {
+          // Expandir
+          content.style.display = 'block';
+          if (chevron) {
+            chevron.style.transform = 'rotate(0deg)';
+          }
+          sectionStates[section] = true;
+        } else {
+          // Colapsar
+          content.style.display = 'none';
+          if (chevron) {
+            chevron.style.transform = 'rotate(-90deg)';
+          }
+          sectionStates[section] = false;
+        }
+
+        // Guardar estado en localStorage
+        localStorage.setItem('sidebarSections', JSON.stringify(sectionStates));
+
+        // Recrear iconos de Lucide
+        if (typeof lucide !== 'undefined') {
+          lucide.createIcons();
+        }
+      });
+    });
+  }
+
+  // Inicializar cuando el DOM esté listo
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initSidebarSections);
+  } else {
+    initSidebarSections();
+  }
+})();

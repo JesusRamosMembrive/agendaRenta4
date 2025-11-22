@@ -1303,10 +1303,14 @@ def cta_results():
             """)
             stats = cursor.fetchone()
 
+        # Get URL counts for scope selection and estimates
+        url_info = get_url_counts_and_estimates()
+
         return render_template(
             "crawler/cta_results.html",
             checks=checks,
             stats=stats,
+            url_info=url_info,
         )
 
     except Exception as e:

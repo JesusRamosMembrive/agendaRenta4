@@ -6,7 +6,7 @@ All configuration-related routes extracted from app.py
 import calendar
 from datetime import date, datetime, timedelta
 
-from flask import Blueprint, jsonify, render_template, request
+from flask import Blueprint, jsonify, render_template, request, session
 from flask_login import current_user, login_required
 
 from constants import ANNUAL_MONTH, QUARTERLY_MONTHS, SEMIANNUAL_MONTHS, WEEKDAY_MAP
@@ -120,15 +120,59 @@ def _get_next_monthly_date(reference_date, alert_day, valid_months=None):
     return None
 
 
-def _calculate_next_due_date(frequency, alert_day, reference_date=None):
+def _parse_date_value(value):
+    """
+    Convierte un valor (string o date) en un objeto date seguro.
+    Devuelve None si no se puede parsear.
+    """
+    if not value:
+        return None
+    if isinstance(value, date):
+        return value
+    try:
+        return datetime.strptime(str(value), "%Y-%m-%d").date()
+    except (ValueError, TypeError):
+        return None
+
+
+def _calculate_next_due_date(
+    frequency, alert_day, reference_date=None, deadline_date=None
+):
     """
     Estimate the next due date for a custom alert rule starting from reference_date.
     Returns a `date` object or None if it cannot be determined.
+
+    Args:
+        frequency: Tipo de frecuencia configurada.
+        alert_day: Día configurado para frecuencias recurrentes.
+        reference_date: Fecha base para calcular el siguiente aviso.
+        deadline_date: Fecha límite usada solo para frecuencia "deadline".
     """
     if reference_date is None:
         reference_date = datetime.now().date()
 
     freq = (frequency or "").lower()
+
+    if freq == "deadline":
+        deadline_obj = _parse_date_value(deadline_date)
+        if not deadline_obj or reference_date >= deadline_obj:
+            return None
+
+        days_until = (deadline_obj - reference_date).days
+
+        # Última semana: avisos específicos
+        if days_until <= 7:
+            for offset in (7, 4, 2, 1):
+                candidate = deadline_obj - timedelta(days=offset)
+                if candidate >= reference_date:
+                    return candidate
+            return None
+
+        # Más de una semana: próximo día que caiga cada 7 días respecto al deadline
+        remainder = days_until % 7
+        if remainder == 0:
+            return reference_date
+        return reference_date + timedelta(days=remainder)
 
     if freq == "daily":
         return reference_date
@@ -179,12 +223,29 @@ def index():
     """
     Configuration page - Alerts and Notification preferences
     """
-    current_period = datetime.now().strftime("%Y-%m")
+    # Get selected period from query params or session (default: current month)
+    period = request.args.get("period")
+    if not period:
+        period = session.get("current_period", datetime.now().strftime("%Y-%m"))
+    else:
+        session["current_period"] = period
+
+    current_period = period
 
     with db_cursor() as cursor:
         # Reparar reglas personalizadas antiguas que no tengan task_type asociado
         cursor.execute("""
-            SELECT id, title, notes, alert_frequency, alert_day, enabled, created_at, created_by, task_type_id
+            SELECT
+                id,
+                title,
+                notes,
+                alert_frequency,
+                alert_day,
+                deadline_date,
+                enabled,
+                created_at,
+                created_by,
+                task_type_id
             FROM custom_alert_rules
             ORDER BY enabled DESC, created_at DESC
         """)
@@ -209,7 +270,9 @@ def index():
 
             # Ensure there's at least one upcoming custom pending alert
             next_due = _calculate_next_due_date(
-                rule["alert_frequency"], rule.get("alert_day")
+                rule["alert_frequency"],
+                rule.get("alert_day"),
+                deadline_date=rule.get("deadline_date"),
             )
             if next_due:
                 cursor.execute(
@@ -303,6 +366,7 @@ def index():
         notification_prefs=notification_prefs,
         custom_alert_rules=custom_alert_rules,
         custom_alerts=custom_alerts,
+        period=period,
         available_periods=available_periods,
         current_user=current_user,
     )
@@ -314,6 +378,13 @@ def urls():
     """
     URL management page (CRUD operations)
     """
+    # Get selected period from query params or session (default: current month)
+    period = request.args.get("period")
+    if not period:
+        period = session.get("current_period", datetime.now().strftime("%Y-%m"))
+    else:
+        session["current_period"] = period
+
     with db_cursor(commit=False) as cursor:
         # Get all sections (URLs)
         cursor.execute("""
@@ -329,6 +400,7 @@ def urls():
     return render_template(
         "configuracion_urls.html",
         sections=sections,
+        period=period,
         available_periods=available_periods,
         current_user=current_user,
     )
@@ -340,11 +412,19 @@ def herramientas():
     """
     Automatic analysis tools configuration page
     """
+    # Get selected period from query params or session (default: current month)
+    period = request.args.get("period")
+    if not period:
+        period = session.get("current_period", datetime.now().strftime("%Y-%m"))
+    else:
+        session["current_period"] = period
+
     # Generate available periods for consistency with other config pages
     available_periods = generate_available_periods()
 
     return render_template(
         "configuracion_herramientas.html",
+        period=period,
         available_periods=available_periods,
         current_user=current_user,
     )
@@ -444,22 +524,44 @@ def add_custom_alert_rule():
         notes = (request.form.get("notes") or "").strip()
         alert_frequency = (request.form.get("alert_frequency") or "monthly").strip()
         alert_day = (request.form.get("alert_day") or "").strip()
+        deadline_date_raw = (request.form.get("deadline_date") or "").strip()
         enabled = request.form.get("enabled", "true") == "true"
+
+        deadline_date = None
+        if alert_frequency == "deadline":
+            if not deadline_date_raw:
+                return jsonify({"success": False, "error": "Fecha límite obligatoria"}), 400
+            deadline_date = _parse_date_value(deadline_date_raw)
+            if not deadline_date:
+                return jsonify(
+                    {
+                        "success": False,
+                        "error": "Fecha de deadline inválida (usa YYYY-MM-DD)",
+                    }
+                ), 400
 
         if not title:
             return jsonify({"success": False, "error": "Título obligatorio"}), 400
-        if alert_frequency != "daily" and not alert_day:
+        if alert_frequency not in ("daily", "deadline") and not alert_day:
             return jsonify({"success": False, "error": "Día obligatorio para esta frecuencia"}), 400
 
         with db_cursor() as cursor:
             cursor.execute(
                 """
-                INSERT INTO custom_alert_rules (title, notes, alert_frequency, alert_day, enabled, created_by)
-                VALUES (%s, %s, %s, %s, %s, %s)
+                INSERT INTO custom_alert_rules (title, notes, alert_frequency, alert_day, deadline_date, enabled, created_by)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT (title) DO NOTHING
                 RETURNING id
             """,
-                (title, notes or None, alert_frequency, alert_day or None, enabled, current_user.full_name),
+                (
+                    title,
+                    notes or None,
+                    alert_frequency,
+                    alert_day or None,
+                    deadline_date,
+                    enabled,
+                    current_user.full_name,
+                ),
             )
 
             new_row = cursor.fetchone()
@@ -480,7 +582,9 @@ def add_custom_alert_rule():
             _seed_tasks_for_rule(cursor, task_type_id, alert_frequency, current_period)
 
             # Crear la primera alerta pendiente para que aparezca en /alertas
-            next_due = _calculate_next_due_date(alert_frequency, alert_day)
+            next_due = _calculate_next_due_date(
+                alert_frequency, alert_day, deadline_date=deadline_date
+            )
             if next_due:
                 cursor.execute(
                     """
@@ -504,6 +608,7 @@ def add_custom_alert_rule():
                 "title": title,
                 "alert_frequency": alert_frequency,
                 "alert_day": alert_day,
+                "deadline_date": deadline_date.isoformat() if deadline_date else None,
                 "notes": notes,
                 "enabled": enabled,
             }

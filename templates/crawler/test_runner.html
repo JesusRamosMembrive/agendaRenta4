@@ -3,589 +3,662 @@
 {% block title %}Test Runner - Crawler{% endblock %}
 
 {% block content %}
-<div class="container">
-    <h1>🎯 Test Runner</h1>
-    <p class="subtitle">Configura y ejecuta tests de calidad para el sitio web</p>
+<!-- ===============================================================
+     Page Header
+     =============================================================== -->
+<div class="page-header">
+  <h1 class="page-title">Test Runner</h1>
+  <p class="page-description">
+    Configura y ejecuta tests de calidad para el sitio web
+  </p>
+</div>
 
-    <!-- Configuration Section -->
-    <div style="background: var(--card); padding: 30px; border-radius: var(--radius); margin: 30px 0; box-shadow: var(--shadow);">
-        <h2 style="margin: 0 0 10px 0; color: var(--text);">⚙️ Configuración de Tests</h2>
-        <p style="color: var(--muted); margin-bottom: 25px; font-size: 14px;">
-            Selecciona qué tests ejecutar y su alcance. Esta configuración se sincroniza con la página de Configuración.
-        </p>
+<!-- ===============================================================
+     Configuration Section
+     =============================================================== -->
+<div class="card" style="margin-bottom: var(--space-xl); border-left: 4px solid var(--primary);">
+  <h3 style="margin: 0 0 var(--space-sm) 0; font-size: var(--text-xl); font-weight: var(--font-bold); color: var(--text); display: flex; align-items: center; gap: var(--space-sm);">
+    <i data-lucide="settings" class="icon-md"></i>
+    <span>Configuración de Tests</span>
+  </h3>
+  <p style="color: var(--muted); margin-bottom: var(--space-lg); font-size: var(--text-sm);">
+    Selecciona qué tests ejecutar y su alcance. Esta configuración se sincroniza con la página de Configuración.
+  </p>
 
-        {% for check_type, check_info in available_checks.items() %}
-        {% set config = config_dict.get(check_type, {}) %}
-        {% set is_available = check_info.get('available', True) %}
+  {% for check_type, check_info in available_checks.items() %}
+  {% set config = config_dict.get(check_type, {}) %}
+  {% set is_available = check_info.get('available', True) %}
 
-        <div class="check-config-card" style="
-            background: var(--panel);
-            padding: 20px;
-            border-radius: 8px;
-            margin-bottom: 15px;
-            border: 2px solid {% if config.get('enabled') and is_available %}var(--success){% else %}var(--border){% endif %};
-            {% if not is_available %}opacity: 0.6;{% endif %}
-        ">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                <div style="display: flex; align-items: center; gap: 12px;">
-                    <span style="font-size: 24px;">{{ check_info.icon }}</span>
-                    <div>
-                        <div style="font-weight: 600; font-size: 16px; color: var(--text);">
-                            {{ check_info.name }}
-                            {% if not is_available %}
-                            <span style="font-size: 12px; background: var(--warning); color: #92400e; padding: 2px 8px; border-radius: 4px; margin-left: 8px;">Próximamente</span>
-                            {% endif %}
-                        </div>
-                        <div style="color: var(--muted); font-size: 13px;">{{ check_info.description }}</div>
-                    </div>
-                </div>
-
-                {% if is_available %}
-                <label style="display: flex; align-items: center; cursor: pointer;">
-                    <input type="checkbox"
-                           id="{{ check_type }}_enabled"
-                           data-check-type="{{ check_type }}"
-                           {% if config.get('enabled') %}checked{% endif %}
-                           style="width: 20px; height: 20px; cursor: pointer;">
-                    <span style="margin-left: 8px; font-weight: 600; color: var(--text);">Activo</span>
-                </label>
-                {% endif %}
-            </div>
-
-            {% if is_available %}
-            <div style="display: flex; gap: 20px; align-items: center; padding-left: 48px;">
-                <div>
-                    <label style="font-size: 13px; color: var(--muted); font-weight: 600; display: block; margin-bottom: 5px;">
-                        Alcance:
-                    </label>
-                    <select id="{{ check_type }}_scope"
-                            data-check-type="{{ check_type }}"
-                            style="padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 14px; cursor: pointer; background: var(--bg); color: var(--text);">
-                        {% if check_type == 'broken_links' %}
-                        <option value="priority" {% if config.get('scope') == 'priority' %}selected{% endif %}>
-                            ⭐ Priority (~117 URLs • 2-3 min)
-                        </option>
-                        <option value="all" {% if config.get('scope') == 'all' %}selected{% endif %}>
-                            🌐 All (~2,800 URLs • 45-60 min)
-                        </option>
-                        {% elif check_type == 'image_quality' %}
-                        <option value="priority" {% if config.get('scope') == 'priority' %}selected{% endif %}>
-                            ⭐ Priority (~117 URLs • 5-10 min)
-                        </option>
-                        <option value="all" {% if config.get('scope') == 'all' %}selected{% endif %}>
-                            🌐 All (~2,800 URLs • 2 HORAS)
-                        </option>
-                        {% elif check_type == 'spell_check' %}
-                        <option value="priority" {% if config.get('scope') == 'priority' %}selected{% endif %}>
-                            ⭐ Priority (~117 URLs • 3-5 min)
-                        </option>
-                        <option value="all" {% if config.get('scope') == 'all' %}selected{% endif %}>
-                            🌐 All (~2,800 URLs • 60-70 min)
-                        </option>
-                        {% else %}
-                        <option value="priority" {% if config.get('scope') == 'priority' %}selected{% endif %}>
-                            ⭐ Priority (~117 URLs)
-                        </option>
-                        <option value="all" {% if config.get('scope') == 'all' %}selected{% endif %}>
-                            🌐 All (~2,800 URLs)
-                        </option>
-                        {% endif %}
-                    </select>
-                </div>
-
-                <div>
-                    <label style="font-size: 13px; color: var(--muted); font-weight: 600; display: flex; align-items: center; cursor: pointer;">
-                        <input type="checkbox"
-                               id="{{ check_type }}_auto"
-                               data-check-type="{{ check_type }}"
-                               {% if config.get('run_after_crawl') %}checked{% endif %}
-                               style="width: 16px; height: 16px; margin-right: 6px; cursor: pointer;">
-                        Ejecutar automáticamente después del crawl
-                    </label>
-                </div>
-            </div>
+  <div class="check-config-card" style="
+    background: var(--bg-secondary);
+    padding: var(--space-lg);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--space-md);
+    border: 2px solid {% if config.get('enabled') and is_available %}var(--success){% else %}var(--border){% endif %};
+    {% if not is_available %}opacity: 0.6;{% endif %}
+  ">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-md);">
+      <div style="display: flex; align-items: center; gap: var(--space-md);">
+        <i data-lucide="{{ check_info.icon_name }}" class="icon-lg"></i>
+        <div>
+          <div style="font-weight: var(--font-semibold); font-size: var(--text-base); color: var(--text); display: flex; align-items: center; gap: var(--space-sm);">
+            {{ check_info.name }}
+            {% if not is_available %}
+            <span class="badge badge-warning">Próximamente</span>
             {% endif %}
+          </div>
+          <div style="color: var(--muted); font-size: var(--text-sm);">{{ check_info.description }}</div>
         </div>
-        {% endfor %}
+      </div>
 
-        <div style="margin-top: 25px; display: flex; gap: 10px;">
-            <button onclick="saveConfig()" id="saveConfigBtn" class="btn" style="background: #3b82f6; color: white; padding: 12px 24px; font-weight: 600;">
-                💾 Guardar Configuración
-            </button>
-            <span id="saveStatus" style="display: none; padding: 12px; color: #059669; font-weight: 600;"></span>
-        </div>
+      {% if is_available %}
+      <label style="display: flex; align-items: center; cursor: pointer;">
+        <input type="checkbox"
+               id="{{ check_type }}_enabled"
+               data-check-type="{{ check_type }}"
+               {% if config.get('enabled') %}checked{% endif %}
+               style="width: 20px; height: 20px; cursor: pointer;">
+        <span style="margin-left: var(--space-sm); font-weight: var(--font-semibold); color: var(--text);">Activo</span>
+      </label>
+      {% endif %}
     </div>
 
-    <!-- Execution Section -->
-    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 12px; margin: 30px 0; color: white;">
-        <h2 style="margin: 0 0 15px 0; color: white;">🚀 Ejecutar Tests</h2>
-        <p style="margin-bottom: 20px; opacity: 0.9;">
-            Los tests se ejecutarán de forma secuencial. <strong>⚠️ IMPORTANTE: NO cierres esta ventana hasta que terminen.</strong>
-        </p>
-        <div style="background: rgba(0,0,0,0.2); padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #fbbf24;">
-            <p style="margin: 0; font-size: 14px; line-height: 1.6;">
-                ⏱️ <strong>Tiempos estimados (scope Priority):</strong><br>
-                • Enlaces Rotos: 2-3 minutos<br>
-                • Calidad de Imágenes: 5-10 minutos<br><br>
-                <strong>Scope All puede tardar HORAS</strong> - recomendamos Priority para primeras pruebas.
-            </p>
-        </div>
+    {% if is_available %}
+    <div style="display: flex; gap: var(--space-xl); align-items: center; padding-left: 48px;">
+      <div>
+        <label style="font-size: var(--text-sm); color: var(--muted); font-weight: var(--font-semibold); display: block; margin-bottom: var(--space-xs);">
+          Alcance:
+        </label>
+        <select id="{{ check_type }}_scope"
+                data-check-type="{{ check_type }}"
+                style="padding: var(--space-sm) var(--space-md); border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: var(--text-sm); cursor: pointer; background: var(--bg); color: var(--text);">
+          {% if check_type == 'broken_links' %}
+          <option value="priority" {% if config.get('scope') == 'priority' %}selected{% endif %}>
+            Priority (~117 URLs • 2-3 min)
+          </option>
+          <option value="all" {% if config.get('scope') == 'all' %}selected{% endif %}>
+            All (~2,800 URLs • 45-60 min)
+          </option>
+          {% elif check_type == 'image_quality' %}
+          <option value="priority" {% if config.get('scope') == 'priority' %}selected{% endif %}>
+            Priority (~117 URLs • 5-10 min)
+          </option>
+          <option value="all" {% if config.get('scope') == 'all' %}selected{% endif %}>
+            All (~2,800 URLs • 2 HORAS)
+          </option>
+          {% elif check_type == 'spell_check' %}
+          <option value="priority" {% if config.get('scope') == 'priority' %}selected{% endif %}>
+            Priority (~117 URLs • 3-5 min)
+          </option>
+          <option value="all" {% if config.get('scope') == 'all' %}selected{% endif %}>
+            All (~2,800 URLs • 60-70 min)
+          </option>
+          {% else %}
+          <option value="priority" {% if config.get('scope') == 'priority' %}selected{% endif %}>
+            Priority (~117 URLs)
+          </option>
+          <option value="all" {% if config.get('scope') == 'all' %}selected{% endif %}>
+            All (~2,800 URLs)
+          </option>
+          {% endif %}
+        </select>
+      </div>
 
-        <button onclick="runAllTests()" id="runTestsBtn" class="btn" style="
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 16px 32px;
-            font-size: 18px;
-            font-weight: 700;
-            border: none;
-            cursor: pointer;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
-            transition: all 0.2s;
-        ">
-            🚀 Ejecutar Tests Activos
-        </button>
+      <div>
+        <label style="font-size: var(--text-sm); color: var(--muted); font-weight: var(--font-semibold); display: flex; align-items: center; cursor: pointer;">
+          <input type="checkbox"
+                 id="{{ check_type }}_auto"
+                 data-check-type="{{ check_type }}"
+                 {% if config.get('run_after_crawl') %}checked{% endif %}
+                 style="width: 16px; height: 16px; margin-right: var(--space-xs); cursor: pointer;">
+          Ejecutar automáticamente después del crawl
+        </label>
+      </div>
     </div>
+    {% endif %}
+  </div>
+  {% endfor %}
 
-    <!-- Progress Section (Hidden initially) -->
-    <div id="progressSection" style="display: none; background: var(--card); padding: 30px; border-radius: var(--radius); margin: 30px 0; box-shadow: var(--shadow);">
-        <h2 style="margin: 0 0 20px 0; color: var(--text);">⏳ Progreso de Ejecución</h2>
+  <div style="margin-top: var(--space-lg); display: flex; gap: var(--space-md); align-items: center;">
+    <button onclick="saveConfig()" id="saveConfigBtn" class="btn primary">
+      <i data-lucide="save" class="icon-xs"></i>
+      <span>Guardar Configuración</span>
+    </button>
+    <span id="saveStatus" style="display: none; padding: var(--space-md); color: var(--success); font-weight: var(--font-semibold);"></span>
+  </div>
+</div>
 
-        <div id="progressContainer">
-            <!-- Progress items will be added here dynamically -->
-        </div>
+<!-- ===============================================================
+     Execution Section
+     =============================================================== -->
+<div class="card" style="margin-bottom: var(--space-xl); border-left: 4px solid var(--primary);">
+  <h3 style="margin: 0 0 var(--space-md) 0; font-size: var(--text-xl); font-weight: var(--font-bold); color: var(--text); display: flex; align-items: center; gap: var(--space-sm);">
+    <i data-lucide="rocket" class="icon-md"></i>
+    <span>Ejecutar Tests</span>
+  </h3>
+  <p style="margin-bottom: var(--space-lg); color: var(--text-secondary);">
+    Los tests se ejecutarán de forma secuencial. <strong style="color: var(--danger);">IMPORTANTE: NO cierres esta ventana hasta que terminen.</strong>
+  </p>
 
-        <div style="margin-top: 20px; padding: 15px; background: var(--panel); border-radius: 6px; text-align: center;">
-            <span id="overallStatus" style="font-weight: 600; color: var(--text);">Iniciando tests...</span>
-        </div>
+  <div style="background: var(--warning-light); padding: var(--space-md); border-radius: var(--radius-md); margin-bottom: var(--space-lg); border-left: 4px solid var(--warning);">
+    <div style="display: flex; align-items: flex-start; gap: var(--space-sm);">
+      <i data-lucide="clock" class="icon-sm" style="color: var(--warning); flex-shrink: 0; margin-top: 2px;"></i>
+      <div>
+        <p style="margin: 0 0 var(--space-xs) 0; font-weight: var(--font-semibold); color: var(--text);">Tiempos estimados (scope Priority):</p>
+        <ul style="margin: 0; padding-left: var(--space-lg); line-height: 1.6; font-size: var(--text-sm); color: var(--text-secondary);">
+          <li>Enlaces Rotos: 2-3 minutos</li>
+          <li>Calidad de Imágenes: 5-10 minutos</li>
+        </ul>
+        <p style="margin: var(--space-sm) 0 0 0; font-weight: var(--font-bold); color: var(--warning);">Scope All puede tardar HORAS - recomendamos Priority para primeras pruebas.</p>
+      </div>
     </div>
+  </div>
 
-    <!-- Results Section (Hidden initially) -->
-    <div id="resultsSection" style="display: none; margin: 30px 0;">
-        <h2 style="margin-bottom: 20px; color: var(--text);">📊 Resultados</h2>
-        <div id="resultsContainer" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px;">
-            <!-- Result cards will be added here dynamically -->
-        </div>
-    </div>
+  <button onclick="runAllTests()" id="runTestsBtn" class="btn primary" style="
+    padding: var(--space-lg) var(--space-2xl);
+    font-size: var(--text-lg);
+    font-weight: var(--font-bold);
+  ">
+    <i data-lucide="play" class="icon-sm"></i>
+    <span>Ejecutar Tests Activos</span>
+  </button>
+</div>
 
+<!-- ===============================================================
+     Progress Section (Hidden initially)
+     =============================================================== -->
+<div id="progressSection" style="display: none;" class="card" style="margin-bottom: var(--space-xl);">
+  <h3 style="margin: 0 0 var(--space-lg) 0; font-size: var(--text-xl); font-weight: var(--font-bold); color: var(--text); display: flex; align-items: center; gap: var(--space-sm);">
+    <i data-lucide="loader" class="icon-md"></i>
+    <span>Progreso de Ejecución</span>
+  </h3>
+
+  <div id="progressContainer">
+    <!-- Progress items will be added here dynamically -->
+  </div>
+
+  <div style="margin-top: var(--space-lg); padding: var(--space-md); background: var(--bg-secondary); border-radius: var(--radius-sm); text-align: center;">
+    <span id="overallStatus" style="font-weight: var(--font-semibold); color: var(--text);">Iniciando tests...</span>
+  </div>
+</div>
+
+<!-- ===============================================================
+     Results Section (Hidden initially)
+     =============================================================== -->
+<div id="resultsSection" style="display: none; margin-bottom: var(--space-xl);">
+  <h3 style="margin-bottom: var(--space-lg); font-size: var(--text-xl); font-weight: var(--font-bold); color: var(--text); display: flex; align-items: center; gap: var(--space-sm);">
+    <i data-lucide="bar-chart-3" class="icon-md"></i>
+    <span>Resultados</span>
+  </h3>
+  <div id="resultsContainer" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: var(--space-lg);">
+    <!-- Result cards will be added here dynamically -->
+  </div>
 </div>
 
 <style>
 .check-config-card input[type="checkbox"]:checked ~ * {
-    color: var(--success);
+  color: var(--success);
 }
 
 .test-progress {
-    background: var(--panel);
-    padding: 20px;
-    border-radius: 8px;
-    margin-bottom: 15px;
-    border-left: 4px solid var(--border);
+  background: var(--bg-secondary);
+  padding: var(--space-lg);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-md);
+  border-left: 4px solid var(--border);
 }
 
 .test-progress.running {
-    border-left-color: #3b82f6;
+  border-left-color: var(--primary);
 }
 
 .test-progress.completed {
-    border-left-color: var(--success);
+  border-left-color: var(--success);
 }
 
 .test-progress.error {
-    border-left-color: var(--danger);
+  border-left-color: var(--danger);
 }
 
 .progress-bar-container {
-    background: var(--border);
-    height: 8px;
-    border-radius: 4px;
-    overflow: hidden;
-    margin: 10px 0;
-    position: relative;
+  background: var(--border);
+  height: 8px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  margin: var(--space-sm) 0;
+  position: relative;
 }
 
 .progress-bar-fill {
-    background: linear-gradient(90deg, #3b82f6 0%, var(--success) 100%);
-    height: 100%;
-    width: 0%;
-    transition: width 0.3s ease;
-    position: relative;
+  background: linear-gradient(90deg, var(--primary) 0%, var(--success) 100%);
+  height: 100%;
+  width: 0%;
+  transition: width 0.3s ease;
+  position: relative;
 }
 
 @keyframes progressSlide {
-    0% {
-        left: -40%;
-    }
-    100% {
-        left: 100%;
-    }
+  0% {
+    left: -40%;
+  }
+  100% {
+    left: 100%;
+  }
 }
 
 .result-card {
-    background: var(--card);
-    padding: 25px;
-    border-radius: var(--radius);
-    box-shadow: var(--shadow);
-    border-left: 4px solid var(--border);
+  background: var(--bg);
+  padding: var(--space-xl);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow);
+  border-left: 4px solid var(--border);
 }
 
 .result-card.ok {
-    border-left-color: var(--success);
+  border-left-color: var(--success);
 }
 
 .result-card.warning {
-    border-left-color: var(--warning);
+  border-left-color: var(--warning);
 }
 
 .result-card.error {
-    border-left-color: var(--danger);
+  border-left-color: var(--danger);
+}
+
+.result-card.completed {
+  border-left-color: var(--success);
 }
 </style>
 
 <script>
+// Initialize Lucide icons
+document.addEventListener('DOMContentLoaded', function() {
+  lucide.createIcons();
+});
+
 // ========== Configuration Management ==========
 
 async function saveConfig() {
-    const saveBtn = document.getElementById('saveConfigBtn');
-    const saveStatus = document.getElementById('saveStatus');
+  const saveBtn = document.getElementById('saveConfigBtn');
+  const saveStatus = document.getElementById('saveStatus');
 
-    saveBtn.disabled = true;
-    saveBtn.textContent = '⏳ Guardando...';
+  saveBtn.disabled = true;
+  saveBtn.innerHTML = '<i data-lucide="loader" class="icon-xs"></i><span>Guardando...</span>';
+  lucide.createIcons();
+  saveStatus.style.display = 'none';
+
+  const checks = ['broken_links', 'image_quality', 'spell_check'];
+  let successCount = 0;
+
+  for (const checkType of checks) {
+    const enabledCheckbox = document.getElementById(`${checkType}_enabled`);
+    const scopeSelect = document.getElementById(`${checkType}_scope`);
+    const autoCheckbox = document.getElementById(`${checkType}_auto`);
+
+    if (!enabledCheckbox) continue;
+
+    try {
+      const response = await fetch('/crawler/config/checks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          check_type: checkType,
+          enabled: enabledCheckbox.checked,
+          scope: scopeSelect.value,
+          run_after_crawl: autoCheckbox.checked
+        })
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        successCount++;
+      } else {
+        console.error(`Error saving ${checkType}:`, data.error);
+      }
+    } catch (error) {
+      console.error(`Error saving ${checkType}:`, error);
+    }
+  }
+
+  saveBtn.disabled = false;
+  saveBtn.innerHTML = '<i data-lucide="save" class="icon-xs"></i><span>Guardar Configuración</span>';
+  lucide.createIcons();
+
+  if (successCount === checks.length) {
+    saveStatus.innerHTML = '<i data-lucide="check-circle" class="icon-xs"></i><span>Configuración guardada correctamente</span>';
+    saveStatus.style.color = 'var(--success)';
+  } else {
+    saveStatus.innerHTML = `<i data-lucide="alert-triangle" class="icon-xs"></i><span>Guardado parcial (${successCount}/${checks.length})</span>`;
+    saveStatus.style.color = 'var(--warning)';
+  }
+  saveStatus.style.display = 'flex';
+  saveStatus.style.alignItems = 'center';
+  saveStatus.style.gap = 'var(--space-xs)';
+  lucide.createIcons();
+
+  setTimeout(() => {
     saveStatus.style.display = 'none';
-
-    const checks = ['broken_links', 'image_quality'];
-    let successCount = 0;
-
-    for (const checkType of checks) {
-        const enabledCheckbox = document.getElementById(`${checkType}_enabled`);
-        const scopeSelect = document.getElementById(`${checkType}_scope`);
-        const autoCheckbox = document.getElementById(`${checkType}_auto`);
-
-        if (!enabledCheckbox) continue;
-
-        try {
-            const response = await fetch('/crawler/config/checks', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    check_type: checkType,
-                    enabled: enabledCheckbox.checked,
-                    scope: scopeSelect.value,
-                    run_after_crawl: autoCheckbox.checked
-                })
-            });
-
-            const data = await response.json();
-            if (data.success) {
-                successCount++;
-            } else {
-                console.error(`Error saving ${checkType}:`, data.error);
-            }
-        } catch (error) {
-            console.error(`Error saving ${checkType}:`, error);
-        }
-    }
-
-    saveBtn.disabled = false;
-    saveBtn.textContent = '💾 Guardar Configuración';
-
-    if (successCount === checks.length) {
-        saveStatus.textContent = '✅ Configuración guardada correctamente';
-        saveStatus.style.color = '#059669';
-    } else {
-        saveStatus.textContent = `⚠️ Guardado parcial (${successCount}/${checks.length})`;
-        saveStatus.style.color = '#f59e0b';
-    }
-    saveStatus.style.display = 'inline';
-
-    setTimeout(() => {
-        saveStatus.style.display = 'none';
-    }, 3000);
+  }, 3000);
 }
 
 // ========== Test Execution ==========
 
 async function runAllTests() {
-    // Get enabled tests
-    const enabledTests = [];
-    const testConfigs = [];
+  // Get enabled tests
+  const enabledTests = [];
+  const testConfigs = [];
 
-    const checks = ['broken_links', 'image_quality'];
-    for (const checkType of checks) {
-        const enabledCheckbox = document.getElementById(`${checkType}_enabled`);
-        const scopeSelect = document.getElementById(`${checkType}_scope`);
+  const checks = ['broken_links', 'image_quality', 'spell_check'];
+  for (const checkType of checks) {
+    const enabledCheckbox = document.getElementById(`${checkType}_enabled`);
+    const scopeSelect = document.getElementById(`${checkType}_scope`);
 
-        if (enabledCheckbox && enabledCheckbox.checked) {
-            enabledTests.push(checkType);
-            testConfigs.push({
-                check_type: checkType,
-                scope: scopeSelect.value
-            });
+    if (enabledCheckbox && enabledCheckbox.checked) {
+      enabledTests.push(checkType);
+      testConfigs.push({
+        check_type: checkType,
+        scope: scopeSelect.value
+      });
+    }
+  }
+
+  if (enabledTests.length === 0) {
+    alert('No hay tests activos. Por favor activa al menos un test en la configuración.');
+    return;
+  }
+
+  // Warn if using 'all' scope - show detailed time estimates
+  const hasAllScope = testConfigs.some(config => config.scope === 'all');
+  if (hasAllScope) {
+    // Calculate time estimates
+    let timeEstimate = '';
+    testConfigs.forEach(config => {
+      if (config.scope === 'all') {
+        if (config.check_type === 'broken_links') {
+          timeEstimate += '\n  • Enlaces Rotos: ~45-60 minutos';
+        } else if (config.check_type === 'image_quality') {
+          timeEstimate += '\n  • Calidad de Imágenes: ~2 HORAS';
+        } else if (config.check_type === 'spell_check') {
+          timeEstimate += '\n  • Ortografía: ~60-70 minutos';
         }
+      }
+    });
+
+    const confirmed = confirm(
+      '⚠️ ADVERTENCIA: Has seleccionado scope "All"\n\n' +
+      'Esto procesará ~2,800 URLs y tardará MUCHO TIEMPO:\n' +
+      timeEstimate + '\n\n' +
+      'Recomendación: Usa scope "Priority" primero:\n' +
+      '  • ~117 URLs\n' +
+      '  • Enlaces Rotos: ~2-3 minutos\n' +
+      '  • Imágenes: ~5-10 minutos\n' +
+      '  • Ortografía: ~3-5 minutos\n\n' +
+      '¿Deseas continuar con scope "All"?'
+    );
+    if (!confirmed) {
+      return;
+    }
+  }
+
+  // Disable button
+  const runBtn = document.getElementById('runTestsBtn');
+  runBtn.disabled = true;
+  runBtn.innerHTML = '<i data-lucide="loader" class="icon-sm"></i><span>Ejecutando...</span>';
+  lucide.createIcons();
+
+  // Show progress section
+  showProgressSection(enabledTests);
+
+  // Execute tests sequentially
+  const results = {};
+  for (let i = 0; i < testConfigs.length; i++) {
+    const config = testConfigs[i];
+    const checkType = config.check_type;
+
+    // Update progress UI
+    updateTestProgress(checkType, 'running', 'Ejecutando...');
+
+    try {
+      const result = await executeTest(config);
+      results[checkType] = result;
+
+      if (result.success) {
+        updateTestProgress(checkType, 'completed', 'Completado');
+      } else {
+        updateTestProgress(checkType, 'error', 'Error');
+      }
+    } catch (error) {
+      console.error(`Error executing ${checkType}:`, error);
+      results[checkType] = { success: false, error: error.message };
+      updateTestProgress(checkType, 'error', 'Error');
     }
 
-    if (enabledTests.length === 0) {
-        alert('No hay tests activos. Por favor activa al menos un test en la configuración.');
-        return;
+    // Small delay between tests
+    if (i < testConfigs.length - 1) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
     }
+  }
 
-    // Warn if using 'all' scope - show detailed time estimates
-    const hasAllScope = testConfigs.some(config => config.scope === 'all');
-    if (hasAllScope) {
-        // Calculate time estimates
-        let timeEstimate = '';
-        testConfigs.forEach(config => {
-            if (config.scope === 'all') {
-                if (config.check_type === 'broken_links') {
-                    timeEstimate += '\n  • Enlaces Rotos: ~45-60 minutos';
-                } else if (config.check_type === 'image_quality') {
-                    timeEstimate += '\n  • Calidad de Imágenes: ~2 HORAS';
-                }
-            }
-        });
+  // Hide progress, show results
+  document.getElementById('progressSection').style.display = 'none';
+  showResults(results);
 
-        const confirmed = confirm(
-            '⚠️ ADVERTENCIA: Has seleccionado scope "All"\n\n' +
-            'Esto procesará ~2,800 URLs y tardará MUCHO TIEMPO:\n' +
-            timeEstimate + '\n\n' +
-            'Recomendación: Usa scope "Priority" primero:\n' +
-            '  • ~117 URLs\n' +
-            '  • Enlaces Rotos: ~2-3 minutos\n' +
-            '  • Imágenes: ~5-10 minutos\n\n' +
-            '¿Deseas continuar con scope "All"?'
-        );
-        if (!confirmed) {
-            return;
-        }
-    }
-
-    // Disable button
-    const runBtn = document.getElementById('runTestsBtn');
-    runBtn.disabled = true;
-    runBtn.textContent = '⏳ Ejecutando...';
-
-    // Show progress section
-    showProgressSection(enabledTests);
-
-    // Execute tests sequentially
-    const results = {};
-    for (let i = 0; i < testConfigs.length; i++) {
-        const config = testConfigs[i];
-        const checkType = config.check_type;
-
-        // Update progress UI
-        updateTestProgress(checkType, 'running', 'Ejecutando...');
-
-        try {
-            const result = await executeTest(config);
-            results[checkType] = result;
-
-            if (result.success) {
-                updateTestProgress(checkType, 'completed', '✅ Completado');
-            } else {
-                updateTestProgress(checkType, 'error', '❌ Error');
-            }
-        } catch (error) {
-            console.error(`Error executing ${checkType}:`, error);
-            results[checkType] = { success: false, error: error.message };
-            updateTestProgress(checkType, 'error', '❌ Error');
-        }
-
-        // Small delay between tests
-        if (i < testConfigs.length - 1) {
-            await new Promise(resolve => setTimeout(resolve, 1000));
-        }
-    }
-
-    // Hide progress, show results
-    document.getElementById('progressSection').style.display = 'none';
-    showResults(results);
-
-    // Re-enable button
-    runBtn.disabled = false;
-    runBtn.textContent = '🚀 Ejecutar Tests Activos';
+  // Re-enable button
+  runBtn.disabled = false;
+  runBtn.innerHTML = '<i data-lucide="play" class="icon-sm"></i><span>Ejecutar Tests Activos</span>';
+  lucide.createIcons();
 }
 
 async function executeTest(config) {
-    try {
-        // Show time estimates based on check type and scope
-        const statusElement = document.getElementById(`status_${config.check_type}`);
+  try {
+    // Show time estimates based on check type and scope
+    const statusElement = document.getElementById(`status_${config.check_type}`);
 
-        if (config.scope === 'priority') {
-            // Priority scope: ~117 URLs
-            if (config.check_type === 'broken_links') {
-                statusElement.textContent = '⏳ Ejecutando (~2-3 minutos)...';
-            } else if (config.check_type === 'image_quality') {
-                statusElement.textContent = '⏳ Ejecutando (~5-10 minutos, por favor espere)...';
-            }
-        } else if (config.scope === 'all') {
-            // All scope: ~2,800 URLs
-            if (config.check_type === 'broken_links') {
-                statusElement.textContent = '⏳ Ejecutando (~45-60 minutos, MUCHO TIEMPO)...';
-            } else if (config.check_type === 'image_quality') {
-                statusElement.textContent = '⏳ Ejecutando (~2 HORAS, por favor tenga paciencia)...';
-            }
-        }
-
-        const response = await fetch('/crawler/quality/run', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                check_types: [config.check_type],
-                scope: config.scope
-            })
-        });
-
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const data = await response.json();
-        return data;
-    } catch (error) {
-        console.error('Error executing test:', error);
-        return {
-            success: false,
-            error: error.message || 'Error desconocido al ejecutar test'
-        };
+    if (config.scope === 'priority') {
+      // Priority scope: ~117 URLs
+      if (config.check_type === 'broken_links') {
+        statusElement.innerHTML = '<i data-lucide="loader" class="icon-xs"></i><span>Ejecutando (~2-3 minutos)...</span>';
+      } else if (config.check_type === 'image_quality') {
+        statusElement.innerHTML = '<i data-lucide="loader" class="icon-xs"></i><span>Ejecutando (~5-10 minutos, por favor espere)...</span>';
+      } else if (config.check_type === 'spell_check') {
+        statusElement.innerHTML = '<i data-lucide="loader" class="icon-xs"></i><span>Ejecutando (~3-5 minutos)...</span>';
+      }
+    } else if (config.scope === 'all') {
+      // All scope: ~2,800 URLs
+      if (config.check_type === 'broken_links') {
+        statusElement.innerHTML = '<i data-lucide="loader" class="icon-xs"></i><span>Ejecutando (~45-60 minutos, MUCHO TIEMPO)...</span>';
+      } else if (config.check_type === 'image_quality') {
+        statusElement.innerHTML = '<i data-lucide="loader" class="icon-xs"></i><span>Ejecutando (~2 HORAS, por favor tenga paciencia)...</span>';
+      } else if (config.check_type === 'spell_check') {
+        statusElement.innerHTML = '<i data-lucide="loader" class="icon-xs"></i><span>Ejecutando (~60-70 minutos, MUCHO TIEMPO)...</span>';
+      }
     }
+    lucide.createIcons();
+
+    const response = await fetch('/crawler/quality/run', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        check_types: [config.check_type],
+        scope: config.scope
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error executing test:', error);
+    return {
+      success: false,
+      error: error.message || 'Error desconocido al ejecutar test'
+    };
+  }
 }
 
 function showProgressSection(testTypes) {
-    const progressSection = document.getElementById('progressSection');
-    const progressContainer = document.getElementById('progressContainer');
+  const progressSection = document.getElementById('progressSection');
+  const progressContainer = document.getElementById('progressContainer');
 
-    progressContainer.innerHTML = '';
+  progressContainer.innerHTML = '';
 
-    const testNames = {
-        'broken_links': { icon: '🔗', name: 'Enlaces Rotos' },
-        'image_quality': { icon: '🖼️', name: 'Calidad de Imágenes' }
-    };
+  const testNames = {
+    'broken_links': { icon: 'link-2', name: 'Enlaces Rotos' },
+    'image_quality': { icon: 'image', name: 'Calidad de Imágenes' },
+    'spell_check': { icon: 'file-text', name: 'Ortografía' }
+  };
 
-    testTypes.forEach(checkType => {
-        const info = testNames[checkType];
-        const progressHTML = `
-            <div id="progress_${checkType}" class="test-progress">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                    <span style="font-weight: 600; font-size: 16px;">
-                        ${info.icon} ${info.name}
-                    </span>
-                    <span id="status_${checkType}" style="font-size: 14px; color: #6b7280;">⏸ Pendiente</span>
-                </div>
-                <div class="progress-bar-container">
-                    <div id="bar_${checkType}" class="progress-bar-fill"></div>
-                </div>
-            </div>
-        `;
-        progressContainer.innerHTML += progressHTML;
-    });
+  testTypes.forEach(checkType => {
+    const info = testNames[checkType];
+    const progressHTML = `
+      <div id="progress_${checkType}" class="test-progress">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-sm);">
+          <span style="font-weight: var(--font-semibold); font-size: var(--text-base); display: flex; align-items: center; gap: var(--space-sm);">
+            <i data-lucide="${info.icon}" class="icon-sm"></i>
+            <span>${info.name}</span>
+          </span>
+          <span id="status_${checkType}" style="font-size: var(--text-sm); color: var(--muted); display: flex; align-items: center; gap: var(--space-xs);">
+            <i data-lucide="pause-circle" class="icon-xs"></i>
+            <span>Pendiente</span>
+          </span>
+        </div>
+        <div class="progress-bar-container">
+          <div id="bar_${checkType}" class="progress-bar-fill"></div>
+        </div>
+      </div>
+    `;
+    progressContainer.innerHTML += progressHTML;
+  });
 
-    progressSection.style.display = 'block';
-    document.getElementById('overallStatus').textContent = 'Iniciando tests...';
+  lucide.createIcons();
+  progressSection.style.display = 'block';
+  document.getElementById('overallStatus').textContent = 'Iniciando tests...';
 }
 
 function updateTestProgress(checkType, status, statusText) {
-    const progressDiv = document.getElementById(`progress_${checkType}`);
-    const statusSpan = document.getElementById(`status_${checkType}`);
-    const progressBar = document.getElementById(`bar_${checkType}`);
+  const progressDiv = document.getElementById(`progress_${checkType}`);
+  const statusSpan = document.getElementById(`status_${checkType}`);
+  const progressBar = document.getElementById(`bar_${checkType}`);
 
-    if (progressDiv) {
-        progressDiv.className = `test-progress ${status}`;
-    }
+  if (progressDiv) {
+    progressDiv.className = `test-progress ${status}`;
+  }
 
-    if (statusSpan) {
-        statusSpan.textContent = statusText;
+  if (statusSpan) {
+    if (status === 'running') {
+      statusSpan.innerHTML = `<i data-lucide="loader" class="icon-xs"></i><span>${statusText}</span>`;
+    } else if (status === 'completed') {
+      statusSpan.innerHTML = `<i data-lucide="check-circle" class="icon-xs"></i><span>${statusText}</span>`;
+    } else if (status === 'error') {
+      statusSpan.innerHTML = `<i data-lucide="x-circle" class="icon-xs"></i><span>${statusText}</span>`;
     }
+    statusSpan.style.display = 'flex';
+    statusSpan.style.alignItems = 'center';
+    statusSpan.style.gap = 'var(--space-xs)';
+    lucide.createIcons();
+  }
 
-    if (progressBar) {
-        if (status === 'running') {
-            // Indeterminate animation
-            progressBar.style.width = '40%';
-            progressBar.style.animation = 'progressSlide 2s ease-in-out infinite';
-        } else if (status === 'completed') {
-            progressBar.style.animation = 'none';
-            progressBar.style.width = '100%';
-        } else if (status === 'error') {
-            progressBar.style.animation = 'none';
-            progressBar.style.width = '100%';
-            progressBar.style.background = 'var(--danger)';
-        }
+  if (progressBar) {
+    if (status === 'running') {
+      // Indeterminate animation
+      progressBar.style.width = '40%';
+      progressBar.style.animation = 'progressSlide 2s ease-in-out infinite';
+    } else if (status === 'completed') {
+      progressBar.style.animation = 'none';
+      progressBar.style.width = '100%';
+    } else if (status === 'error') {
+      progressBar.style.animation = 'none';
+      progressBar.style.width = '100%';
+      progressBar.style.background = 'var(--danger)';
     }
+  }
 }
 
 function showResults(results) {
-    const resultsSection = document.getElementById('resultsSection');
-    const resultsContainer = document.getElementById('resultsContainer');
+  const resultsSection = document.getElementById('resultsSection');
+  const resultsContainer = document.getElementById('resultsContainer');
 
-    resultsContainer.innerHTML = '';
+  resultsContainer.innerHTML = '';
 
-    const testInfo = {
-        'broken_links': {
-            icon: '🔗',
-            name: 'Enlaces Rotos',
-            detailPage: '{{ url_for("crawler.broken") }}'
-        },
-        'image_quality': {
-            icon: '🖼️',
-            name: 'Calidad de Imágenes',
-            detailPage: '{{ url_for("crawler.quality") }}'
-        }
-    };
+  const testInfo = {
+    'broken_links': {
+      icon: 'link-2',
+      name: 'Enlaces Rotos',
+      detailPage: '{{ url_for("crawler.broken") }}'
+    },
+    'image_quality': {
+      icon: 'image',
+      name: 'Calidad de Imágenes',
+      detailPage: '{{ url_for("crawler.quality") }}'
+    },
+    'spell_check': {
+      icon: 'file-text',
+      name: 'Ortografía',
+      detailPage: '{{ url_for("crawler.spell_check") }}'
+    }
+  };
 
-    // Iterate through results (which contains the API response for each test)
-    for (const [checkType, result] of Object.entries(results)) {
-        const info = testInfo[checkType];
+  // Iterate through results (which contains the API response for each test)
+  for (const [checkType, result] of Object.entries(results)) {
+    const info = testInfo[checkType];
 
-        // Extract check result from response structure
-        // Response structure: { success: true, results: { checks: [...] } }
-        let checkResult = {};
+    // Extract check result from response structure
+    // Response structure: { success: true, results: { checks: [...] } }
+    let checkResult = {};
 
-        if (result.success && result.results && result.results.checks) {
-            // Find the check in the checks array
-            const check = result.results.checks.find(c => c.check_type === checkType);
-            if (check) {
-                checkResult = check;
-            }
-        } else if (result.error) {
-            checkResult = { status: 'error', message: result.error };
-        }
-
-        // Extract stats
-        const stats = checkResult.stats || {};
-        const isCompleted = checkResult.status === 'completed';
-
-        const cardHTML = `
-            <div class="result-card ${checkResult.status || 'error'}">
-                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 15px;">
-                    <span style="font-size: 32px;">${info.icon}</span>
-                    <div>
-                        <h3 style="margin: 0; font-size: 18px; color: var(--text);">${info.name}</h3>
-                        <span style="font-size: 14px; color: var(--muted);">
-                            ${isCompleted ? '✅ Completado' : '❌ Error'}
-                        </span>
-                    </div>
-                </div>
-
-                <div style="background: var(--panel); padding: 15px; border-radius: 6px; margin-bottom: 15px;">
-                    <p style="margin: 5px 0; font-size: 14px; color: var(--text);">
-                        <strong>Mensaje:</strong> ${checkResult.message || 'Sin detalles'}
-                    </p>
-                    ${stats.validated ? `<p style="margin: 5px 0; font-size: 14px; color: var(--text);"><strong>URLs validadas:</strong> ${stats.validated}</p>` : ''}
-                    ${stats.broken !== undefined ? `<p style="margin: 5px 0; font-size: 14px; color: var(--text);"><strong>Enlaces rotos:</strong> ${stats.broken}</p>` : ''}
-                    ${stats.ok !== undefined ? `<p style="margin: 5px 0; font-size: 14px; color: var(--text);"><strong>URLs OK:</strong> ${stats.ok}</p>` : ''}
-                </div>
-
-                <a href="${info.detailPage}" class="btn" style="background: #3b82f6; color: white; padding: 10px 20px; text-decoration: none; display: inline-block; border-radius: 6px;">
-                    Ver Detalles Completos →
-                </a>
-            </div>
-        `;
-
-        resultsContainer.innerHTML += cardHTML;
+    if (result.success && result.results && result.results.checks) {
+      // Find the check in the checks array
+      const check = result.results.checks.find(c => c.check_type === checkType);
+      if (check) {
+        checkResult = check;
+      }
+    } else if (result.error) {
+      checkResult = { status: 'error', message: result.error };
     }
 
-    resultsSection.style.display = 'block';
-    window.scrollTo({ top: resultsSection.offsetTop, behavior: 'smooth' });
+    // Extract stats
+    const stats = checkResult.stats || {};
+    const isCompleted = checkResult.status === 'completed';
+
+    const cardHTML = `
+      <div class="result-card ${checkResult.status || 'error'}">
+        <div style="display: flex; align-items: center; gap: var(--space-md); margin-bottom: var(--space-md);">
+          <i data-lucide="${info.icon}" class="icon-2xl"></i>
+          <div>
+            <h3 style="margin: 0; font-size: var(--text-lg); color: var(--text);">${info.name}</h3>
+            <span class="badge ${isCompleted ? 'badge-success' : 'badge-danger'}">
+              <i data-lucide="${isCompleted ? 'check-circle' : 'x-circle'}" class="icon-xs"></i>
+              <span>${isCompleted ? 'Completado' : 'Error'}</span>
+            </span>
+          </div>
+        </div>
+
+        <div style="background: var(--bg-secondary); padding: var(--space-md); border-radius: var(--radius-sm); margin-bottom: var(--space-md);">
+          <p style="margin: var(--space-xs) 0; font-size: var(--text-sm); color: var(--text);">
+            <strong>Mensaje:</strong> ${checkResult.message || 'Sin detalles'}
+          </p>
+          ${stats.validated ? `<p style="margin: var(--space-xs) 0; font-size: var(--text-sm); color: var(--text);"><strong>URLs validadas:</strong> ${stats.validated}</p>` : ''}
+          ${stats.broken !== undefined ? `<p style="margin: var(--space-xs) 0; font-size: var(--text-sm); color: var(--text);"><strong>Enlaces rotos:</strong> ${stats.broken}</p>` : ''}
+          ${stats.ok !== undefined ? `<p style="margin: var(--space-xs) 0; font-size: var(--text-sm); color: var(--text);"><strong>URLs OK:</strong> ${stats.ok}</p>` : ''}
+        </div>
+
+        <a href="${info.detailPage}" class="btn primary" style="text-decoration: none; display: inline-flex;">
+          <i data-lucide="arrow-right" class="icon-xs"></i>
+          <span>Ver Detalles Completos</span>
+        </a>
+      </div>
+    `;
+
+    resultsContainer.innerHTML += cardHTML;
+  }
+
+  lucide.createIcons();
+  resultsSection.style.display = 'block';
+  window.scrollTo({ top: resultsSection.offsetTop, behavior: 'smooth' });
 }
 </script>
 {% endblock %}
