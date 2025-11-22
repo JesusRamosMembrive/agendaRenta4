@@ -162,6 +162,29 @@ python seed_users.py
 python seed_users.py --list
 ```
 
+### `scripts/run_generate_alerts.py`
+
+Lanza el generador de alertas (una alerta por tipo de tarea) para una fecha concreta o para hoy. Útil para cron.
+
+```bash
+# Para hoy
+python scripts/run_generate_alerts.py
+
+# Fecha concreta
+python scripts/run_generate_alerts.py --date 2025-11-01
+```
+
+Ejemplo de cron diario a las 8:00 (ajusta ruta/venv):
+
+```
+0 8 * * * cd /home/jesusramos/Workspace/agendaRenta4 && source .venv/bin/activate && python scripts/run_generate_alerts.py >> /var/log/agendaR4-alerts.log 2>&1
+```
+
+### Alertas personalizadas como tipos de tarea
+- Crea una regla en Configuración → “Alertas personalizadas” (título, frecuencia, día). Esto genera automáticamente un `task_type` y tareas pendientes para el periodo actual de todas las URLs activas.
+- El generador (`scripts/run_generate_alerts.py`) crea alertas para dichas reglas según la frecuencia/día configurados.
+- Puedes borrar una regla con el botón 🗑 (elimina tareas, alert_settings y el tipo personalizado).
+
 ---
 
 ## 📋 Schema de Base de Datos

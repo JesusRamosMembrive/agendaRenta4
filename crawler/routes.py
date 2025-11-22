@@ -3,14 +3,16 @@ Crawler Routes Blueprint
 All crawler-related routes extracted from app.py
 """
 
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
-from flask_login import login_required, current_user
-from utils import db_cursor, get_latest_crawl_run, Paginator
-from constants import URLS_PER_PAGE, QUALITY_CHECKS_PER_PAGE, QualityCheckDefaults
 import math
 
+from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
+from flask_login import current_user, login_required
+
+from constants import QUALITY_CHECKS_PER_PAGE, URLS_PER_PAGE, QualityCheckDefaults
+from utils import db_cursor, get_latest_crawl_run
+
 # Create blueprint
-crawler_bp = Blueprint('crawler', __name__, url_prefix='/crawler')
+crawler_bp = Blueprint("crawler", __name__, url_prefix="/crawler")
 
 
 def get_url_counts_and_estimates():
@@ -35,7 +37,7 @@ def get_url_counts_and_estimates():
             FROM discovered_urls
             WHERE active = TRUE AND is_priority = TRUE
         """)
-        priority_count = cursor.fetchone()['count']
+        priority_count = cursor.fetchone()["count"]
 
         # Get total URLs count
         cursor.execute("""
@@ -43,7 +45,7 @@ def get_url_counts_and_estimates():
             FROM discovered_urls
             WHERE active = TRUE
         """)
-        total_count = cursor.fetchone()['count']
+        total_count = cursor.fetchone()["count"]
 
     # Calculate time estimates
     def format_time_estimate(seconds):
@@ -58,24 +60,34 @@ def get_url_counts_and_estimates():
             return f"{hours:.1f}h"
 
     # Broken links estimates
-    bl_priority_seconds = priority_count * QualityCheckDefaults.TIME_PER_URL_BROKEN_LINKS
+    bl_priority_seconds = (
+        priority_count * QualityCheckDefaults.TIME_PER_URL_BROKEN_LINKS
+    )
     bl_all_seconds = total_count * QualityCheckDefaults.TIME_PER_URL_BROKEN_LINKS
 
     # Image quality estimates
-    iq_priority_seconds = priority_count * QualityCheckDefaults.TIME_PER_URL_IMAGE_QUALITY
+    iq_priority_seconds = (
+        priority_count * QualityCheckDefaults.TIME_PER_URL_IMAGE_QUALITY
+    )
     iq_all_seconds = total_count * QualityCheckDefaults.TIME_PER_URL_IMAGE_QUALITY
 
+    # Spell check estimates
+    sc_priority_seconds = priority_count * QualityCheckDefaults.TIME_PER_URL_SPELL_CHECK
+    sc_all_seconds = total_count * QualityCheckDefaults.TIME_PER_URL_SPELL_CHECK
+
     return {
-        'priority_count': priority_count,
-        'total_count': total_count,
-        'broken_links_priority_time': format_time_estimate(bl_priority_seconds),
-        'broken_links_all_time': format_time_estimate(bl_all_seconds),
-        'image_quality_priority_time': format_time_estimate(iq_priority_seconds),
-        'image_quality_all_time': format_time_estimate(iq_all_seconds)
+        "priority_count": priority_count,
+        "total_count": total_count,
+        "broken_links_priority_time": format_time_estimate(bl_priority_seconds),
+        "broken_links_all_time": format_time_estimate(bl_all_seconds),
+        "image_quality_priority_time": format_time_estimate(iq_priority_seconds),
+        "image_quality_all_time": format_time_estimate(iq_all_seconds),
+        "spell_check_priority_time": format_time_estimate(sc_priority_seconds),
+        "spell_check_all_time": format_time_estimate(sc_all_seconds),
     }
 
 
-@crawler_bp.route('')
+@crawler_bp.route("")
 @login_required
 def dashboard():
     """
@@ -93,37 +105,44 @@ def dashboard():
         crawl_runs = cursor.fetchall()
 
         # Get total discovered URLs
-        cursor.execute("SELECT COUNT(*) as count FROM discovered_urls WHERE active = TRUE")
-        total_urls = cursor.fetchone()['count']
+        cursor.execute(
+            "SELECT COUNT(*) as count FROM discovered_urls WHERE active = TRUE"
+        )
+        total_urls = cursor.fetchone()["count"]
 
         # Get broken URLs count
-        cursor.execute("SELECT COUNT(*) as count FROM discovered_urls WHERE is_broken = TRUE")
-        broken_urls = cursor.fetchone()['count']
+        cursor.execute(
+            "SELECT COUNT(*) as count FROM discovered_urls WHERE is_broken = TRUE"
+        )
+        broken_urls = cursor.fetchone()["count"]
 
-    return render_template('crawler/dashboard.html',
-                         crawl_runs=crawl_runs,
-                         total_urls=total_urls,
-                         broken_urls=broken_urls,
-                         current_user=current_user)
+    return render_template(
+        "crawler/dashboard.html",
+        crawl_runs=crawl_runs,
+        total_urls=total_urls,
+        broken_urls=broken_urls,
+        current_user=current_user,
+    )
 
 
-@crawler_bp.route('/start', methods=['POST'])
+@crawler_bp.route("/start", methods=["POST"])
 @login_required
 def start():
     """
     Start a new crawl run manually.
     Runs crawler in background thread to avoid blocking.
     """
-    from crawler import Crawler, CRAWLER_CONFIG
-    from crawler.progress_tracker import progress_tracker
     import logging
     import threading
+
+    from crawler import CRAWLER_CONFIG, Crawler
+    from crawler.progress_tracker import progress_tracker
 
     logger = logging.getLogger(__name__)
 
     # Check if crawl is already running
-    if progress_tracker.get_progress()['is_running']:
-        return jsonify({'success': False, 'error': 'Ya hay un crawl en ejecución'}), 400
+    if progress_tracker.get_progress()["is_running"]:
+        return jsonify({"success": False, "error": "Ya hay un crawl en ejecución"}), 400
 
     # Capture current user name (can't access current_user in thread context)
     created_by = current_user.full_name
@@ -147,18 +166,20 @@ def start():
         logger.info("Crawler thread started successfully")
 
         # Return immediately (don't wait for completion)
-        return jsonify({
-            'success': True,
-            'message': 'Crawl iniciado en segundo plano. Actualización automática cada 2 segundos.',
-            'polling': True
-        })
+        return jsonify(
+            {
+                "success": True,
+                "message": "Crawl iniciado en segundo plano. Actualización automática cada 2 segundos.",
+                "polling": True,
+            }
+        )
 
     except Exception as e:
         logger.error(f"Error starting crawler thread: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
-@crawler_bp.route('/progress', methods=['GET'])
+@crawler_bp.route("/progress", methods=["GET"])
 @login_required
 def progress():
     """
@@ -170,63 +191,76 @@ def progress():
     return jsonify(progress_tracker.get_progress())
 
 
-@crawler_bp.route('/cancel', methods=['POST'])
+@crawler_bp.route("/cancel", methods=["POST"])
 @login_required
 def cancel():
     """
     Request cancellation of current crawl.
     """
-    from crawler.progress_tracker import progress_tracker
     import logging
+
+    from crawler.progress_tracker import progress_tracker
 
     logger = logging.getLogger(__name__)
 
     if progress_tracker.request_cancel():
         logger.info("Crawl cancellation requested by user")
-        return jsonify({'success': True, 'message': 'Cancelación solicitada. El crawl se detendrá en breve.'})
+        return jsonify(
+            {
+                "success": True,
+                "message": "Cancelación solicitada. El crawl se detendrá en breve.",
+            }
+        )
     else:
-        return jsonify({'success': False, 'error': 'No hay crawl en ejecución'}), 400
+        return jsonify({"success": False, "error": "No hay crawl en ejecución"}), 400
 
 
-@crawler_bp.route('/results')
+@crawler_bp.route("/results")
 @login_required
 def results():
     """
     Show list of discovered URLs (simple table).
     """
     # Get page number
-    page = request.args.get('page', 1, type=int)
+    page = request.args.get("page", 1, type=int)
     per_page = URLS_PER_PAGE
 
     with db_cursor(commit=False) as cursor:
         # Get total count
-        cursor.execute("SELECT COUNT(*) as count FROM discovered_urls WHERE active = TRUE")
-        total = cursor.fetchone()['count']
+        cursor.execute(
+            "SELECT COUNT(*) as count FROM discovered_urls WHERE active = TRUE"
+        )
+        total = cursor.fetchone()["count"]
 
         # Get paginated URLs
         offset = (page - 1) * per_page
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT id, url, depth, discovered_at, last_checked,
                    status_code, is_broken, parent_url_id
             FROM discovered_urls
             WHERE active = TRUE
             ORDER BY discovered_at DESC
             LIMIT %s OFFSET %s
-        """, (per_page, offset))
+        """,
+            (per_page, offset),
+        )
         urls = cursor.fetchall()
 
     # Calculate pagination
     total_pages = (total + per_page - 1) // per_page
 
-    return render_template('crawler/results.html',
-                         urls=urls,
-                         page=page,
-                         total_pages=total_pages,
-                         total=total,
-                         current_user=current_user)
+    return render_template(
+        "crawler/results.html",
+        urls=urls,
+        page=page,
+        total_pages=total_pages,
+        total=total,
+        current_user=current_user,
+    )
 
 
-@crawler_bp.route('/results/<int:crawl_run_id>')
+@crawler_bp.route("/results/<int:crawl_run_id>")
 @login_required
 def results_by_run(crawl_run_id):
     """
@@ -234,34 +268,42 @@ def results_by_run(crawl_run_id):
     """
     with db_cursor(commit=False) as cursor:
         # Get crawl run info
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT id, started_at, finished_at, status, root_url,
                    urls_discovered, urls_broken, created_by
             FROM crawl_runs
             WHERE id = %s
-        """, (crawl_run_id,))
+        """,
+            (crawl_run_id,),
+        )
         crawl_run = cursor.fetchone()
 
         if not crawl_run:
-            flash('Crawl run no encontrado', 'error')
-            return redirect(url_for('crawler.dashboard'))
+            flash("Crawl run no encontrado", "error")
+            return redirect(url_for("crawler.dashboard"))
 
         # Get URLs from this run
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT id, url, depth, discovered_at, status_code, is_broken
             FROM discovered_urls
             WHERE crawl_run_id = %s
             ORDER BY depth ASC, url ASC
-        """, (crawl_run_id,))
+        """,
+            (crawl_run_id,),
+        )
         urls = cursor.fetchall()
 
-    return render_template('crawler/results.html',
-                         crawl_run=crawl_run,
-                         urls=urls,
-                         current_user=current_user)
+    return render_template(
+        "crawler/results.html",
+        crawl_run=crawl_run,
+        urls=urls,
+        current_user=current_user,
+    )
 
 
-@crawler_bp.route('/broken')
+@crawler_bp.route("/broken")
 @login_required
 def broken():
     """Show broken links from latest crawl"""
@@ -280,15 +322,18 @@ def broken():
     if not crawl_run:
         # Get URL counts even if no crawl exists
         url_info = get_url_counts_and_estimates()
-        return render_template('crawler/broken.html',
-                             crawl_run=None,
-                             broken_urls=[],
-                             url_info=url_info,
-                             current_user=current_user)
+        return render_template(
+            "crawler/broken.html",
+            crawl_run=None,
+            broken_urls=[],
+            url_info=url_info,
+            current_user=current_user,
+        )
 
     # Get validation statistics
     with db_cursor() as cursor:
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT
                 COUNT(*) as total_validated,
                 COUNT(*) FILTER (WHERE is_priority = TRUE) as priority_validated,
@@ -297,12 +342,15 @@ def broken():
                 COUNT(*) FILTER (WHERE is_priority = FALSE AND is_broken = TRUE) as non_priority_broken
             FROM discovered_urls
             WHERE crawl_run_id = %s AND last_checked IS NOT NULL
-        """, (crawl_run['id'],))
+        """,
+            (crawl_run["id"],),
+        )
         stats = cursor.fetchone()
 
     # Get broken URLs
     with db_cursor() as cursor:
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT
                 id,
                 url,
@@ -315,21 +363,25 @@ def broken():
             FROM discovered_urls
             WHERE crawl_run_id = %s AND is_broken = TRUE
             ORDER BY is_priority DESC, status_code ASC, url ASC
-        """, (crawl_run['id'],))
+        """,
+            (crawl_run["id"],),
+        )
         broken_urls = cursor.fetchall()
 
     # Get URL counts and time estimates
     url_info = get_url_counts_and_estimates()
 
-    return render_template('crawler/broken.html',
-                         crawl_run=crawl_run,
-                         broken_urls=broken_urls,
-                         stats=stats,
-                         url_info=url_info,
-                         current_user=current_user)
+    return render_template(
+        "crawler/broken.html",
+        crawl_run=crawl_run,
+        broken_urls=broken_urls,
+        stats=stats,
+        url_info=url_info,
+        current_user=current_user,
+    )
 
 
-@crawler_bp.route('/health')
+@crawler_bp.route("/health")
 @login_required
 def health():
     """
@@ -359,8 +411,8 @@ def health():
 
         # Get trend (compare with 7 days ago)
         if len(snapshots) >= 7:
-            week_ago_health = snapshots[6]['health_score']
-            trend = current_health['health_score'] - week_ago_health
+            week_ago_health = snapshots[6]["health_score"]
+            trend = current_health["health_score"] - week_ago_health
         else:
             trend = 0
 
@@ -377,15 +429,180 @@ def health():
         recent_changes = cursor.fetchall()
 
     return render_template(
-        'crawler/health.html',
+        "crawler/health.html",
         snapshots=snapshots,
         current_health=current_health,
         trend=trend,
-        recent_changes=recent_changes
+        recent_changes=recent_changes,
     )
 
 
-@crawler_bp.route('/scheduler', methods=['GET', 'POST'])
+@crawler_bp.route("/spell-check")
+@login_required
+def spell_check():
+    """Show spell check results from latest quality checks"""
+
+    # Get latest crawl run
+    with db_cursor() as cursor:
+        cursor.execute("""
+            SELECT id, started_at, finished_at, urls_discovered, status
+            FROM crawl_runs
+            ORDER BY id DESC
+            LIMIT 1
+        """)
+        crawl_run = cursor.fetchone()
+
+    if not crawl_run:
+        url_info = get_url_counts_and_estimates()
+        return render_template(
+            "crawler/spell_check.html",
+            crawl_run=None,
+            spell_results=[],
+            stats={},
+            url_info=url_info,
+            current_user=current_user,
+        )
+
+    # Get spell check statistics
+    with db_cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT
+                COUNT(*) as total_checked,
+                COUNT(*) FILTER (WHERE qc.status = 'ok') as ok_count,
+                COUNT(*) FILTER (WHERE qc.status = 'warning') as warning_count,
+                COUNT(*) FILTER (WHERE qc.status = 'error') as error_count,
+                COALESCE(AVG(qc.score), 0) as avg_score,
+                SUM(qc.issues_found) as total_issues
+            FROM quality_checks qc
+            JOIN discovered_urls du ON qc.discovered_url_id = du.id
+            WHERE du.crawl_run_id = %s
+              AND qc.check_type = 'spell_check'
+        """,
+            (crawl_run["id"],),
+        )
+        stats = cursor.fetchone()
+
+    # Get spell check results with details
+    with db_cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT
+                qc.id,
+                du.url,
+                du.is_priority,
+                qc.status,
+                qc.score,
+                qc.message,
+                qc.details,
+                qc.issues_found,
+                qc.checked_at
+            FROM quality_checks qc
+            JOIN discovered_urls du ON qc.discovered_url_id = du.id
+            WHERE du.crawl_run_id = %s
+              AND qc.check_type = 'spell_check'
+            ORDER BY qc.issues_found DESC, du.is_priority DESC, du.url ASC
+        """,
+            (crawl_run["id"],),
+        )
+        spell_results = cursor.fetchall()
+
+    # Get URL counts and time estimates
+    url_info = get_url_counts_and_estimates()
+
+    return render_template(
+        "crawler/spell_check.html",
+        crawl_run=crawl_run,
+        spell_results=spell_results,
+        stats=stats,
+        url_info=url_info,
+        current_user=current_user,
+    )
+
+
+@crawler_bp.route("/spell-check/recheck/<int:check_id>", methods=["POST"])
+@login_required
+def recheck_spell(check_id):
+    """
+    Re-run spell check for a specific URL after dictionary changes.
+
+    Args:
+        check_id: ID of the quality_check record to update
+
+    Returns:
+        JSON with updated check results
+    """
+    import json
+
+    from calidad.spell import SpellChecker
+
+    try:
+        # Get the URL from the check_id
+        with db_cursor(commit=False) as cursor:
+            cursor.execute(
+                """
+                SELECT du.id as url_id, du.url, qc.id as check_id
+                FROM quality_checks qc
+                JOIN discovered_urls du ON qc.discovered_url_id = du.id
+                WHERE qc.id = %s AND qc.check_type = 'spell_check'
+            """,
+                (check_id,),
+            )
+
+            result = cursor.fetchone()
+
+            if not result:
+                return jsonify({"success": False, "error": "Check not found"}), 404
+
+        # Run spell check on the URL
+        checker = SpellChecker()
+        check_result = checker.check(result["url"])
+
+        # Update the database with new results
+        with db_cursor() as cursor:
+            cursor.execute(
+                """
+                UPDATE quality_checks
+                SET status = %s,
+                    score = %s,
+                    message = %s,
+                    details = %s,
+                    issues_found = %s,
+                    checked_at = CURRENT_TIMESTAMP
+                WHERE id = %s
+                RETURNING id, status, score, message, issues_found, checked_at
+            """,
+                (
+                    check_result.status,
+                    check_result.score,
+                    check_result.message,
+                    json.dumps(check_result.details),
+                    check_result.issues_found,
+                    check_id,
+                ),
+            )
+
+            updated_check = cursor.fetchone()
+
+        return jsonify(
+            {
+                "success": True,
+                "check": {
+                    "id": updated_check["id"],
+                    "status": updated_check["status"],
+                    "score": updated_check["score"],
+                    "message": updated_check["message"],
+                    "issues_found": updated_check["issues_found"],
+                    "checked_at": updated_check["checked_at"].isoformat(),
+                },
+            }
+        )
+
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@crawler_bp.route("/scheduler", methods=["GET", "POST"])
 @login_required
 def scheduler():
     """
@@ -395,46 +612,46 @@ def scheduler():
 
     scheduler_instance = get_scheduler()
 
-    if request.method == 'POST':
-        action = request.form.get('action')
+    if request.method == "POST":
+        action = request.form.get("action")
 
-        if action == 'start':
-            frequency = request.form.get('frequency', 'daily')
-            hour = int(request.form.get('hour', 3))
-            minute = int(request.form.get('minute', 0))
+        if action == "start":
+            frequency = request.form.get("frequency", "daily")
+            hour = int(request.form.get("hour", 3))
+            minute = int(request.form.get("minute", 0))
 
             try:
                 start_scheduler(frequency, hour, minute)
-                flash(f'✓ Scheduler iniciado: {frequency} a las {hour:02d}:{minute:02d}', 'success')
+                flash(
+                    f"✓ Scheduler iniciado: {frequency} a las {hour:02d}:{minute:02d}",
+                    "success",
+                )
             except Exception as e:
-                flash(f'✗ Error al iniciar scheduler: {e}', 'error')
+                flash(f"✗ Error al iniciar scheduler: {e}", "error")
 
-        elif action == 'stop':
+        elif action == "stop":
             try:
                 stop_scheduler()
-                flash('✓ Scheduler detenido', 'success')
+                flash("✓ Scheduler detenido", "success")
             except Exception as e:
-                flash(f'✗ Error al detener scheduler: {e}', 'error')
+                flash(f"✗ Error al detener scheduler: {e}", "error")
 
-        elif action == 'run_now':
+        elif action == "run_now":
             try:
                 scheduler_instance.run_revalidation()
-                flash('✓ Revalidación manual ejecutada', 'success')
+                flash("✓ Revalidación manual ejecutada", "success")
             except Exception as e:
-                flash(f'✗ Error al ejecutar revalidación: {e}', 'error')
+                flash(f"✗ Error al ejecutar revalidación: {e}", "error")
 
-        return redirect(url_for('crawler.scheduler'))
+        return redirect(url_for("crawler.scheduler"))
 
     # Get scheduler info
     schedule_info = scheduler_instance.get_schedule_info()
 
-    return render_template(
-        'crawler/scheduler.html',
-        schedule_info=schedule_info
-    )
+    return render_template("crawler/scheduler.html", schedule_info=schedule_info)
 
 
-@crawler_bp.route('/tree')
+@crawler_bp.route("/tree")
 @login_required
 def tree():
     """
@@ -442,9 +659,9 @@ def tree():
     Shows parent-child relationships with expand/collapse functionality.
     """
     # Get filter parameters
-    show_broken_only = request.args.get('broken_only', '0') == '1'
-    max_depth = request.args.get('max_depth', type=int)
-    search_query = request.args.get('search', '').strip()
+    show_broken_only = request.args.get("broken_only", "0") == "1"
+    max_depth = request.args.get("max_depth", type=int)
+    search_query = request.args.get("search", "").strip()
 
     with db_cursor(commit=False) as cursor:
         # Build WHERE clause based on filters
@@ -460,18 +677,21 @@ def tree():
 
         if search_query:
             where_clauses.append("url ILIKE %s")
-            params.append(f'%{search_query}%')
+            params.append(f"%{search_query}%")
 
         where_sql = " AND ".join(where_clauses)
 
         # Get all URLs with parent information
-        cursor.execute(f"""
+        cursor.execute(
+            f"""
             SELECT id, url, parent_url_id, depth, status_code,
                    is_broken, last_checked, response_time
             FROM discovered_urls
             WHERE {where_sql}
             ORDER BY url
-        """, params)
+        """,
+            params,
+        )
         all_urls = cursor.fetchall()
 
         # Get statistics
@@ -487,41 +707,41 @@ def tree():
         stats = cursor.fetchone()
 
     # Build tree structure
-    url_dict = {url['id']: dict(url) for url in all_urls}
+    url_dict = {url["id"]: dict(url) for url in all_urls}
 
     # Add children list to each URL
     for url in url_dict.values():
-        url['children'] = []
+        url["children"] = []
 
     # Build parent-child relationships
     root_urls = []
     for url in url_dict.values():
-        if url['parent_url_id'] and url['parent_url_id'] in url_dict:
-            url_dict[url['parent_url_id']]['children'].append(url)
+        if url["parent_url_id"] and url["parent_url_id"] in url_dict:
+            url_dict[url["parent_url_id"]]["children"].append(url)
         else:
             # Root URL (no parent or parent not in filtered results)
             root_urls.append(url)
 
     return render_template(
-        'crawler/tree.html',
+        "crawler/tree.html",
         root_urls=root_urls,
         stats=stats,
         show_broken_only=show_broken_only,
         max_depth_filter=max_depth,
         search_query=search_query,
-        current_user=current_user
+        current_user=current_user,
     )
 
 
-@crawler_bp.route('/quality')
+@crawler_bp.route("/quality")
 @login_required
 def quality():
     """
     Quality checks dashboard - shows image quality results for discovered URLs.
     """
     # Get filter parameters
-    status_filter = request.args.get('status', '')  # 'ok', 'warning', 'error'
-    page = request.args.get('page', 1, type=int)
+    status_filter = request.args.get("status", "")  # 'ok', 'warning', 'error'
+    page = request.args.get("page", 1, type=int)
     per_page = QUALITY_CHECKS_PER_PAGE
 
     with db_cursor(commit=False) as cursor:
@@ -537,7 +757,8 @@ def quality():
 
         # Get quality check results with discovered URL info
         # Support both section_id (old) and discovered_url_id (new)
-        cursor.execute(f"""
+        cursor.execute(
+            f"""
             SELECT
                 qc.id,
                 qc.section_id,
@@ -558,16 +779,21 @@ def quality():
             WHERE qc.check_type = 'image_quality'{where_sql}
             ORDER BY qc.checked_at DESC
             LIMIT %s OFFSET %s
-        """, params + [per_page, (page - 1) * per_page])
+        """,
+            params + [per_page, (page - 1) * per_page],
+        )
         quality_checks = cursor.fetchall()
 
         # Get total count
-        cursor.execute(f"""
+        cursor.execute(
+            f"""
             SELECT COUNT(*) as count
             FROM quality_checks qc
             WHERE qc.check_type = 'image_quality'{where_sql}
-        """, params)
-        total = cursor.fetchone()['count']
+        """,
+            params,
+        )
+        total = cursor.fetchone()["count"]
 
         # Get statistics
         cursor.execute("""
@@ -590,18 +816,18 @@ def quality():
     url_info = get_url_counts_and_estimates()
 
     return render_template(
-        'crawler/quality.html',
+        "crawler/quality.html",
         quality_checks=quality_checks,
         stats=stats,
         status_filter=status_filter,
         page=page,
         total_pages=total_pages,
         url_info=url_info,
-        current_user=current_user
+        current_user=current_user,
     )
 
 
-@crawler_bp.route('/test-runner')
+@crawler_bp.route("/test-runner")
 @login_required
 def test_runner():
     """
@@ -612,134 +838,152 @@ def test_runner():
 
     with db_cursor(commit=False) as cursor:
         # Get current user's check configuration
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT check_type, enabled, run_after_crawl, scope
             FROM quality_check_config
             WHERE user_id = %s
-        """, (current_user.id,))
+        """,
+            (current_user.id,),
+        )
         configs = cursor.fetchall()
 
     # Convert to dict for easier access in template
-    config_dict = {cfg['check_type']: cfg for cfg in configs}
+    config_dict = {cfg["check_type"]: cfg for cfg in configs}
 
     return render_template(
-        'crawler/test_runner.html',
+        "crawler/test_runner.html",
         config_dict=config_dict,
         available_checks=PostCrawlQualityRunner.AVAILABLE_CHECKS,
-        current_user=current_user
+        current_user=current_user,
     )
 
 
-@crawler_bp.route('/quality/check/<int:section_id>', methods=['POST'])
+@crawler_bp.route("/quality/check/<int:section_id>", methods=["POST"])
 @login_required
 def run_quality_check(section_id):
     """
     Run image quality check on a specific URL.
     """
-    from calidad import ImagenesChecker
     import json
     import logging
+
+    from calidad import ImagenesChecker
 
     logger = logging.getLogger(__name__)
 
     try:
         with db_cursor() as cursor:
             # Get URL from sections table
-            cursor.execute("SELECT id, url, name FROM sections WHERE id = %s", (section_id,))
+            cursor.execute(
+                "SELECT id, url, name FROM sections WHERE id = %s", (section_id,)
+            )
             section = cursor.fetchone()
 
             if not section:
-                return jsonify({'success': False, 'error': 'URL not found'}), 404
+                return jsonify({"success": False, "error": "URL not found"}), 404
 
             # Run image quality check
-            checker = ImagenesChecker(config={'check_format': True})
-            result = checker.check(section['url'])
+            checker = ImagenesChecker(config={"check_format": True})
+            result = checker.check(section["url"])
 
             # Save result to quality_checks table
-            cursor.execute("""
+            cursor.execute(
+                """
                 INSERT INTO quality_checks (
                     section_id, check_type, status, score, message,
                     details, issues_found, checked_at, execution_time_ms
                 )
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
-            """, (
-                section_id,
-                result.check_type,
-                result.status,
-                result.score,
-                result.message,
-                json.dumps(result.details),
-                result.issues_found,
-                result.checked_at,
-                result.execution_time_ms
-            ))
+            """,
+                (
+                    section_id,
+                    result.check_type,
+                    result.status,
+                    result.score,
+                    result.message,
+                    json.dumps(result.details),
+                    result.issues_found,
+                    result.checked_at,
+                    result.execution_time_ms,
+                ),
+            )
 
-            check_id = cursor.fetchone()['id']
+            check_id = cursor.fetchone()["id"]
 
-            logger.info(f"Quality check completed for {section['url']}: {result.status} (score: {result.score})")
+            logger.info(
+                f"Quality check completed for {section['url']}: {result.status} (score: {result.score})"
+            )
 
-            return jsonify({
-                'success': True,
-                'check_id': check_id,
-                'status': result.status,
-                'score': result.score,
-                'message': result.message,
-                'issues_found': result.issues_found
-            })
+            return jsonify(
+                {
+                    "success": True,
+                    "check_id": check_id,
+                    "status": result.status,
+                    "score": result.score,
+                    "message": result.message,
+                    "issues_found": result.issues_found,
+                }
+            )
 
     except Exception as e:
         logger.error(f"Error running quality check: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
-@crawler_bp.route('/quality/batch', methods=['POST'])
+@crawler_bp.route("/quality/batch", methods=["POST"])
 @login_required
 def run_batch_quality_check():
     """
     Run quality checks on multiple URLs in batch.
     Expects JSON with list of section_ids.
     """
+    import logging
+
     from calidad import ImagenesChecker
     from calidad.batch import BatchQualityCheckRunner
-    import logging
 
     logger = logging.getLogger(__name__)
 
     try:
         data = request.get_json()
-        section_ids = data.get('section_ids', [])
+        section_ids = data.get("section_ids", [])
 
         if not section_ids:
-            return jsonify({'success': False, 'error': 'No section IDs provided'}), 400
+            return jsonify({"success": False, "error": "No section IDs provided"}), 400
 
         # Create batch runner
         runner = BatchQualityCheckRunner(
-            batch_type='image_quality',
+            batch_type="image_quality",
             checker_class=ImagenesChecker,
-            checker_config={'check_format': True}
+            checker_config={"check_format": True},
         )
 
         # Run batch in current thread (for simplicity)
         # TODO: In production, consider using Celery or background thread
         result = runner.run_batch(section_ids, created_by=current_user.full_name)
 
-        logger.info(f"Batch {result['batch_id']} completed: {result['successful']}/{result['total']} successful")
+        logger.info(
+            f"Batch {result['batch_id']} completed: {result['successful']}/{result['total']} successful"
+        )
 
-        return jsonify({
-            'success': True,
-            'batch_id': result['batch_id'],
-            'total': result['total'],
-            'successful': result['successful'],
-            'failed': result['failed']
-        })
+        return jsonify(
+            {
+                "success": True,
+                "batch_id": result["batch_id"],
+                "total": result["total"],
+                "successful": result["successful"],
+                "failed": result["failed"],
+            }
+        )
 
     except Exception as e:
         logger.error(f"Error running batch quality check: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
-@crawler_bp.route('/quality/batch/<int:batch_id>', methods=['GET'])
+@crawler_bp.route("/quality/batch/<int:batch_id>", methods=["GET"])
 @login_required
 def get_batch_quality_status(batch_id):
     """
@@ -751,49 +995,45 @@ def get_batch_quality_status(batch_id):
         status = get_batch_status(batch_id)
 
         if not status:
-            return jsonify({'success': False, 'error': 'Batch not found'}), 404
+            return jsonify({"success": False, "error": "Batch not found"}), 404
 
-        return jsonify({
-            'success': True,
-            'batch': status
-        })
+        return jsonify({"success": True, "batch": status})
 
     except Exception as e:
         logger = logging.getLogger(__name__)
         logger.error(f"Error getting batch status: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
 # ============================================================
 # QUALITY CHECK CONFIGURATION ROUTES
 # ============================================================
 
-@crawler_bp.route('/config/checks', methods=['GET'])
+
+@crawler_bp.route("/config/checks", methods=["GET"])
 @login_required
 def get_quality_check_config():
     """
     Get quality check configuration for current user.
     Returns list of available checks with their settings.
     """
-    from calidad.post_crawl_runner import get_user_check_config
     import logging
+
+    from calidad.post_crawl_runner import get_user_check_config
 
     logger = logging.getLogger(__name__)
 
     try:
         config = get_user_check_config(current_user.id)
 
-        return jsonify({
-            'success': True,
-            'checks': config
-        })
+        return jsonify({"success": True, "checks": config})
 
     except Exception as e:
         logger.error(f"Error getting check config: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
-@crawler_bp.route('/config/checks', methods=['POST'])
+@crawler_bp.route("/config/checks", methods=["POST"])
 @login_required
 def update_quality_check_config():
     """
@@ -806,40 +1046,41 @@ def update_quality_check_config():
         "scope": "priority"  # 'all' or 'priority'
     }
     """
-    from calidad.post_crawl_runner import update_user_check_config
     import logging
+
+    from calidad.post_crawl_runner import update_user_check_config
 
     logger = logging.getLogger(__name__)
 
     try:
         data = request.get_json()
-        check_type = data.get('check_type')
-        enabled = data.get('enabled', False)
-        run_after_crawl = data.get('run_after_crawl', False)
-        scope = data.get('scope', 'priority')  # Default to 'priority' if not provided
+        check_type = data.get("check_type")
+        enabled = data.get("enabled", False)
+        run_after_crawl = data.get("run_after_crawl", False)
+        scope = data.get("scope", "priority")  # Default to 'priority' if not provided
 
         if not check_type:
-            return jsonify({'success': False, 'error': 'check_type is required'}), 400
+            return jsonify({"success": False, "error": "check_type is required"}), 400
 
         success = update_user_check_config(
             user_id=current_user.id,
             check_type=check_type,
             enabled=enabled,
             run_after_crawl=run_after_crawl,
-            scope=scope
+            scope=scope,
         )
 
         if success:
-            return jsonify({'success': True})
+            return jsonify({"success": True})
         else:
-            return jsonify({'success': False, 'error': 'Failed to update config'}), 500
+            return jsonify({"success": False, "error": "Failed to update config"}), 500
 
     except Exception as e:
         logger.error(f"Error updating check config: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
-@crawler_bp.route('/results/<int:crawl_run_id>/run-checks', methods=['POST'])
+@crawler_bp.route("/results/<int:crawl_run_id>/run-checks", methods=["POST"])
 @login_required
 def run_crawl_quality_checks(crawl_run_id):
     """
@@ -849,46 +1090,47 @@ def run_crawl_quality_checks(crawl_run_id):
         "check_types": ["broken_links", "image_quality"]
     }
     """
-    from calidad.post_crawl_runner import PostCrawlQualityRunner
     import logging
+
+    from calidad.post_crawl_runner import PostCrawlQualityRunner
 
     logger = logging.getLogger(__name__)
 
     try:
         # Verify crawl run exists
         with db_cursor(commit=False) as cursor:
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT id, status, root_url
                 FROM crawl_runs
                 WHERE id = %s
-            """, (crawl_run_id,))
+            """,
+                (crawl_run_id,),
+            )
             crawl_run = cursor.fetchone()
 
         if not crawl_run:
-            return jsonify({'success': False, 'error': 'Crawl run not found'}), 404
+            return jsonify({"success": False, "error": "Crawl run not found"}), 404
 
         # Get requested checks
         data = request.get_json()
-        check_types = data.get('check_types', [])
+        check_types = data.get("check_types", [])
 
         if not check_types:
-            return jsonify({'success': False, 'error': 'check_types is required'}), 400
+            return jsonify({"success": False, "error": "check_types is required"}), 400
 
         # Run checks
         runner = PostCrawlQualityRunner(crawl_run_id)
         results = runner.run_selected_checks(check_types)
 
-        return jsonify({
-            'success': True,
-            'results': results
-        })
+        return jsonify({"success": True, "results": results})
 
     except Exception as e:
         logger.error(f"Error running checks: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
-@crawler_bp.route('/quality/run', methods=['POST'])
+@crawler_bp.route("/quality/run", methods=["POST"])
 @login_required
 def run_quality_checks_manual():
     """
@@ -902,41 +1144,46 @@ def run_quality_checks_manual():
         "scope": "priority"  # 'all' or 'priority'
     }
     """
-    from calidad.post_crawl_runner import PostCrawlQualityRunner
     import logging
+
+    from calidad.post_crawl_runner import PostCrawlQualityRunner
 
     logger = logging.getLogger(__name__)
 
     try:
         # Get request data
         data = request.get_json()
-        check_types = data.get('check_types', [])
-        scope = data.get('scope', 'priority')
+        check_types = data.get("check_types", [])
+        scope = data.get("scope", "priority")
 
         if not check_types:
-            return jsonify({'success': False, 'error': 'check_types is required'}), 400
+            return jsonify({"success": False, "error": "check_types is required"}), 400
 
-        if scope not in ['all', 'priority']:
-            return jsonify({'success': False, 'error': 'scope must be "all" or "priority"'}), 400
+        if scope not in ["all", "priority"]:
+            return jsonify(
+                {"success": False, "error": 'scope must be "all" or "priority"'}
+            ), 400
 
         # Get latest completed crawl run to use as reference
         with db_cursor(commit=False) as cursor:
-            latest_crawl = get_latest_crawl_run(cursor, status='completed')
+            latest_crawl = get_latest_crawl_run(cursor, status="completed")
 
         if not latest_crawl:
-            return jsonify({
-                'success': False,
-                'error': 'No completed crawl found. Please run a crawl first.'
-            }), 400
+            return jsonify(
+                {
+                    "success": False,
+                    "error": "No completed crawl found. Please run a crawl first.",
+                }
+            ), 400
 
-        crawl_run_id = latest_crawl['id']
+        crawl_run_id = latest_crawl["id"]
 
         logger.info(f"Running manual quality checks on crawl {crawl_run_id}")
         logger.info(f"  - Check types: {check_types}")
         logger.info(f"  - Scope: {scope}")
 
         # Create check configs with scope
-        check_configs = [{'check_type': ct, 'scope': scope} for ct in check_types]
+        check_configs = [{"check_type": ct, "scope": scope} for ct in check_types]
 
         # Run checks
         runner = PostCrawlQualityRunner(crawl_run_id)
@@ -946,12 +1193,127 @@ def run_quality_checks_manual():
         logger.info(f"  - Executed: {results.get('executed', False)}")
         logger.info(f"  - Checks run: {len(results.get('checks', []))}")
 
-        return jsonify({
-            'success': True,
-            'crawl_run_id': crawl_run_id,
-            'results': results
-        })
+        return jsonify(
+            {"success": True, "crawl_run_id": crawl_run_id, "results": results}
+        )
 
     except Exception as e:
         logger.error(f"Error running manual quality checks: {e}", exc_info=True)
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@crawler_bp.route("/cta-config", methods=["GET"])
+@login_required
+def cta_config():
+    """
+    Display CTA validation configuration page.
+    Shows page types, rules, and URL assignments.
+    """
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        with db_cursor(commit=False) as cursor:
+            # Get all page types
+            cursor.execute("""
+                SELECT id, name, description, url_pattern, created_at
+                FROM cta_page_types
+                ORDER BY name
+            """)
+            page_types = cursor.fetchall()
+
+            # Get all validation rules
+            cursor.execute("""
+                SELECT r.id, r.expected_text, r.expected_url_pattern,
+                       r.url_match_type, r.is_optional, r.priority,
+                       r.is_global, pt.name as page_type_name
+                FROM cta_validation_rules r
+                LEFT JOIN cta_page_types pt ON r.page_type_id = pt.id
+                ORDER BY r.is_global DESC, pt.name, r.priority DESC, r.expected_text
+            """)
+            rules = cursor.fetchall()
+
+            # Get URL assignments count by page type
+            cursor.execute("""
+                SELECT pt.name, COUNT(a.id) as url_count
+                FROM cta_page_types pt
+                LEFT JOIN cta_url_assignments a ON a.page_type_id = pt.id
+                GROUP BY pt.id, pt.name
+                ORDER BY pt.name
+            """)
+            assignment_counts = cursor.fetchall()
+
+        return render_template(
+            "crawler/cta_config.html",
+            page_types=page_types,
+            rules=rules,
+            assignment_counts=assignment_counts,
+        )
+
+    except Exception as e:
+        logger.error(f"Error loading CTA config: {e}", exc_info=True)
+        flash(f"Error loading CTA configuration: {str(e)}", "error")
+        return redirect(url_for("crawler.dashboard"))
+
+
+@crawler_bp.route("/cta-results", methods=["GET"])
+@login_required
+def cta_results():
+    """
+    Display CTA validation results.
+    Shows latest CTA checks with issues.
+    """
+    import json
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        with db_cursor(commit=False) as cursor:
+            # Get latest CTA validation checks with issues
+            cursor.execute("""
+                SELECT qc.id, du.url, qc.status, qc.score, qc.message,
+                       qc.details, qc.issues_found, qc.checked_at
+                FROM quality_checks qc
+                JOIN discovered_urls du ON qc.discovered_url_id = du.id
+                WHERE qc.check_type = 'cta_validation'
+                ORDER BY qc.checked_at DESC
+                LIMIT 100
+            """)
+            checks = cursor.fetchall()
+
+            # Parse JSON details (if stored as string)
+            for check in checks:
+                if check['details'] and isinstance(check['details'], str):
+                    check['details'] = json.loads(check['details'])
+
+            # Get summary stats
+            cursor.execute("""
+                SELECT
+                    COUNT(*) as total_checks,
+                    COUNT(*) FILTER (WHERE status = 'ok') as ok_count,
+                    COUNT(*) FILTER (WHERE status = 'warning') as warning_count,
+                    COUNT(*) FILTER (WHERE status = 'error') as error_count,
+                    AVG(score)::int as avg_score,
+                    SUM(issues_found) as total_issues
+                FROM quality_checks
+                WHERE check_type = 'cta_validation'
+                  AND checked_at > NOW() - INTERVAL '7 days'
+            """)
+            stats = cursor.fetchone()
+
+        # Get URL counts for scope selection and estimates
+        url_info = get_url_counts_and_estimates()
+
+        return render_template(
+            "crawler/cta_results.html",
+            checks=checks,
+            stats=stats,
+            url_info=url_info,
+        )
+
+    except Exception as e:
+        logger.error(f"Error loading CTA results: {e}", exc_info=True)
+        flash(f"Error loading CTA results: {str(e)}", "error")
+        return redirect(url_for("crawler.dashboard"))

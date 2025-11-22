@@ -1,0 +1,869 @@
+{% extends "base.html" %}
+
+{% block title %}Corrección Ortográfica - Crawler{% endblock %}
+
+{% block content %}
+<!-- ===============================================================
+     Page Header
+     =============================================================== -->
+<div class="page-header">
+  <h1 class="page-title">Corrección Ortográfica</h1>
+  <p class="page-description">
+    Errores ortográficos detectados en el contenido de las páginas
+  </p>
+</div>
+
+{% if not crawl_run %}
+  <!-- ===============================================================
+       No Results Warning
+       =============================================================== -->
+  <div class="card" style="border-left: 4px solid var(--warning); background: var(--warning-light);">
+    <div style="display: flex; align-items: center; gap: var(--space-md);">
+      <i data-lucide="alert-triangle" class="icon-xl" style="color: var(--warning);"></i>
+      <div style="flex: 1;">
+        <h3 style="margin: 0 0 var(--space-xs) 0; font-size: var(--text-lg); font-weight: var(--font-bold); color: var(--text);">
+          No hay resultados disponibles
+        </h3>
+        <p style="margin: 0 0 var(--space-md) 0; color: var(--text-secondary); font-size: var(--text-sm);">
+          Ejecuta el spell checker desde el Test Runner para analizar las páginas.
+        </p>
+        <a href="{{ url_for('crawler.test_runner') }}" class="btn primary" style="text-decoration: none;">
+          <i data-lucide="play-circle" class="icon-xs"></i>
+          <span>Ir al Test Runner</span>
+        </a>
+      </div>
+    </div>
+  </div>
+
+{% else %}
+  <!-- ===============================================================
+       Stats Cards - Horizontal Layout
+       =============================================================== -->
+  <div style="display: flex; gap: var(--space-lg); margin-bottom: var(--space-xl);">
+    <!-- URLs Analizadas -->
+    <div class="card" style="flex: 1; text-align: center; padding: var(--space-md);">
+      <div style="display: flex; align-items: center; justify-content: center; gap: var(--space-xs); margin-bottom: var(--space-xs);">
+        <i data-lucide="search" class="icon-xs" style="color: var(--muted);"></i>
+        <span style="font-size: var(--text-xs); font-weight: var(--font-semibold); color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px;">
+          URLs Analizadas
+        </span>
+      </div>
+      <div style="font-size: 32px; font-weight: var(--font-bold); color: var(--primary); line-height: 1;">
+        {{ stats.total_checked|default(0) }}
+      </div>
+    </div>
+
+    <!-- Puntuación Media -->
+    <div class="card" style="flex: 1; text-align: center; padding: var(--space-md);">
+      <div style="display: flex; align-items: center; justify-content: center; gap: var(--space-xs); margin-bottom: var(--space-xs);">
+        <i data-lucide="gauge" class="icon-xs" style="color: var(--muted);"></i>
+        <span style="font-size: var(--text-xs); font-weight: var(--font-semibold); color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px;">
+          Puntuación Media
+        </span>
+      </div>
+      <div style="font-size: 32px; font-weight: var(--font-bold); color: var(--primary); line-height: 1;">
+        {{ stats.avg_score|default(0)|round|int }}%
+      </div>
+    </div>
+
+    <!-- Errores Totales -->
+    <div class="card" style="flex: 1; text-align: center; padding: var(--space-md); background: var(--danger-light); border-left: 4px solid var(--danger);">
+      <div style="display: flex; align-items: center; justify-content: center; gap: var(--space-xs); margin-bottom: var(--space-xs);">
+        <i data-lucide="alert-circle" class="icon-xs" style="color: var(--danger);"></i>
+        <span style="font-size: var(--text-xs); font-weight: var(--font-semibold); color: var(--danger); text-transform: uppercase; letter-spacing: 0.5px;">
+          Errores Totales
+        </span>
+      </div>
+      <div style="font-size: 32px; font-weight: var(--font-bold); color: var(--danger); line-height: 1;">
+        {{ stats.total_issues|default(0) }}
+      </div>
+    </div>
+
+    <!-- Sin Errores -->
+    <div class="card" style="flex: 1; text-align: center; padding: var(--space-md); background: var(--success-light); border-left: 4px solid var(--success);">
+      <div style="display: flex; align-items: center; justify-content: center; gap: var(--space-xs); margin-bottom: var(--space-xs);">
+        <i data-lucide="check-circle" class="icon-xs" style="color: var(--success);"></i>
+        <span style="font-size: var(--text-xs); font-weight: var(--font-semibold); color: var(--success); text-transform: uppercase; letter-spacing: 0.5px;">
+          Sin Errores
+        </span>
+      </div>
+      <div style="font-size: 32px; font-weight: var(--font-bold); color: var(--success); line-height: 1;">
+        {{ stats.ok_count|default(0) }}
+      </div>
+    </div>
+  </div>
+
+  <!-- ===============================================================
+       Action Button
+       =============================================================== -->
+  <div style="text-align: center; margin-bottom: var(--space-xl);">
+    <button onclick="openSpellCheckModal()" class="btn primary" style="padding: var(--space-md) var(--space-xl); font-size: var(--text-lg); font-weight: var(--font-bold); box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+      <i data-lucide="zap" class="icon-sm"></i>
+      <span>Ejecutar Análisis Ahora</span>
+    </button>
+  </div>
+
+  {% if spell_results %}
+    <!-- ===============================================================
+         Filter Buttons
+         =============================================================== -->
+    <div style="display: flex; gap: var(--space-md); margin-bottom: var(--space-lg); flex-wrap: wrap;">
+      <button onclick="filterTable('all')" class="btn primary" id="filter-all">
+        <i data-lucide="list" class="icon-xs"></i>
+        <span>Todas ({{ spell_results|length }})</span>
+      </button>
+      <button onclick="filterTable('error')" class="btn ghost" id="filter-error">
+        <i data-lucide="x-circle" class="icon-xs"></i>
+        <span>Con Errores ({{ stats.error_count + stats.warning_count }})</span>
+      </button>
+      <button onclick="filterTable('ok')" class="btn ghost" id="filter-ok">
+        <i data-lucide="check-circle" class="icon-xs"></i>
+        <span>Sin Errores ({{ stats.ok_count }})</span>
+      </button>
+      <button onclick="filterTable('priority')" class="btn ghost" id="filter-priority">
+        <i data-lucide="star" class="icon-xs"></i>
+        <span>Prioritarias</span>
+      </button>
+    </div>
+
+    <!-- ===============================================================
+         Results Table
+         =============================================================== -->
+    <div class="card" style="overflow-x: auto; padding: 0;">
+      <table style="width: 100%; border-collapse: collapse;">
+        <thead>
+          <tr style="background: var(--bg-secondary); border-bottom: 2px solid var(--border);">
+            <th style="padding: var(--space-md); text-align: left; font-weight: var(--font-semibold); color: var(--text); font-size: var(--text-sm); width: 50px;">#</th>
+            <th style="padding: var(--space-md); text-align: center; font-weight: var(--font-semibold); color: var(--text); font-size: var(--text-sm); width: 50px;">
+              <i data-lucide="star" class="icon-xs"></i>
+            </th>
+            <th style="padding: var(--space-md); text-align: left; font-weight: var(--font-semibold); color: var(--text); font-size: var(--text-sm);">URL</th>
+            <th style="padding: var(--space-md); text-align: center; font-weight: var(--font-semibold); color: var(--text); font-size: var(--text-sm); width: 100px;">Estado</th>
+            <th style="padding: var(--space-md); text-align: center; font-weight: var(--font-semibold); color: var(--text); font-size: var(--text-sm); width: 120px;">Puntuación</th>
+            <th style="padding: var(--space-md); text-align: center; font-weight: var(--font-semibold); color: var(--text); font-size: var(--text-sm); width: 100px;">Errores</th>
+            <th style="padding: var(--space-md); text-align: center; font-weight: var(--font-semibold); color: var(--text); font-size: var(--text-sm); width: 150px;">Acciones</th>
+            <th style="padding: var(--space-md); text-align: left; font-weight: var(--font-semibold); color: var(--text); font-size: var(--text-sm); width: 180px;">Última Revisión</th>
+          </tr>
+        </thead>
+        <tbody id="spell-check-table">
+          {% for result in spell_results %}
+          <tr class="result-row" data-status="{{ result.status }}" data-priority="{{ result.is_priority|lower }}" style="border-bottom: 1px solid var(--border); transition: background 0.2s;"
+              onmouseover="this.style.background='var(--bg-secondary)'"
+              onmouseout="this.style.background='transparent'">
+            <td style="padding: var(--space-md); color: var(--text-secondary); font-size: var(--text-sm);">{{ loop.index }}</td>
+            <td style="padding: var(--space-md); text-align: center;">
+              {% if result.is_priority %}
+                <i data-lucide="star" class="icon-sm" style="color: var(--warning); fill: var(--warning);"></i>
+              {% endif %}
+            </td>
+            <td style="padding: var(--space-md);">
+              <a href="{{ result.url }}" target="_blank" style="color: var(--primary); word-break: break-all; text-decoration: none; transition: opacity 0.2s;"
+                 onmouseover="this.style.opacity='0.7'"
+                 onmouseout="this.style.opacity='1'">
+                {{ result.url }}
+              </a>
+            </td>
+            <td style="padding: var(--space-md); text-align: center;">
+              {% if result.status == 'ok' %}
+                <div class="badge badge-success">
+                  <i data-lucide="check" class="icon-xs"></i>
+                  <span>OK</span>
+                </div>
+              {% elif result.status == 'warning' %}
+                <div class="badge" style="background: var(--warning-light); color: var(--warning);">
+                  <i data-lucide="alert-triangle" class="icon-xs"></i>
+                  <span>Warning</span>
+                </div>
+              {% else %}
+                <div class="badge badge-danger">
+                  <i data-lucide="x" class="icon-xs"></i>
+                  <span>Error</span>
+                </div>
+              {% endif %}
+            </td>
+            <td style="padding: var(--space-md); text-align: center;">
+              <span style="font-weight: var(--font-bold); font-size: var(--text-lg);
+                {% if result.score >= 80 %}color: var(--success);
+                {% elif result.score >= 50 %}color: var(--warning);
+                {% else %}color: var(--danger);{% endif %}">
+                {{ result.score }}%
+              </span>
+            </td>
+            <td style="padding: var(--space-md); text-align: center;">
+              {% if result.issues_found > 0 %}
+                <span style="color: var(--danger); font-weight: var(--font-bold); font-size: var(--text-base);">{{ result.issues_found }}</span>
+              {% else %}
+                <span style="color: var(--success); font-weight: var(--font-bold);">0</span>
+              {% endif %}
+            </td>
+            <td style="padding: var(--space-md);">
+              <div style="display: flex; gap: var(--space-xs); justify-content: center;">
+                {% if result.issues_found > 0 %}
+                  <button onclick="toggleDetails({{ loop.index }})" class="btn ghost btn-sm">
+                    <i data-lucide="eye" class="icon-xs"></i>
+                  </button>
+                {% else %}
+                  <span style="color: var(--muted);">-</span>
+                {% endif %}
+                <button
+                  onclick="recheckUrl({{ result.id }}, {{ loop.index }})"
+                  class="btn-recheck btn ghost btn-sm"
+                  title="Re-analizar con diccionario actualizado">
+                  <i data-lucide="refresh-cw" class="icon-xs"></i>
+                </button>
+              </div>
+            </td>
+            <td style="padding: var(--space-md); color: var(--text-secondary); font-size: var(--text-sm);">
+              {{ result.checked_at.strftime('%d/%m/%Y %H:%M') if result.checked_at else 'N/A' }}
+            </td>
+          </tr>
+          <!-- Details Row (hidden by default) -->
+          {% if result.issues_found > 0 %}
+          <tr id="details-{{ loop.index }}" style="display: none;" class="details-row">
+            <td colspan="8" style="background: var(--bg-secondary); padding: var(--space-xl); border-top: none;">
+              <div style="max-width: 100%;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-lg);">
+                  <h4 style="margin: 0; color: var(--text); font-size: var(--text-lg); font-weight: var(--font-bold); display: flex; align-items: center; gap: var(--space-sm);">
+                    <i data-lucide="file-text" class="icon-md"></i>
+                    Errores Ortográficos Detectados ({{ result.details.spelling_errors|length if result.details.spelling_errors else 0 }})
+                  </h4>
+                  {% if result.details.spelling_errors and result.details.spelling_errors|length > 1 %}
+                  <button
+                    class="btn-add-all-dict btn primary"
+                    data-result-id="{{ result.id }}"
+                    data-errors='{{ result.details.spelling_errors|tojson }}'
+                    title="Añadir todas las palabras de esta URL al diccionario">
+                    <i data-lucide="book-plus" class="icon-xs"></i>
+                    <span>Añadir Todas al Diccionario ({{ result.details.spelling_errors|length }})</span>
+                  </button>
+                  {% endif %}
+                </div>
+
+                <div class="card" style="margin-bottom: var(--space-lg);">
+                  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-lg);">
+                    <div>
+                      <div style="font-size: var(--text-xs); color: var(--muted); margin-bottom: var(--space-xs); font-weight: var(--font-semibold); text-transform: uppercase;">Total de Palabras</div>
+                      <div style="font-size: var(--text-xl); font-weight: var(--font-bold); color: var(--text);">{{ result.details.total_words }}</div>
+                    </div>
+                    <div>
+                      <div style="font-size: var(--text-xs); color: var(--muted); margin-bottom: var(--space-xs); font-weight: var(--font-semibold); text-transform: uppercase;">Idioma</div>
+                      <div style="font-size: var(--text-xl); font-weight: var(--font-bold); color: var(--text);">{{ result.details.language|upper }}</div>
+                    </div>
+                    <div>
+                      <div style="font-size: var(--text-xs); color: var(--muted); margin-bottom: var(--space-xs); font-weight: var(--font-semibold); text-transform: uppercase;">Longitud de Texto</div>
+                      <div style="font-size: var(--text-xl); font-weight: var(--font-bold); color: var(--text);">{{ result.details.text_length }} chars</div>
+                    </div>
+                  </div>
+                </div>
+
+                {% if result.details.spelling_errors %}
+                <div style="max-height: 400px; overflow-y: auto;">
+                  {% for error in result.details.spelling_errors[:20] %}
+                  <div class="card" style="margin-bottom: var(--space-md); border-left: 4px solid var(--warning); background: var(--warning-light);" id="error-{{ result.id }}-{{ loop.index }}">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-sm);">
+                      <div style="display: flex; align-items: center; gap: var(--space-md);">
+                        <div class="badge badge-danger">
+                          <span>Error</span>
+                        </div>
+                        <span style="font-weight: var(--font-bold); color: var(--danger); font-size: var(--text-base);">{{ error.word }}</span>
+                      </div>
+                      <button
+                        onclick="addWordToDictionary('{{ error.word }}', {{ result.id }}, {{ loop.index }})"
+                        class="btn-add-dict btn ghost btn-sm"
+                        title="Añadir al diccionario personalizado">
+                        <i data-lucide="book-plus" class="icon-xs"></i>
+                        <span>Añadir al Diccionario</span>
+                      </button>
+                    </div>
+                    <div style="font-size: var(--text-sm); color: var(--text); font-family: var(--font-mono, monospace); background: white; padding: var(--space-sm); border-radius: var(--radius-sm); margin-top: var(--space-sm);">
+                      {{ error.context|replace('**' + error.word + '**', '<span style="background: var(--danger-light); color: var(--danger); padding: 2px 4px; border-radius: 2px; font-weight: var(--font-semibold);">' + error.word + '</span>')|safe }}
+                    </div>
+                    {% if error.sentence and error.sentence != error.context %}
+                    <div style="font-size: var(--text-xs); color: var(--muted); margin-top: var(--space-sm); font-style: italic;">
+                      Oración completa: {{ error.sentence }}
+                    </div>
+                    {% endif %}
+                  </div>
+                  {% endfor %}
+
+                  {% if result.details.spelling_errors|length > 20 %}
+                  <!-- Hidden errors (21+) -->
+                  <div id="hidden-errors-{{ result.id }}" style="display: none;">
+                    {% for error in result.details.spelling_errors[20:] %}
+                    <div class="card" style="margin-bottom: var(--space-md); border-left: 4px solid var(--warning); background: var(--warning-light);" id="error-{{ result.id }}-{{ loop.index + 20 }}">
+                      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-sm);">
+                        <div style="display: flex; align-items: center; gap: var(--space-md);">
+                          <div class="badge badge-danger">
+                            <span>Error</span>
+                          </div>
+                          <span style="font-weight: var(--font-bold); color: var(--danger); font-size: var(--text-base);">{{ error.word }}</span>
+                        </div>
+                        <button
+                          onclick="addWordToDictionary('{{ error.word }}', {{ result.id }}, {{ loop.index + 20 }})"
+                          class="btn-add-dict btn ghost btn-sm"
+                          title="Añadir al diccionario personalizado">
+                          <i data-lucide="book-plus" class="icon-xs"></i>
+                          <span>Añadir al Diccionario</span>
+                        </button>
+                      </div>
+                      <div style="font-size: var(--text-sm); color: var(--text); font-family: var(--font-mono, monospace); background: white; padding: var(--space-sm); border-radius: var(--radius-sm); margin-top: var(--space-sm);">
+                        {{ error.context|replace('**' + error.word + '**', '<span style="background: var(--danger-light); color: var(--danger); padding: 2px 4px; border-radius: 2px; font-weight: var(--font-semibold);">' + error.word + '</span>')|safe }}
+                      </div>
+                      {% if error.sentence and error.sentence != error.context %}
+                      <div style="font-size: var(--text-xs); color: var(--muted); margin-top: var(--space-sm); font-style: italic;">
+                        Oración completa: {{ error.sentence }}
+                      </div>
+                      {% endif %}
+                    </div>
+                    {% endfor %}
+                  </div>
+
+                  <!-- Show More / Show Less Button -->
+                  <div style="text-align: center; padding: var(--space-md);">
+                    <button
+                      id="toggle-errors-btn-{{ result.id }}"
+                      onclick="toggleHiddenErrors({{ result.id }})"
+                      class="btn ghost">
+                      <i data-lucide="eye" class="icon-xs"></i>
+                      <span>Mostrar {{ result.details.spelling_errors|length - 20 }} errores más</span>
+                    </button>
+                  </div>
+                  {% endif %}
+                </div>
+                {% endif %}
+
+                <div style="margin-top: var(--space-lg); padding-top: var(--space-lg); border-top: 1px solid var(--border);">
+                  <p style="margin: 0; font-size: var(--text-sm); color: var(--text-secondary);">
+                    <strong>Mensaje:</strong> {{ result.message }}
+                  </p>
+                </div>
+              </div>
+            </td>
+          </tr>
+          {% endif %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <!-- ===============================================================
+         Empty Success State
+         =============================================================== -->
+    <div class="card" style="text-align: center; padding: var(--space-2xl); border-left: 4px solid var(--success); background: var(--success-light);">
+      <div style="width: 80px; height: 80px; margin: 0 auto var(--space-lg); border-radius: 50%; background: linear-gradient(135deg, var(--success-light) 0%, var(--success) 100%); display: flex; align-items: center; justify-content: center;">
+        <i data-lucide="check-circle" class="icon-2xl" style="color: white;"></i>
+      </div>
+      <h3 style="margin: 0 0 var(--space-sm) 0; font-size: var(--text-2xl); font-weight: var(--font-bold); color: var(--text);">
+        ¡Excelente!
+      </h3>
+      <p style="margin: 0; color: var(--text); font-size: var(--text-base);">
+        No hay resultados de spell check disponibles aún. Ejecuta el análisis desde el botón de arriba.
+      </p>
+    </div>
+  {% endif %}
+
+{% endif %}
+
+<!-- ===============================================================
+     Modal for Running Spell Check
+     =============================================================== -->
+<div id="spellCheckModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
+  <div class="card" style="max-width: 500px; width: 90%; margin: var(--space-xl);">
+    <h2 style="margin: 0 0 var(--space-lg) 0; font-size: var(--text-2xl); font-weight: var(--font-bold); color: var(--text); display: flex; align-items: center; gap: var(--space-sm);">
+      <i data-lucide="file-text" class="icon-lg"></i>
+      <span>Análisis Ortográfico</span>
+    </h2>
+
+    <p style="color: var(--text-secondary); margin-bottom: var(--space-xl); font-size: var(--text-sm); line-height: 1.6;">
+      Selecciona el alcance del análisis. El spell checker revisará el contenido de las páginas en busca de errores ortográficos.
+    </p>
+
+    <!-- Scope Selection -->
+    <div style="margin-bottom: var(--space-xl);">
+      <label style="display: block; font-weight: var(--font-semibold); margin-bottom: var(--space-md); color: var(--text);">
+        Alcance del análisis:
+      </label>
+
+      <label style="display: block; padding: var(--space-md); border: 2px solid var(--border); border-radius: var(--radius-sm); margin-bottom: var(--space-md); cursor: pointer; transition: all 0.2s;"
+             onmouseover="this.style.borderColor='var(--primary)'; this.style.background='var(--primary-light)'"
+             onmouseout="this.style.borderColor='var(--border)'; this.style.background='transparent'">
+        <input type="radio" name="spellCheckScope" value="priority" checked style="margin-right: var(--space-sm);">
+        <strong style="color: var(--text); display: flex; align-items: center; gap: var(--space-xs);">
+          <i data-lucide="star" class="icon-xs" style="color: var(--warning);"></i>
+          URLs Prioritarias
+        </strong>
+        <span style="display: block; margin-left: var(--space-lg); font-size: var(--text-sm); color: var(--text-secondary); margin-top: var(--space-xs);">
+          {{ url_info.priority_count }} URLs • Tiempo estimado: {{ url_info.spell_check_priority_time }}
+        </span>
+      </label>
+
+      <label style="display: block; padding: var(--space-md); border: 2px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; transition: all 0.2s;"
+             onmouseover="this.style.borderColor='var(--primary)'; this.style.background='var(--primary-light)'"
+             onmouseout="this.style.borderColor='var(--border)'; this.style.background='transparent'">
+        <input type="radio" name="spellCheckScope" value="all" style="margin-right: var(--space-sm);">
+        <strong style="color: var(--text); display: flex; align-items: center; gap: var(--space-xs);">
+          <i data-lucide="globe" class="icon-xs"></i>
+          Todas las URLs
+        </strong>
+        <span style="display: block; margin-left: var(--space-lg); font-size: var(--text-sm); color: var(--text-secondary); margin-top: var(--space-xs);">
+          {{ url_info.total_count }} URLs • Tiempo estimado: {{ url_info.spell_check_all_time }}
+        </span>
+      </label>
+    </div>
+
+    <!-- Progress (hidden initially) -->
+    <div id="spellCheckProgress" style="display: none; margin: var(--space-lg) 0;">
+      <div style="background: var(--bg-secondary); border-radius: var(--radius-sm); height: 8px; overflow: hidden; position: relative;">
+        <div id="spellCheckProgressBar" style="background: linear-gradient(90deg, var(--primary) 0%, var(--success) 100%); height: 100%; width: 0%; transition: width 0.3s ease;"></div>
+      </div>
+      <p id="spellCheckProgressText" style="text-align: center; margin-top: var(--space-md); color: var(--text-secondary); font-size: var(--text-sm);">
+        Preparando análisis...
+      </p>
+    </div>
+
+    <!-- Actions -->
+    <div style="display: flex; gap: var(--space-md); justify-content: flex-end; margin-top: var(--space-xl);">
+      <button onclick="closeSpellCheckModal()" id="spellCheckCancelBtn" class="btn ghost">
+        Cancelar
+      </button>
+      <button onclick="runSpellCheck()" id="spellCheckRunBtn" class="btn primary">
+        <i data-lucide="rocket" class="icon-xs"></i>
+        <span>Ejecutar Análisis</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ========== Modal Functions ==========
+
+function openSpellCheckModal() {
+  document.getElementById('spellCheckModal').style.display = 'flex';
+  lucide.createIcons();
+}
+
+function closeSpellCheckModal() {
+  const modal = document.getElementById('spellCheckModal');
+  modal.style.display = 'none';
+
+  // Reset progress
+  const progressBar = document.getElementById('spellCheckProgressBar');
+  document.getElementById('spellCheckProgress').style.display = 'none';
+  progressBar.style.width = '0%';
+  progressBar.style.animation = 'none';
+  progressBar.style.background = 'linear-gradient(90deg, var(--primary) 0%, var(--success) 100%)';
+  document.getElementById('spellCheckProgressText').textContent = 'Preparando análisis...';
+
+  // Re-enable buttons
+  document.getElementById('spellCheckRunBtn').disabled = false;
+  document.getElementById('spellCheckRunBtn').innerHTML = '<i data-lucide="rocket" class="icon-xs"></i><span>Ejecutar Análisis</span>';
+  document.getElementById('spellCheckCancelBtn').disabled = false;
+  lucide.createIcons();
+}
+
+async function runSpellCheck() {
+  const scopeRadios = document.getElementsByName('spellCheckScope');
+  let scope = 'priority';
+  for (const radio of scopeRadios) {
+    if (radio.checked) {
+      scope = radio.value;
+      break;
+    }
+  }
+
+  // Disable buttons
+  const runButton = document.getElementById('spellCheckRunBtn');
+  const cancelButton = document.getElementById('spellCheckCancelBtn');
+  runButton.disabled = true;
+  runButton.innerHTML = '<i data-lucide="loader" class="icon-xs"></i><span>Analizando...</span>';
+  cancelButton.disabled = true;
+  lucide.createIcons();
+
+  // Show progress
+  const progressDiv = document.getElementById('spellCheckProgress');
+  const progressBar = document.getElementById('spellCheckProgressBar');
+  const progressText = document.getElementById('spellCheckProgressText');
+  progressDiv.style.display = 'block';
+
+  let estimatedTime = '';
+  if (scope === 'priority') {
+    estimatedTime = 'Analizando {{ url_info.priority_count }} URLs ({{ url_info.spell_check_priority_time }})';
+  } else {
+    estimatedTime = 'Analizando {{ url_info.total_count }} URLs ({{ url_info.spell_check_all_time }})';
+  }
+  progressText.textContent = estimatedTime + '...';
+
+  // Indeterminate animation
+  progressBar.style.width = '40%';
+  progressBar.style.animation = 'progressSlide 2s ease-in-out infinite';
+
+  try {
+    const response = await fetch('/crawler/quality/run', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        check_types: ['spell_check'],
+        scope: scope
+      })
+    });
+
+    const data = await response.json();
+
+    // Stop progress animation
+    progressBar.style.animation = 'none';
+    progressBar.style.width = '100%';
+
+    if (data.success) {
+      const checks = data.results.checks || [];
+      const spellCheckResult = checks.find(c => c.check_type === 'spell_check') || checks[0];
+
+      progressText.textContent = '✅ Análisis completado';
+
+      let message = `Análisis ortográfico completado!\n\n`;
+
+      if (spellCheckResult) {
+        message += `Estado: ${spellCheckResult.status || 'unknown'}\n`;
+        message += `Mensaje: ${spellCheckResult.message || 'N/A'}\n\n`;
+
+        if (spellCheckResult.stats) {
+          message += `URLs procesadas: ${spellCheckResult.stats.processed || 0}\n`;
+          message += `URLs exitosas: ${spellCheckResult.stats.successful || 0}\n`;
+          message += `URLs fallidas: ${spellCheckResult.stats.failed || 0}\n`;
+        }
+      }
+
+      setTimeout(() => {
+        alert(message);
+        window.location.reload();
+      }, 500);
+    } else {
+      progressBar.style.background = 'var(--danger)';
+      progressText.textContent = '❌ Error en el análisis';
+      alert('Error: ' + (data.message || 'Error desconocido'));
+      closeSpellCheckModal();
+    }
+  } catch (error) {
+    progressBar.style.animation = 'none';
+    progressBar.style.width = '100%';
+    progressBar.style.background = 'var(--danger)';
+    progressText.textContent = '❌ Error de conexión';
+    alert('Error de conexión: ' + error.message);
+    closeSpellCheckModal();
+  }
+}
+
+// ========== Filter Functions ==========
+
+function filterTable(filter) {
+  const rows = document.querySelectorAll('.result-row');
+  const detailsRows = document.querySelectorAll('.details-row');
+
+  // Hide all details first
+  detailsRows.forEach(row => row.style.display = 'none');
+
+  // Update button styles
+  const buttons = ['all', 'error', 'ok', 'priority'];
+  buttons.forEach(key => {
+    const btn = document.getElementById(`filter-${key}`);
+    if (key === filter) {
+      btn.classList.remove('ghost');
+      btn.classList.add('primary');
+    } else {
+      btn.classList.remove('primary');
+      btn.classList.add('ghost');
+    }
+  });
+
+  // Filter rows
+  rows.forEach(row => {
+    if (filter === 'all') {
+      row.style.display = '';
+    } else if (filter === 'ok') {
+      row.style.display = row.dataset.status === 'ok' ? '' : 'none';
+    } else if (filter === 'error') {
+      row.style.display = (row.dataset.status === 'warning' || row.dataset.status === 'error') ? '' : 'none';
+    } else if (filter === 'priority') {
+      row.style.display = row.dataset.priority === 'true' ? '' : 'none';
+    }
+  });
+}
+
+function toggleDetails(index) {
+  const detailsRow = document.getElementById(`details-${index}`);
+  if (detailsRow.style.display === 'none') {
+    detailsRow.style.display = '';
+  } else {
+    detailsRow.style.display = 'none';
+  }
+}
+
+// ========== Dictionary Functions ==========
+
+async function addWordToDictionary(word, resultId, errorIndex) {
+  if (!confirm(`¿Añadir "${word}" al diccionario personalizado?\n\nEsta palabra ya no se marcará como error en futuros análisis.`)) {
+    return;
+  }
+
+  const errorDiv = document.getElementById(`error-${resultId}-${errorIndex}`);
+  const button = errorDiv.querySelector('.btn-add-dict');
+
+  button.disabled = true;
+  button.innerHTML = '<i data-lucide="loader" class="icon-xs"></i><span>Añadiendo...</span>';
+  button.style.opacity = '0.6';
+  lucide.createIcons();
+
+  try {
+    const formData = new FormData();
+    formData.append('word', word);
+    formData.append('category', 'other');
+    formData.append('frequency', '1');
+    formData.append('notes', 'Añadida desde spell check');
+
+    const response = await fetch('{{ url_for("add_custom_word") }}', {
+      method: 'POST',
+      body: formData
+    });
+
+    const result = await response.json();
+
+    if (result.success) {
+      errorDiv.style.background = 'var(--success-light)';
+      errorDiv.style.borderLeftColor = 'var(--success)';
+      errorDiv.innerHTML = `
+        <div style="display: flex; align-items: center; gap: var(--space-md); color: var(--success);">
+          <i data-lucide="check-circle" class="icon-lg" style="color: var(--success);"></i>
+          <div>
+            <div style="font-weight: var(--font-bold); margin-bottom: var(--space-xs);">Palabra "${word}" añadida correctamente</div>
+            <div style="font-size: var(--text-sm); opacity: 0.8;">Ya no se marcará como error en futuros análisis</div>
+          </div>
+        </div>
+      `;
+      lucide.createIcons();
+
+      setTimeout(() => {
+        errorDiv.style.transition = 'opacity 0.5s, max-height 0.5s';
+        errorDiv.style.opacity = '0';
+        errorDiv.style.maxHeight = '0';
+        errorDiv.style.padding = '0';
+        errorDiv.style.marginBottom = '0';
+        setTimeout(() => errorDiv.remove(), 500);
+      }, 3000);
+    } else {
+      alert(`Error: ${result.error}`);
+      button.disabled = false;
+      button.innerHTML = '<i data-lucide="book-plus" class="icon-xs"></i><span>Añadir al Diccionario</span>';
+      button.style.opacity = '1';
+      lucide.createIcons();
+    }
+  } catch (error) {
+    alert(`Error de conexión: ${error.message}`);
+    button.disabled = false;
+    button.innerHTML = '<i data-lucide="book-plus" class="icon-xs"></i><span>Añadir al Diccionario</span>';
+    button.style.opacity = '1';
+    lucide.createIcons();
+  }
+}
+
+async function addAllWordsFromUrl(resultId, spellingErrors) {
+  const words = [...new Set(spellingErrors.map(error => error.word))];
+
+  const confirmMsg = `¿Añadir TODAS las ${words.length} palabras de esta URL al diccionario?\n\n` +
+                    `Palabras: ${words.slice(0, 10).join(', ')}` +
+                    (words.length > 10 ? `, y ${words.length - 10} más...` : '') +
+                    `\n\nEsta acción no se puede deshacer fácilmente.`;
+
+  if (!confirm(confirmMsg)) {
+    return;
+  }
+
+  const bulkButton = document.querySelector(`.btn-add-all-dict[data-result-id="${resultId}"]`);
+  if (bulkButton) {
+    bulkButton.disabled = true;
+    bulkButton.innerHTML = '<i data-lucide="loader" class="icon-xs"></i><span>Añadiendo todas...</span>';
+    bulkButton.style.opacity = '0.6';
+    lucide.createIcons();
+  }
+
+  let added = 0;
+  let errors = 0;
+  const failedWords = [];
+
+  for (let i = 0; i < words.length; i++) {
+    const word = words[i];
+
+    try {
+      const formData = new FormData();
+      formData.append('word', word);
+      formData.append('category', 'other');
+      formData.append('frequency', '1');
+      formData.append('notes', 'Añadida masivamente desde spell check');
+
+      const response = await fetch('{{ url_for("add_custom_word") }}', {
+        method: 'POST',
+        body: formData
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        added++;
+
+        spellingErrors.forEach((error, idx) => {
+          if (error.word === word) {
+            const errorDiv = document.getElementById(`error-${resultId}-${idx + 1}`);
+            if (errorDiv) {
+              errorDiv.style.transition = 'opacity 0.3s';
+              errorDiv.style.opacity = '0';
+              setTimeout(() => errorDiv.remove(), 300);
+            }
+          }
+        });
+      } else {
+        errors++;
+        failedWords.push(word);
+      }
+    } catch (error) {
+      errors++;
+      failedWords.push(word);
+    }
+  }
+
+  let resultMsg = `✅ Proceso completado!\n\n`;
+  resultMsg += `Palabras añadidas: ${added}\n`;
+  if (errors > 0) {
+    resultMsg += `Errores: ${errors}\n`;
+    resultMsg += `\nPalabras que fallaron: ${failedWords.join(', ')}`;
+  }
+
+  alert(resultMsg);
+
+  setTimeout(() => {
+    window.location.reload();
+  }, 1000);
+}
+
+// Add event listener for bulk add buttons
+document.addEventListener('DOMContentLoaded', function() {
+  lucide.createIcons();
+
+  document.querySelectorAll('.btn-add-all-dict').forEach(button => {
+    button.addEventListener('click', function() {
+      const resultId = parseInt(this.dataset.resultId);
+      const spellingErrors = JSON.parse(this.dataset.errors);
+      addAllWordsFromUrl(resultId, spellingErrors);
+    });
+  });
+});
+
+// ========== Recheck Functions ==========
+
+async function recheckUrl(checkId, rowIndex) {
+  if (!confirm('¿Re-analizar esta URL con el diccionario actualizado?\n\nEsto actualizará los resultados del spell check.')) {
+    return;
+  }
+
+  const row = document.querySelectorAll('.result-row')[rowIndex - 1];
+  if (!row) return;
+
+  const recheckBtn = row.querySelector('.btn-recheck');
+  const originalContent = recheckBtn.innerHTML;
+
+  recheckBtn.disabled = true;
+  recheckBtn.innerHTML = '<i data-lucide="loader" class="icon-xs"></i>';
+  recheckBtn.style.opacity = '0.6';
+  lucide.createIcons();
+
+  try {
+    const response = await fetch(`/crawler/spell-check/recheck/${checkId}`, {
+      method: 'POST'
+    });
+
+    const result = await response.json();
+
+    if (result.success) {
+      const check = result.check;
+
+      const statusCell = row.cells[3];
+      const scoreCell = row.cells[4];
+      const errorsCell = row.cells[5];
+
+      let statusBadge = '';
+      if (check.status === 'ok') {
+        statusBadge = '<div class="badge badge-success"><i data-lucide="check" class="icon-xs"></i><span>OK</span></div>';
+      } else if (check.status === 'warning') {
+        statusBadge = '<div class="badge" style="background: var(--warning-light); color: var(--warning);"><i data-lucide="alert-triangle" class="icon-xs"></i><span>Warning</span></div>';
+      } else {
+        statusBadge = '<div class="badge badge-danger"><i data-lucide="x" class="icon-xs"></i><span>Error</span></div>';
+      }
+      statusCell.innerHTML = statusBadge;
+
+      let scoreColor = 'var(--danger)';
+      if (check.score >= 80) scoreColor = 'var(--success)';
+      else if (check.score >= 50) scoreColor = 'var(--warning)';
+
+      scoreCell.innerHTML = `<span style="font-weight: var(--font-bold); font-size: var(--text-lg); color: ${scoreColor};">${check.score}%</span>`;
+
+      if (check.issues_found > 0) {
+        errorsCell.innerHTML = `<span style="color: var(--danger); font-weight: var(--font-bold); font-size: var(--text-base);">${check.issues_found}</span>`;
+      } else {
+        errorsCell.innerHTML = '<span style="color: var(--success); font-weight: var(--font-bold);">0</span>';
+      }
+
+      lucide.createIcons();
+
+      alert(`✅ Re-análisis completado!\n\nPuntuación: ${check.score}%\nErrores: ${check.issues_found}\n\nRecarga la página para ver los detalles actualizados.`);
+
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
+    } else {
+      alert(`Error: ${result.error}`);
+      recheckBtn.disabled = false;
+      recheckBtn.innerHTML = originalContent;
+      recheckBtn.style.opacity = '1';
+      lucide.createIcons();
+    }
+  } catch (error) {
+    alert(`Error de conexión: ${error.message}`);
+    recheckBtn.disabled = false;
+    recheckBtn.innerHTML = originalContent;
+    recheckBtn.style.opacity = '1';
+    lucide.createIcons();
+  }
+}
+
+// Toggle hidden errors (show more / show less)
+function toggleHiddenErrors(resultId) {
+  const hiddenErrorsDiv = document.getElementById(`hidden-errors-${resultId}`);
+  const toggleBtn = document.getElementById(`toggle-errors-btn-${resultId}`);
+
+  if (hiddenErrorsDiv.style.display === 'none') {
+    hiddenErrorsDiv.style.display = 'block';
+    toggleBtn.innerHTML = '<i data-lucide="eye-off" class="icon-xs"></i><span>Mostrar menos</span>';
+  } else {
+    hiddenErrorsDiv.style.display = 'none';
+    const totalErrors = hiddenErrorsDiv.querySelectorAll('[id^="error-"]').length;
+    toggleBtn.innerHTML = `<i data-lucide="eye" class="icon-xs"></i><span>Mostrar ${totalErrors} errores más</span>`;
+  }
+  lucide.createIcons();
+}
+</script>
+
+<style>
+/* Progress bar animation */
+@keyframes progressSlide {
+  0% {
+    left: -40%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
+#spellCheckProgressBar {
+  position: relative;
+}
+</style>
+{% endblock %}

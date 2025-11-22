@@ -4,49 +4,51 @@ Agenda Renta4 - Task Manager Manual
 Flask application principal
 """
 
-import os
 import calendar
-from datetime import datetime, date, timedelta
+import os
+from datetime import date, datetime, timedelta
+
 from dotenv import load_dotenv
 from flask import (
     Flask,
+    flash,
+    jsonify,
+    redirect,
     render_template,
     request,
-    redirect,
-    url_for,
-    flash,
     session,
-    jsonify,
+    url_for,
 )
-from flask_mail import Mail, Message
 from flask_login import (
     LoginManager,
     UserMixin,
+    current_user,
+    login_required,
     login_user,
     logout_user,
-    login_required,
-    current_user,
 )
+from flask_mail import Mail, Message
 from werkzeug.security import check_password_hash
 
 # Load environment variables
 load_dotenv()
 
 # Import shared utilities
-from utils import db_cursor, format_date, format_period, generate_available_periods
-
 # Import constants
 from constants import (
-    TASK_STATUS_OK,
-    TASK_STATUS_PROBLEM,
+    ANNUAL_MONTH,
+    DEFAULT_EMAIL_SENDER,
     DEFAULT_PORT,
     DEFAULT_SMTP_PORT,
-    DEFAULT_EMAIL_SENDER,
+    LOGIN_SESSION_DAYS,
+    PROBLEMS_RETENTION_DAYS,
     QUARTERLY_MONTHS,
     SEMIANNUAL_MONTHS,
-    ANNUAL_MONTH,
-    LOGIN_SESSION_DAYS,
+    TASK_STATUS_OK,
+    TASK_STATUS_PROBLEM,
+    WEEKDAY_MAP,
 )
+from utils import db_cursor, format_date, format_period, generate_available_periods
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -79,14 +81,18 @@ mail = Mail(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = "login"
-login_manager.login_message = None  # Disable automatic flash messages to prevent accumulation
+login_manager.login_message = (
+    None  # Disable automatic flash messages to prevent accumulation
+)
 
 # Register Blueprints
-from crawler.routes import crawler_bp
 from config.routes import config_bp
+from crawler.routes import crawler_bp
+from dev.routes import dev_bp
 
 app.register_blueprint(crawler_bp)
 app.register_blueprint(config_bp)
+app.register_blueprint(dev_bp)
 
 
 # ==============================================================================
@@ -126,10 +132,12 @@ def load_user(user_id):
 # ==============================================================================
 
 
-def get_task_counts():
+def get_task_counts() -> dict:
     """
     Get counts of pending, problem, completed tasks, and pending alerts.
-    Returns dict with 'pending', 'problems', 'completed', 'alerts' counts.
+
+    Returns:
+        dict: Dictionary with keys 'pending', 'problems', 'completed', 'alerts'
     """
     with db_cursor(commit=False) as cursor:
         current_period = datetime.now().strftime("%Y-%m")
@@ -250,6 +258,8 @@ def _fetch_alerts_for_notification(cursor, reference_date):
     Returns:
         list: Alert dicts with keys: task_type_name, due_date, periodicity
     """
+    alerts = []
+    # System alerts
     cursor.execute(
         """
         SELECT
@@ -263,21 +273,38 @@ def _fetch_alerts_for_notification(cursor, reference_date):
     """,
         (reference_date,),
     )
-    return cursor.fetchall()
+    alerts.extend(cursor.fetchall())
+
+    # Custom alerts (personalizadas)
+    cursor.execute(
+        """
+        SELECT
+            title as task_type_name,
+            due_date,
+            'personalizada' as periodicity
+        FROM custom_pending_alerts
+        WHERE due_date = %s AND dismissed = FALSE
+        ORDER BY title ASC
+    """,
+        (reference_date,),
+    )
+    alerts.extend(cursor.fetchall())
+
+    return alerts
 
 
-def generate_alerts(reference_date=None):
+def generate_alerts(reference_date: date = None) -> dict:
     """
     Generate pending alerts based on alert_settings configuration (orchestrator).
 
-    Creates one alert per task_type (not per section).
+    Creates one alert per task_type (not per section) and custom alerts (custom rules).
     This function should be run periodically (daily) to create alerts.
 
     Args:
         reference_date: Date to use as reference (default: today)
 
     Returns:
-        dict with stats: {'generated': count, 'skipped': count, 'errors': [], 'email_stats': {...}}
+        dict: Statistics with keys 'generated', 'skipped', 'errors', 'email_stats'
     """
     if reference_date is None:
         reference_date = date.today()
@@ -294,7 +321,7 @@ def generate_alerts(reference_date=None):
             """)
             alert_settings = cursor.fetchall()
 
-            # Process each alert setting
+            # Process each alert setting (tareas estándar)
             for alert_setting in alert_settings:
                 task_type_id = alert_setting["task_type_id"]
                 frequency = alert_setting["alert_frequency"]
@@ -307,13 +334,69 @@ def generate_alerts(reference_date=None):
 
                 # Try to create the alert
                 try:
-                    if _create_alert_for_task_type(cursor, task_type_id, reference_date):
+                    if _create_alert_for_task_type(
+                        cursor, task_type_id, reference_date
+                    ):
                         stats["generated"] += 1
                     else:
                         stats["skipped"] += 1  # Duplicate
                 except Exception as e:
                     stats["errors"].append(
                         f"Error creating alert for task_type={task_type_id}: {str(e)}"
+                    )
+
+            # Custom alert rules
+            cursor.execute("""
+                SELECT id, title, notes, alert_frequency, alert_day, deadline_date, enabled, created_by
+                FROM custom_alert_rules
+                WHERE enabled = TRUE
+            """)
+            custom_rules = cursor.fetchall()
+
+            for rule in custom_rules:
+                frequency = rule["alert_frequency"]
+                alert_day = rule["alert_day"]
+                deadline_date = rule.get("deadline_date")
+
+                if frequency == "deadline" and not deadline_date:
+                    stats["errors"].append(
+                        f"Regla '{rule['title']}' sin fecha límite configurada"
+                    )
+                    continue
+
+                if not check_alert_day(
+                    reference_date,
+                    frequency,
+                    alert_day,
+                    deadline_date=deadline_date,
+                ):
+                    stats["skipped"] += 1
+                    continue
+
+                try:
+                    cursor.execute(
+                        """
+                        INSERT INTO custom_pending_alerts
+                        (title, notes, due_date, created_by)
+                        VALUES (%s, %s, %s, %s)
+                        ON CONFLICT (title, due_date) DO NOTHING
+                    """,
+                        (
+                            rule["title"],
+                            rule["notes"],
+                            reference_date,
+                            rule.get("created_by") or current_user.full_name
+                            if current_user and not current_user.is_anonymous
+                            else None,
+                        ),
+                    )
+                    if cursor.rowcount > 0:
+                        stats["generated"] += 1
+                    else:
+                        stats["skipped"] += 1
+                except Exception as e:
+                    stats["errors"].append(
+                        f"Error creating custom alert '{rule['title']}': {str(e)}"
                     )
 
             # Fetch all alerts for today to send email notifications
@@ -334,17 +417,6 @@ def generate_alerts(reference_date=None):
 # ALERT DAY CHECKERS (Strategy Pattern)
 # ==============================================================================
 
-# Weekday mapping for alert configuration
-WEEKDAY_MAP = {
-    "monday": 0,
-    "tuesday": 1,
-    "wednesday": 2,
-    "thursday": 3,
-    "friday": 4,
-    "saturday": 5,
-    "sunday": 6,
-}
-
 
 def _check_daily_alert(reference_date, alert_day):
     """Daily alerts always trigger."""
@@ -360,7 +432,24 @@ def _check_weekly_alert(reference_date, alert_day):
 
 
 def _check_biweekly_alert(reference_date, alert_day):
-    """Check if today is the configured weekday in an even week."""
+    """
+    Check if today is the configured weekday in an even week.
+
+    Biweekly alerts trigger every two weeks on the specified weekday.
+    Week numbers are ISO 8601 compliant (week 1 = first week with Thursday).
+
+    Example:
+        If alert_day='monday' and reference_date is Monday of week 4,
+        this returns True (week 4 is even). If reference_date is Monday
+        of week 5, returns False (week 5 is odd).
+
+    Args:
+        reference_date: Date to check
+        alert_day: Day of week (e.g., 'monday', 'tuesday')
+
+    Returns:
+        bool: True if it's the correct weekday in an even-numbered week
+    """
     target_weekday = WEEKDAY_MAP.get(alert_day)
     if target_weekday is None:
         return False
@@ -369,13 +458,31 @@ def _check_biweekly_alert(reference_date, alert_day):
     if reference_date.weekday() != target_weekday:
         return False
 
-    # Check if it's an even week number
+    # Check if it's an even week number (ISO 8601)
     week_number = reference_date.isocalendar()[1]
     return week_number % 2 == 0
 
 
 def _check_monthly_alert(reference_date, alert_day):
-    """Check if today is the configured day of the month."""
+    """
+    Check if today is the configured day of the month.
+
+    Handles months with varying lengths gracefully. If the target day exceeds
+    the month's length (e.g., day 31 in February), it adjusts to the last day.
+
+    Example:
+        If alert_day='31':
+        - January 31 → True (month has 31 days)
+        - February 31 → True on Feb 28/29 (month doesn't have 31 days)
+        - April 31 → True on April 30 (month has only 30 days)
+
+    Args:
+        reference_date: Date to check
+        alert_day: Day of month as string (e.g., '1', '15', '31')
+
+    Returns:
+        bool: True if today is the configured day (or last day if month is shorter)
+    """
     try:
         target_day = int(alert_day)
     except (ValueError, TypeError):
@@ -420,37 +527,78 @@ def _check_annual_alert(reference_date, alert_day):
     return _check_monthly_alert(reference_date, alert_day)
 
 
+def _parse_date_value(value):
+    """Parse string/obj to date; devuelve None si falla."""
+    if not value:
+        return None
+    if isinstance(value, date):
+        return value
+    try:
+        return datetime.strptime(str(value), "%Y-%m-%d").date()
+    except (ValueError, TypeError):
+        return None
+
+
+def _check_deadline_alert(reference_date, alert_day, deadline_date=None):
+    """
+    Reglas para alertas con fecha límite:
+    - Más de 7 días: un aviso semanal (mismos días de la semana que el deadline)
+    - Última semana: avisos a falta de 7, 4, 2 y 1 día
+    """
+    deadline_obj = _parse_date_value(deadline_date)
+    if not deadline_obj:
+        return False
+
+    days_until = (deadline_obj - reference_date).days
+    if days_until <= 0:
+        return False
+
+    if days_until <= 7:
+        return days_until in {7, 4, 2, 1}
+
+    return days_until % 7 == 0
+
+
 # Strategy mapping: frequency -> checker function
 ALERT_CHECKERS = {
-    'daily': _check_daily_alert,
-    'weekly': _check_weekly_alert,
-    'biweekly': _check_biweekly_alert,
-    'monthly': _check_monthly_alert,
-    'quarterly': _check_quarterly_alert,
-    'semiannual': _check_semiannual_alert,
-    'annual': _check_annual_alert,
+    "daily": _check_daily_alert,
+    "weekly": _check_weekly_alert,
+    "biweekly": _check_biweekly_alert,
+    "monthly": _check_monthly_alert,
+    "quarterly": _check_quarterly_alert,
+    "semiannual": _check_semiannual_alert,
+    "annual": _check_annual_alert,
 }
 
 
-def check_alert_day(reference_date, frequency, alert_day):
+def check_alert_day(
+    reference_date: date, frequency: str, alert_day: str, deadline_date=None
+) -> bool:
     """
     Check if the reference_date matches the alert configuration (Strategy Pattern).
 
     Uses a strategy pattern to delegate to specific checker functions based on frequency.
 
     Args:
-        reference_date: date object to check
-        frequency: alert frequency (daily, weekly, biweekly, monthly, quarterly, semiannual, annual)
-        alert_day: specific day configuration (day of week or day of month)
+        reference_date: Date object to check
+        frequency: Alert frequency (daily, weekly, biweekly, monthly, quarterly, semiannual, annual, deadline)
+        alert_day: Specific day configuration (day of week or day of month)
+        deadline_date: Fecha objetivo para reglas deadline
 
     Returns:
         bool: True if alert should be generated for this date
     """
-    checker = ALERT_CHECKERS.get(frequency)
+    freq = (frequency or "").lower()
+
+    if freq == "deadline":
+        return _check_deadline_alert(reference_date, alert_day, deadline_date)
+
+    checker = ALERT_CHECKERS.get(freq)
 
     if not checker:
         # Unknown frequency - log warning and return False
         import logging
+
         logging.getLogger(__name__).warning(f"Unknown alert frequency: {frequency}")
         return False
 
@@ -507,7 +655,7 @@ def _build_email_body(alert_list):
     Returns:
         str: HTML email body
     """
-    alertas_url = url_for('alertas', _external=True)
+    alertas_url = url_for("alertas", _external=True)
 
     # Build alert items HTML
     alert_items_html = ""
@@ -598,7 +746,7 @@ def _send_email_to_recipient(recipient, html_body, alert_count):
         return False, f"Failed to send to {recipient['email']}: {str(e)}"
 
 
-def send_email_notifications(alert_list, user_name=None):
+def send_email_notifications(alert_list: list, user_name: str = None) -> dict:
     """
     Send email notifications for newly generated alerts (orchestrator function).
 
@@ -607,7 +755,7 @@ def send_email_notifications(alert_list, user_name=None):
         user_name: User name to check preferences for. If None, uses current_user.
 
     Returns:
-        dict with stats: {'sent': count, 'failed': count, 'errors': []}
+        dict: Statistics with keys 'sent', 'failed', 'errors'
     """
     stats = {"sent": 0, "failed": 0, "errors": []}
 
@@ -669,6 +817,9 @@ def inject_task_counts():
     """
     # Get broken links count for crawler
     broken_count = 0
+    image_issues_count = 0
+    spell_issues_count = 0
+
     try:
         with db_cursor(commit=False) as cursor:
             # Get latest crawl run
@@ -691,11 +842,48 @@ def inject_task_counts():
                 )
                 result = cursor.fetchone()
                 broken_count = result["count"] if result else 0
+
+                # Count image quality issues (any issues found)
+                cursor.execute(
+                    """
+                    SELECT COUNT(*) as count
+                    FROM quality_checks qc
+                    JOIN discovered_urls du ON qc.discovered_url_id = du.id
+                    WHERE du.crawl_run_id = %s
+                      AND qc.check_type = 'image_quality'
+                      AND qc.issues_found > 0
+                """,
+                    (crawl_run["id"],),
+                )
+                result = cursor.fetchone()
+                image_issues_count = result["count"] if result else 0
+
+                # Count spelling issues (any issues found)
+                cursor.execute(
+                    """
+                    SELECT COUNT(*) as count
+                    FROM quality_checks qc
+                    JOIN discovered_urls du ON qc.discovered_url_id = du.id
+                    WHERE du.crawl_run_id = %s
+                      AND qc.check_type = 'spell_check'
+                      AND qc.issues_found > 0
+                """,
+                    (crawl_run["id"],),
+                )
+                result = cursor.fetchone()
+                spell_issues_count = result["count"] if result else 0
     except Exception:
         # If crawler tables don't exist yet, just return 0
         broken_count = 0
+        image_issues_count = 0
+        spell_issues_count = 0
 
-    return {"task_counts": get_task_counts(), "broken_count": broken_count}
+    return {
+        "task_counts": get_task_counts(),
+        "broken_count": broken_count,
+        "image_issues_count": image_issues_count,
+        "spell_issues_count": spell_issues_count,
+    }
 
 
 # ==============================================================================
@@ -859,7 +1047,13 @@ def pendientes():
     List of ALL pending tasks (not marked as OK or Problem)
     Generates all possible combinations and excludes completed/problem tasks
     """
-    period = session.get("current_period", datetime.now().strftime("%Y-%m"))
+    # Get selected period from query params or session (default: current month)
+    period = request.args.get("period")
+    if not period:
+        period = session.get("current_period", datetime.now().strftime("%Y-%m"))
+    else:
+        session["current_period"] = period
+
     current_period = datetime.now().strftime("%Y-%m")
 
     with db_cursor(commit=False) as cursor:
@@ -931,11 +1125,19 @@ def problemas():
     List of tasks with problems (status='problem')
     Shows tasks from last 90 days (3 months) that have issues
     """
-    period = session.get("current_period", datetime.now().strftime("%Y-%m"))
+    # Get selected period from query params or session (default: current month)
+    period = request.args.get("period")
+    if not period:
+        period = session.get("current_period", datetime.now().strftime("%Y-%m"))
+    else:
+        session["current_period"] = period
+
     current_period = datetime.now().strftime("%Y-%m")
 
-    # Calculate cutoff date (90 days ago = ~3 months)
-    cutoff_date = (datetime.now() - timedelta(days=90)).strftime('%Y-%m')
+    # Calculate cutoff date (problems retention period)
+    cutoff_date = (datetime.now() - timedelta(days=PROBLEMS_RETENTION_DAYS)).strftime(
+        "%Y-%m"
+    )
 
     with db_cursor(commit=False) as cursor:
         # Query problem tasks from last 3 months to current month
@@ -987,7 +1189,12 @@ def realizadas():
     List of completed tasks (status='ok')
     Shows complete history of all tasks marked as OK
     """
-    period = session.get("current_period", datetime.now().strftime("%Y-%m"))
+    # Get selected period from query params or session (default: current month)
+    period = request.args.get("period")
+    if not period:
+        period = session.get("current_period", datetime.now().strftime("%Y-%m"))
+    else:
+        session["current_period"] = period
 
     with db_cursor(commit=False) as cursor:
         # Query all completed tasks (status='ok') from complete history
@@ -1068,6 +1275,7 @@ def update_task():
                     """
                     INSERT INTO tasks (section_id, task_type_id, period, status, completed_date, completed_by)
                     VALUES (%s, %s, %s, %s, %s, %s)
+                    RETURNING id
                 """,
                     (
                         section_id,
@@ -1078,7 +1286,7 @@ def update_task():
                         completed_by,
                     ),
                 )
-                new_task_id = cursor.lastrowid
+                new_task_id = cursor.fetchone()["id"]
 
         return jsonify({"success": True, "task_id": new_task_id})
 
@@ -1163,7 +1371,12 @@ def alertas():
     Display ALL alerts (both active and dismissed)
     One alert per task_type, not per section
     """
-    period = session.get("current_period", datetime.now().strftime("%Y-%m"))
+    # Get selected period from query params or session (default: current month)
+    period = request.args.get("period")
+    if not period:
+        period = session.get("current_period", datetime.now().strftime("%Y-%m"))
+    else:
+        session["current_period"] = period
 
     with db_cursor(commit=False) as cursor:
         # Get ALL alerts with task type info (both active and dismissed)
@@ -1182,7 +1395,44 @@ def alertas():
         """)
 
         alerts_raw = cursor.fetchall()
-        all_alerts = [dict(row) for row in alerts_raw]
+        all_alerts = []
+
+        # System alerts
+        for row in alerts_raw:
+            alert_dict = dict(row)
+            alert_dict["source"] = "system"
+            all_alerts.append(alert_dict)
+
+        # Custom alerts (personalizadas)
+        cursor.execute("""
+            SELECT
+                id,
+                title,
+                notes,
+                due_date,
+                dismissed,
+                dismissed_at,
+                created_at,
+                COALESCE(created_by, 'Usuario') as created_by
+            FROM custom_pending_alerts
+            ORDER BY dismissed ASC, due_date ASC, id DESC
+        """)
+        custom_raw = cursor.fetchall()
+        for row in custom_raw:
+            all_alerts.append(
+                {
+                    "id": row["id"],
+                    "due_date": row["due_date"],
+                    "generated_at": row["created_at"],
+                    "dismissed": row["dismissed"],
+                    "dismissed_at": row["dismissed_at"],
+                    "task_type_name": row["title"],
+                    "periodicity": "Personalizada",
+                    "notes": row["notes"],
+                    "created_by": row["created_by"],
+                    "source": "custom",
+                }
+            )
 
     # Generate available periods
     available_periods = generate_available_periods()
@@ -1243,6 +1493,217 @@ def dismiss_alert(alert_id):
         return jsonify(
             {"success": True, "message": message, "dismissed": new_dismissed}
         )
+
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/alertas/custom/dismiss/<int:alert_id>", methods=["POST"])
+@login_required
+def dismiss_custom_alert(alert_id):
+    """
+    Toggle custom alert status (active ↔ dismissed)
+    """
+    try:
+        with db_cursor() as cursor:
+            cursor.execute(
+                "SELECT dismissed FROM custom_pending_alerts WHERE id = %s",
+                (alert_id,),
+            )
+            row = cursor.fetchone()
+
+            if not row:
+                return jsonify({"success": False, "error": "Alerta no encontrada"}), 404
+
+            new_dismissed = not row["dismissed"]
+
+            if new_dismissed:
+                cursor.execute(
+                    """
+                    UPDATE custom_pending_alerts
+                    SET dismissed = TRUE, dismissed_at = CURRENT_TIMESTAMP
+                    WHERE id = %s
+                """,
+                    (alert_id,),
+                )
+                message = "Alerta personalizada marcada como resuelta"
+            else:
+                cursor.execute(
+                    """
+                    UPDATE custom_pending_alerts
+                    SET dismissed = FALSE, dismissed_at = NULL
+                    WHERE id = %s
+                """,
+                    (alert_id,),
+                )
+                message = "Alerta personalizada reactivada"
+
+        return jsonify(
+            {"success": True, "message": message, "dismissed": new_dismissed}
+        )
+
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/alertas/custom/delete/<int:alert_id>", methods=["POST"])
+@login_required
+def delete_custom_alert(alert_id):
+    """
+    Elimina una alerta personalizada definitivamente
+    """
+    try:
+        with db_cursor() as cursor:
+            cursor.execute(
+                "DELETE FROM custom_pending_alerts WHERE id = %s", (alert_id,)
+            )
+
+            if cursor.rowcount == 0:
+                return jsonify({"success": False, "error": "Alerta no encontrada"}), 404
+
+        return jsonify({"success": True, "message": "Alerta personalizada eliminada"})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+# ==============================================================================
+# CUSTOM DICTIONARY ROUTES
+# ==============================================================================
+
+
+@app.route("/diccionario-personalizado")
+@login_required
+def custom_dictionary():
+    """
+    Custom dictionary management page
+    Shows:
+    - Candidate words (errors from quality_checks that could be added)
+    - Current custom dictionary words
+    - Manual word addition form
+    """
+    from calidad.dictionary_manager import (
+        get_dictionary_stats,
+        get_dictionary_words,
+    )
+
+    try:
+        # Get current dictionary words
+        dictionary_words = get_dictionary_words()
+
+        # Get dictionary stats
+        stats = get_dictionary_stats()
+
+        # Get candidate words from quality_checks
+        # Extract spelling errors from quality checks, group by word, count frequency
+        with db_cursor(commit=False) as cursor:
+            cursor.execute(
+                """
+                SELECT
+                    jsonb_array_elements(details->'spelling_errors')->>'word' as word,
+                    COUNT(*) as frequency,
+                    STRING_AGG(DISTINCT du.url, ', ') as example_urls
+                FROM quality_checks qc
+                LEFT JOIN discovered_urls du ON qc.discovered_url_id = du.id
+                WHERE qc.check_type = 'spell_check'
+                    AND qc.status IN ('warning', 'error')
+                    AND details->'spelling_errors' IS NOT NULL
+                    AND jsonb_array_length(details->'spelling_errors') > 0
+                GROUP BY word
+                HAVING COUNT(*) >= 2  -- Only show words that appear at least twice
+                ORDER BY COUNT(*) DESC, word
+                LIMIT 100
+            """
+            )
+            candidate_words = cursor.fetchall()
+
+        # Filter out words already in dictionary
+        existing_words_lower = {w["word_lower"] for w in dictionary_words}
+        candidates = [
+            c for c in candidate_words if c["word"].lower() not in existing_words_lower
+        ]
+
+        return render_template(
+            "diccionario_personalizado.html",
+            dictionary_words=dictionary_words,
+            candidates=candidates,
+            stats=stats,
+            current_user=current_user,
+        )
+
+    except Exception as e:
+        flash(f"Error cargando diccionario: {str(e)}", "error")
+        return redirect(url_for("inicio"))
+
+
+@app.route("/diccionario-personalizado/add", methods=["POST"])
+@login_required
+def add_custom_word():
+    """
+    Add a word to the custom dictionary
+    """
+    from calidad.dictionary_manager import add_word_to_dictionary
+
+    try:
+        word = request.form.get("word", "").strip()
+        category = request.form.get("category", "other")
+        frequency = int(request.form.get("frequency", 0))
+        notes = request.form.get("notes", "").strip()
+
+        if not word:
+            return jsonify({"success": False, "error": "Palabra requerida"}), 400
+
+        result = add_word_to_dictionary(
+            word=word,
+            category=category,
+            frequency=frequency,
+            approved_by=current_user.id,
+            notes=notes,
+        )
+
+        if result["success"]:
+            return jsonify(
+                {
+                    "success": True,
+                    "message": f"Palabra '{word}' añadida al diccionario",
+                    "word_id": result["word_id"],
+                }
+            )
+        else:
+            return jsonify({"success": False, "error": result["message"]}), 400
+
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/diccionario-personalizado/remove/<int:word_id>", methods=["POST"])
+@login_required
+def remove_custom_word(word_id):
+    """
+    Remove a word from the custom dictionary
+    """
+    from calidad.dictionary_manager import get_dictionary_words
+
+    try:
+        # Get word first
+        words = get_dictionary_words()
+        word_obj = next((w for w in words if w["id"] == word_id), None)
+
+        if not word_obj:
+            return jsonify({"success": False, "error": "Palabra no encontrada"}), 404
+
+        from calidad.dictionary_manager import remove_word_from_dictionary
+
+        result = remove_word_from_dictionary(word_obj["word"])
+
+        if result["success"]:
+            return jsonify(
+                {
+                    "success": True,
+                    "message": f"Palabra '{word_obj['word']}' eliminada del diccionario",
+                }
+            )
+        else:
+            return jsonify({"success": False, "error": result["message"]}), 400
 
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500

@@ -3,14 +3,58 @@ Post-Crawl Quality Check Runner
 
 Executes configured quality checks after a crawl completes.
 Integrates with existing checkers (ImagenesChecker, URLValidator).
+
+Performance optimizations:
+- Concurrent HTML fetching with connection pooling
+- Threaded quality check execution
+- Shared HTML cache across checkers
 """
 
 import logging
-from typing import List, Dict, Any, Optional
-from utils import db_cursor
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
+from typing import Any
+
+from calidad.html_fetcher import fetch_html_for_urls
 from constants import QualityCheckDefaults
+from utils import db_cursor
 
 logger = logging.getLogger(__name__)
+
+
+# Top-level function for multiprocessing (must be pickleable)
+def _check_spell_single_url_worker(
+    args: tuple[int, str, str | None, str | None],
+) -> dict[str, Any]:
+    """
+    Worker function for spell checking a single URL (used with ProcessPoolExecutor).
+
+    Args:
+        args: Tuple of (url_id, url, html_content, error_message)
+
+    Returns:
+        Dictionary with check results
+    """
+    from calidad.spell import SpellChecker
+
+    url_id, url, html_content, error = args
+
+    if error:
+        return {
+            "url_id": url_id,
+            "url": url,
+            "success": False,
+            "error": f"HTML fetch failed: {error}",
+        }
+
+    try:
+        # Create checker instance (each process gets its own)
+        checker = SpellChecker()
+        result = checker.check(url, html_content=html_content)
+
+        return {"url_id": url_id, "url": url, "success": True, "result": result}
+
+    except Exception as e:
+        return {"url_id": url_id, "url": url, "success": False, "error": str(e)}
 
 
 class PostCrawlQualityRunner:
@@ -21,44 +65,63 @@ class PostCrawlQualityRunner:
     """
 
     AVAILABLE_CHECKS = {
-        'broken_links': {
-            'name': 'Validación de Enlaces Rotos',
-            'description': 'Verifica que todos los enlaces funcionen correctamente',
-            'icon': '🔗'
+        "broken_links": {
+            "name": "Validación de Enlaces Rotos",
+            "description": "Verifica que todos los enlaces funcionen correctamente",
+            "icon": "🔗",
+            "icon_name": "link",
         },
-        'image_quality': {
-            'name': 'Calidad de Imágenes',
-            'description': 'Analiza alt text, tamaño, formato y carga de imágenes',
-            'icon': '🖼️'
+        "image_quality": {
+            "name": "Calidad de Imágenes",
+            "description": "Analiza alt text, tamaño, formato y carga de imágenes",
+            "icon": "🖼️",
+            "icon_name": "image",
         },
-        'seo': {
-            'name': 'Análisis SEO',
-            'description': 'Verifica meta tags, títulos y estructura SEO (próximamente)',
-            'icon': '🔍',
-            'available': False
+        "spell_check": {
+            "name": "Corrección Ortográfica",
+            "description": "Detecta errores ortográficos en el contenido de la página",
+            "icon": "📝",
+            "icon_name": "file-text",
         },
-        'performance': {
-            'name': 'Performance',
-            'description': 'Mide tiempos de carga y optimización (próximamente)',
-            'icon': '⚡',
-            'available': False
+        "cta_validation": {
+            "name": "Validación de CTAs",
+            "description": "Verifica que los Call-To-Action estén presentes y correctos",
+            "icon": "🎯",
+            "icon_name": "target",
         },
-        'accessibility': {
-            'name': 'Accesibilidad',
-            'description': 'Verifica estándares WCAG (próximamente)',
-            'icon': '♿',
-            'available': False
-        }
+        "seo": {
+            "name": "Análisis SEO",
+            "description": "Verifica meta tags, títulos y estructura SEO (próximamente)",
+            "icon": "🔍",
+            "icon_name": "search",
+            "available": False,
+        },
+        "performance": {
+            "name": "Performance",
+            "description": "Mide tiempos de carga y optimización (próximamente)",
+            "icon": "⚡",
+            "icon_name": "zap",
+            "available": False,
+        },
+        "accessibility": {
+            "name": "Accesibilidad",
+            "description": "Verifica estándares WCAG (próximamente)",
+            "icon": "♿",
+            "icon_name": "accessibility",
+            "available": False,
+        },
     }
 
-    def __init__(self, crawl_run_id: int):
+    def __init__(self, crawl_run_id: int, max_workers: int = 10):
         """
         Initialize runner for a specific crawl.
 
         Args:
             crawl_run_id: ID of the crawl run to analyze
+            max_workers: Number of concurrent workers for processing URLs (default: 10)
         """
         self.crawl_run_id = crawl_run_id
+        self.max_workers = max_workers
 
     def _build_scope_query(self, base_query, scope):
         """
@@ -72,11 +135,11 @@ class PostCrawlQualityRunner:
             str: Complete query with scope filter
         """
         query = base_query
-        if scope == 'priority':
+        if scope == "priority":
             query += " AND is_priority = TRUE"
         return query
 
-    def get_configured_checks(self, user_id: int) -> List[Dict[str, str]]:
+    def get_configured_checks(self, user_id: int) -> list[dict[str, str]]:
         """
         Get list of checks configured to run automatically for a user.
 
@@ -87,18 +150,24 @@ class PostCrawlQualityRunner:
             List of dicts with check_type and scope (e.g., [{'check_type': 'broken_links', 'scope': 'all'}])
         """
         with db_cursor(commit=False) as cursor:
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT check_type, scope
                 FROM quality_check_config
                 WHERE user_id = %s
                   AND enabled = TRUE
                   AND run_after_crawl = TRUE
-            """, (user_id,))
+            """,
+                (user_id,),
+            )
 
             results = cursor.fetchall()
-            return [{'check_type': row['check_type'], 'scope': row['scope']} for row in results]
+            return [
+                {"check_type": row["check_type"], "scope": row["scope"]}
+                for row in results
+            ]
 
-    def run_configured_checks(self, user_id: int) -> Dict[str, Any]:
+    def run_configured_checks(self, user_id: int) -> dict[str, Any]:
         """
         Run all checks configured for automatic execution.
 
@@ -113,15 +182,17 @@ class PostCrawlQualityRunner:
         if not check_configs:
             logger.info(f"No automatic checks configured for user {user_id}")
             return {
-                'executed': False,
-                'reason': 'No automatic checks configured',
-                'checks': []
+                "executed": False,
+                "reason": "No automatic checks configured",
+                "checks": [],
             }
 
-        logger.info(f"Running {len(check_configs)} automatic checks for crawl {self.crawl_run_id}")
+        logger.info(
+            f"Running {len(check_configs)} automatic checks for crawl {self.crawl_run_id}"
+        )
         return self.run_checks(check_configs)
 
-    def run_checks(self, check_configs: List[Dict[str, str]]) -> Dict[str, Any]:
+    def run_checks(self, check_configs: list[dict[str, str]]) -> dict[str, Any]:
         """
         Run specified quality checks with their configured scopes.
 
@@ -131,15 +202,11 @@ class PostCrawlQualityRunner:
         Returns:
             Dictionary with results for each check executed
         """
-        results = {
-            'executed': True,
-            'crawl_run_id': self.crawl_run_id,
-            'checks': []
-        }
+        results = {"executed": True, "crawl_run_id": self.crawl_run_id, "checks": []}
 
         for config in check_configs:
-            check_type = config['check_type']
-            scope = config['scope']
+            check_type = config["check_type"]
+            scope = config["scope"]
 
             if check_type not in self.AVAILABLE_CHECKS:
                 logger.warning(f"Unknown check type: {check_type}")
@@ -148,32 +215,32 @@ class PostCrawlQualityRunner:
             check_info = self.AVAILABLE_CHECKS[check_type]
 
             # Skip unavailable checks
-            if not check_info.get('available', True):
+            if not check_info.get("available", True):
                 logger.info(f"Check '{check_type}' not yet available, skipping")
-                results['checks'].append({
-                    'check_type': check_type,
-                    'status': 'unavailable',
-                    'message': 'Feature not yet implemented'
-                })
+                results["checks"].append(
+                    {
+                        "check_type": check_type,
+                        "status": "unavailable",
+                        "message": "Feature not yet implemented",
+                    }
+                )
                 continue
 
             # Execute check with scope
             try:
                 logger.info(f"Executing check: {check_type} (scope: {scope})")
                 check_result = self._execute_check_with_scope(check_type, scope)
-                results['checks'].append(check_result)
+                results["checks"].append(check_result)
 
             except Exception as e:
                 logger.error(f"Error executing check '{check_type}': {e}")
-                results['checks'].append({
-                    'check_type': check_type,
-                    'status': 'error',
-                    'message': str(e)
-                })
+                results["checks"].append(
+                    {"check_type": check_type, "status": "error", "message": str(e)}
+                )
 
         return results
 
-    def run_selected_checks(self, check_types: List[str]) -> Dict[str, Any]:
+    def run_selected_checks(self, check_types: list[str]) -> dict[str, Any]:
         """
         Run specified quality checks (legacy method - defaults to 'priority' scope).
 
@@ -184,10 +251,10 @@ class PostCrawlQualityRunner:
             Dictionary with results for each check executed
         """
         # Convert to new format with default scope
-        check_configs = [{'check_type': ct, 'scope': 'priority'} for ct in check_types]
+        check_configs = [{"check_type": ct, "scope": "priority"} for ct in check_types]
         return self.run_checks(check_configs)
 
-    def _execute_check_with_scope(self, check_type: str, scope: str) -> Dict[str, Any]:
+    def _execute_check_with_scope(self, check_type: str, scope: str) -> dict[str, Any]:
         """
         Execute a specific check type with a given scope.
 
@@ -198,16 +265,22 @@ class PostCrawlQualityRunner:
         Returns:
             Dictionary with check execution results
         """
-        if check_type == 'broken_links':
+        if check_type == "broken_links":
             return self._run_broken_links_check(scope)
 
-        elif check_type == 'image_quality':
+        elif check_type == "image_quality":
             return self._run_image_quality_check(scope)
+
+        elif check_type == "spell_check":
+            return self._run_spell_check(scope)
+
+        elif check_type == "cta_validation":
+            return self._run_cta_validation_check(scope)
 
         else:
             raise ValueError(f"Check type '{check_type}' not implemented")
 
-    def _execute_check(self, check_type: str) -> Dict[str, Any]:
+    def _execute_check(self, check_type: str) -> dict[str, Any]:
         """
         Execute a specific check type (legacy - defaults to 'priority' scope).
 
@@ -217,9 +290,9 @@ class PostCrawlQualityRunner:
         Returns:
             Dictionary with check execution results
         """
-        return self._execute_check_with_scope(check_type, 'priority')
+        return self._execute_check_with_scope(check_type, "priority")
 
-    def _run_broken_links_check(self, scope: str = 'priority') -> Dict[str, Any]:
+    def _run_broken_links_check(self, scope: str = "priority") -> dict[str, Any]:
         """
         Run broken links validation.
 
@@ -248,32 +321,32 @@ class PostCrawlQualityRunner:
 
         if not urls:
             return {
-                'check_type': 'broken_links',
-                'status': 'completed',
-                'message': f'No URLs to validate (scope: {scope})',
-                'stats': {'total': 0, 'validated': 0, 'broken': 0}
+                "check_type": "broken_links",
+                "status": "completed",
+                "message": f"No URLs to validate (scope: {scope})",
+                "stats": {"total": 0, "validated": 0, "broken": 0},
             }
 
         # Run validator - pass (id, url, previous_status_code) tuples
         validator_config = {
-            'timeout': QualityCheckDefaults.BROKEN_LINKS_TIMEOUT,
-            'max_retries': QualityCheckDefaults.BROKEN_LINKS_MAX_RETRIES,
-            'delay': QualityCheckDefaults.BROKEN_LINKS_RETRY_DELAY
+            "timeout": QualityCheckDefaults.BROKEN_LINKS_TIMEOUT,
+            "max_retries": QualityCheckDefaults.BROKEN_LINKS_MAX_RETRIES,
+            "delay": QualityCheckDefaults.BROKEN_LINKS_RETRY_DELAY,
         }
         validator = URLValidator(validator_config)
-        url_list = [(row['id'], row['url'], row['status_code']) for row in urls]
+        url_list = [(row["id"], row["url"], row["status_code"]) for row in urls]
         stats = validator.validate_batch(url_list, track_changes=True)
 
         return {
-            'check_type': 'broken_links',
-            'status': 'completed',
-            'message': f"Validated {stats['validated']} URLs (scope: {scope}), found {stats['broken']} broken",
-            'stats': stats
+            "check_type": "broken_links",
+            "status": "completed",
+            "message": f"Validated {stats['validated']} URLs (scope: {scope}), found {stats['broken']} broken",
+            "stats": stats,
         }
 
-    def _run_image_quality_check(self, scope: str = 'priority') -> Dict[str, Any]:
+    def _run_image_quality_check(self, scope: str = "priority") -> dict[str, Any]:
         """
-        Run image quality checks.
+        Run image quality checks with concurrent HTML fetching.
 
         Args:
             scope: 'all' for all URLs, 'priority' for is_priority=TRUE only
@@ -281,8 +354,10 @@ class PostCrawlQualityRunner:
         Returns:
             Dictionary with check results
         """
-        from calidad.imagenes import ImagenesChecker
         import json
+        import time
+
+        from calidad.imagenes import ImagenesChecker
 
         # Build query based on scope
         base_query = """
@@ -302,70 +377,452 @@ class PostCrawlQualityRunner:
 
         if not urls:
             return {
-                'check_type': 'image_quality',
-                'status': 'completed',
-                'message': f'No URLs to check (scope: {scope})',
-                'stats': {'total': 0, 'processed': 0, 'successful': 0, 'failed': 0}
+                "check_type": "image_quality",
+                "status": "completed",
+                "message": f"No URLs to check (scope: {scope})",
+                "stats": {"total": 0, "processed": 0, "successful": 0, "failed": 0},
             }
 
-        # Run image quality checks on each URL
-        checker = ImagenesChecker()
         total = len(urls)
+        logger.info(
+            f"Starting optimized image quality check for {total} URLs with {self.max_workers} workers..."
+        )
+        start_time = time.time()
+
+        # Step 1: Fetch all HTML concurrently
+        logger.info(f"[1/2] Fetching HTML for {total} URLs...")
+        url_list = [row["url"] for row in urls]
+        html_cache = fetch_html_for_urls(
+            url_list,
+            max_workers=self.max_workers,
+            timeout=QualityCheckDefaults.IMAGE_CHECK_TIMEOUT,
+        )
+
+        # Step 2: Process checks concurrently with cached HTML
+        logger.info(f"[2/2] Running image quality checks on {total} URLs...")
+        checker = ImagenesChecker()
+
         processed = 0
         successful = 0
         failed = 0
+        results_to_save = []
 
-        logger.info(f"Starting image quality check for {total} URLs...")
+        def check_single_url(url_row):
+            """Check a single URL with cached HTML."""
+            url = url_row["url"]
+            html_content, error = html_cache.get(url, (None, None))
 
-        for url_row in urls:
+            if error:
+                # HTML fetch failed
+                return {
+                    "url_id": url_row["id"],
+                    "url": url,
+                    "success": False,
+                    "error": f"HTML fetch failed: {error}",
+                }
+
             try:
-                result = checker.check(url_row['url'])
+                # Run check with cached HTML
+                result = checker.check(url, html_content=html_content)
 
-                # Save result to quality_checks table with discovered_url_id
-                with db_cursor() as cursor:
-                    cursor.execute("""
-                        INSERT INTO quality_checks (
-                            discovered_url_id, check_type, status, score, message,
-                            details, issues_found, execution_time_ms, checked_at
-                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW())
-                    """, (
-                        url_row['id'],
-                        'image_quality',
+                return {
+                    "url_id": url_row["id"],
+                    "url": url,
+                    "success": True,
+                    "result": result,
+                }
+
+            except Exception as e:
+                return {
+                    "url_id": url_row["id"],
+                    "url": url,
+                    "success": False,
+                    "error": str(e),
+                }
+
+        # Execute checks in parallel
+        with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+            future_to_url = {
+                executor.submit(check_single_url, url_row): url_row for url_row in urls
+            }
+
+            for future in as_completed(future_to_url):
+                result_data = future.result()
+                processed += 1
+
+                if result_data["success"]:
+                    results_to_save.append(result_data)
+                    successful += 1
+                else:
+                    logger.error(
+                        f"Error checking {result_data['url']}: {result_data['error']}"
+                    )
+                    failed += 1
+
+                # Progress logging every 10 URLs or first 3
+                if processed <= 3 or processed % 10 == 0:
+                    logger.info(
+                        f"Check progress: {processed}/{total} "
+                        f"({successful} successful, {failed} failed)"
+                    )
+
+        # Step 3: Batch save results to database
+        logger.info(f"Saving {len(results_to_save)} results to database...")
+        with db_cursor() as cursor:
+            for result_data in results_to_save:
+                result = result_data["result"]
+                cursor.execute(
+                    """
+                    INSERT INTO quality_checks (
+                        discovered_url_id, check_type, status, score, message,
+                        details, issues_found, execution_time_ms, checked_at
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                """,
+                    (
+                        result_data["url_id"],
+                        "image_quality",
                         result.status,
                         result.score,
                         result.message,
                         json.dumps(result.details),
                         result.issues_found,
-                        result.execution_time_ms
-                    ))
-                successful += 1
-                processed += 1
+                        result.execution_time_ms,
+                    ),
+                )
 
-                # Progress logging every 10 URLs
-                if processed % 10 == 0:
-                    logger.info(f"Progress: {processed}/{total} URLs checked ({successful} successful, {failed} failed)")
-
-            except Exception as e:
-                logger.error(f"Error checking {url_row['url']}: {e}")
-                failed += 1
-                processed += 1
-
-        logger.info(f"Image quality check complete: {processed}/{total} processed, {successful} successful, {failed} failed")
+        elapsed = time.time() - start_time
+        logger.info(
+            f"Image quality check complete: {processed}/{total} processed, "
+            f"{successful} successful, {failed} failed in {elapsed:.1f}s "
+            f"({total/elapsed:.1f} URLs/s)"
+        )
 
         return {
-            'check_type': 'image_quality',
-            'status': 'completed',
-            'message': f"Checked {processed} URLs (scope: {scope}), {successful} saved to database",
-            'stats': {
-                'total': total,
-                'processed': processed,
-                'successful': successful,
-                'failed': failed
+            "check_type": "image_quality",
+            "status": "completed",
+            "message": f"Checked {processed} URLs (scope: {scope}), {successful} saved to database in {elapsed:.1f}s",
+            "stats": {
+                "total": total,
+                "processed": processed,
+                "successful": successful,
+                "failed": failed,
+                "elapsed_seconds": round(elapsed, 1),
+                "urls_per_second": round(total / elapsed, 1) if elapsed > 0 else 0,
+            },
+        }
+
+    def _run_spell_check(self, scope: str = "priority") -> dict[str, Any]:
+        """
+        Run spell check on URLs with concurrent HTML fetching and multiprocessing.
+
+        Uses ProcessPoolExecutor for true CPU parallelism (bypasses Python GIL).
+
+        Args:
+            scope: 'all' for all URLs, 'priority' for is_priority=TRUE only
+
+        Returns:
+            Dictionary with check results
+        """
+        import json
+        import time
+
+        # Build query based on scope
+        base_query = """
+            SELECT id, url, depth
+            FROM discovered_urls
+            WHERE crawl_run_id = %s
+              AND active = TRUE
+              AND is_broken = FALSE
+        """
+        query = self._build_scope_query(base_query, scope)
+        query += " ORDER BY depth ASC"
+
+        # Get URLs from this crawl run
+        with db_cursor(commit=False) as cursor:
+            cursor.execute(query, (self.crawl_run_id,))
+            urls = cursor.fetchall()
+
+        if not urls:
+            return {
+                "check_type": "spell_check",
+                "status": "completed",
+                "message": f"No URLs to check (scope: {scope})",
+                "stats": {"total": 0, "processed": 0, "successful": 0, "failed": 0},
             }
+
+        total = len(urls)
+        logger.info(
+            f"Starting optimized spell check for {total} URLs with {self.max_workers} CPU workers..."
+        )
+        start_time = time.time()
+
+        # Step 1: Fetch all HTML concurrently
+        logger.info(f"[1/2] Fetching HTML for {total} URLs...")
+        url_list = [row["url"] for row in urls]
+        html_cache = fetch_html_for_urls(
+            url_list,
+            max_workers=self.max_workers,
+            timeout=QualityCheckDefaults.SPELL_CHECK_TIMEOUT,
+        )
+
+        # Step 2: Prepare arguments for multiprocessing
+        logger.info(
+            f"[2/2] Running spell checks with {self.max_workers} parallel processes..."
+        )
+        worker_args = []
+        for url_row in urls:
+            url = url_row["url"]
+            html_content, error = html_cache.get(url, (None, None))
+            worker_args.append((url_row["id"], url, html_content, error))
+
+        processed = 0
+        successful = 0
+        failed = 0
+        results_to_save = []
+
+        # Execute checks in parallel processes (bypasses GIL)
+        with ProcessPoolExecutor(max_workers=self.max_workers) as executor:
+            # Submit all tasks
+            future_to_args = {
+                executor.submit(_check_spell_single_url_worker, args): args
+                for args in worker_args
+            }
+
+            # Collect results as they complete
+            for future in as_completed(future_to_args):
+                result_data = future.result()
+                processed += 1
+
+                if result_data["success"]:
+                    results_to_save.append(result_data)
+                    successful += 1
+                else:
+                    logger.error(
+                        f"Error checking {result_data['url']}: {result_data['error']}"
+                    )
+                    failed += 1
+
+                # Progress logging every 10 URLs or first 3
+                if processed <= 3 or processed % 10 == 0:
+                    logger.info(
+                        f"Check progress: {processed}/{total} "
+                        f"({successful} successful, {failed} failed)"
+                    )
+
+        # Step 3: Batch save results to database
+        logger.info(f"Saving {len(results_to_save)} results to database...")
+        with db_cursor() as cursor:
+            for result_data in results_to_save:
+                result = result_data["result"]
+                cursor.execute(
+                    """
+                    INSERT INTO quality_checks (
+                        discovered_url_id, check_type, status, score, message,
+                        details, issues_found, execution_time_ms, checked_at
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                """,
+                    (
+                        result_data["url_id"],
+                        "spell_check",
+                        result.status,
+                        result.score,
+                        result.message,
+                        json.dumps(result.details),
+                        result.issues_found,
+                        result.execution_time_ms,
+                    ),
+                )
+
+        elapsed = time.time() - start_time
+        logger.info(
+            f"Spell check complete: {processed}/{total} processed, "
+            f"{successful} successful, {failed} failed in {elapsed:.1f}s "
+            f"({total/elapsed:.1f} URLs/s)"
+        )
+
+        return {
+            "check_type": "spell_check",
+            "status": "completed",
+            "message": f"Checked {processed} URLs (scope: {scope}), {successful} saved to database in {elapsed:.1f}s",
+            "stats": {
+                "total": total,
+                "processed": processed,
+                "successful": successful,
+                "failed": failed,
+                "elapsed_seconds": round(elapsed, 1),
+                "urls_per_second": round(total / elapsed, 1) if elapsed > 0 else 0,
+            },
+        }
+
+    def _run_cta_validation_check(self, scope: str = "priority") -> dict[str, Any]:
+        """
+        Run CTA validation checks with concurrent HTML fetching.
+
+        Args:
+            scope: 'all' for all URLs, 'priority' for is_priority=TRUE only
+
+        Returns:
+            Dictionary with check results
+        """
+        import json
+        import time
+
+        from calidad.ctas import CTAChecker
+
+        # Build query based on scope
+        base_query = """
+            SELECT id, url, depth
+            FROM discovered_urls
+            WHERE crawl_run_id = %s
+              AND active = TRUE
+              AND is_broken = FALSE
+        """
+        query = self._build_scope_query(base_query, scope)
+        query += " ORDER BY depth ASC"
+
+        # Get URLs from this crawl run
+        with db_cursor(commit=False) as cursor:
+            cursor.execute(query, (self.crawl_run_id,))
+            urls = cursor.fetchall()
+
+        if not urls:
+            return {
+                "check_type": "cta_validation",
+                "status": "completed",
+                "message": f"No URLs to check (scope: {scope})",
+                "stats": {"total": 0, "processed": 0, "successful": 0, "failed": 0},
+            }
+
+        total = len(urls)
+        logger.info(
+            f"Starting CTA validation check for {total} URLs with {self.max_workers} workers..."
+        )
+        start_time = time.time()
+
+        # Step 1: Fetch all HTML concurrently
+        logger.info(f"[1/2] Fetching HTML for {total} URLs...")
+        url_list = [row["url"] for row in urls]
+        html_cache = fetch_html_for_urls(
+            url_list,
+            max_workers=self.max_workers,
+            timeout=QualityCheckDefaults.IMAGE_CHECK_TIMEOUT,
+        )
+
+        # Step 2: Process checks concurrently with cached HTML
+        logger.info(f"[2/2] Running CTA validation checks on {total} URLs...")
+        checker = CTAChecker()
+
+        processed = 0
+        successful = 0
+        failed = 0
+        results_to_save = []
+
+        def check_single_url(url_row):
+            """Check a single URL with cached HTML."""
+            url = url_row["url"]
+            html_content, error = html_cache.get(url, (None, None))
+
+            if error:
+                # HTML fetch failed
+                return {
+                    "url_id": url_row["id"],
+                    "url": url,
+                    "success": False,
+                    "error": f"HTML fetch failed: {error}",
+                }
+
+            try:
+                # Run check with cached HTML
+                result = checker.check(url, html_content=html_content)
+
+                return {
+                    "url_id": url_row["id"],
+                    "url": url,
+                    "success": True,
+                    "result": result,
+                }
+
+            except Exception as e:
+                return {
+                    "url_id": url_row["id"],
+                    "url": url,
+                    "success": False,
+                    "error": str(e),
+                }
+
+        # Execute checks in parallel
+        with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+            future_to_url = {
+                executor.submit(check_single_url, url_row): url_row for url_row in urls
+            }
+
+            for future in as_completed(future_to_url):
+                result_data = future.result()
+                processed += 1
+
+                if result_data["success"]:
+                    results_to_save.append(result_data)
+                    successful += 1
+                else:
+                    logger.error(
+                        f"Error checking {result_data['url']}: {result_data['error']}"
+                    )
+                    failed += 1
+
+                # Progress logging every 10 URLs or first 3
+                if processed <= 3 or processed % 10 == 0:
+                    logger.info(
+                        f"Check progress: {processed}/{total} "
+                        f"({successful} successful, {failed} failed)"
+                    )
+
+        # Step 3: Batch save results to database
+        logger.info(f"Saving {len(results_to_save)} results to database...")
+        with db_cursor() as cursor:
+            for result_data in results_to_save:
+                result = result_data["result"]
+                cursor.execute(
+                    """
+                    INSERT INTO quality_checks (
+                        discovered_url_id, check_type, status, score, message,
+                        details, issues_found, execution_time_ms, checked_at
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                """,
+                    (
+                        result_data["url_id"],
+                        "cta_validation",
+                        result.status,
+                        result.score,
+                        result.message,
+                        json.dumps(result.details),
+                        result.issues_found,
+                        result.execution_time_ms,
+                    ),
+                )
+
+        elapsed = time.time() - start_time
+        logger.info(
+            f"CTA validation check complete: {processed}/{total} processed, "
+            f"{successful} successful, {failed} failed in {elapsed:.1f}s "
+            f"({total/elapsed:.1f} URLs/s)"
+        )
+
+        return {
+            "check_type": "cta_validation",
+            "status": "completed",
+            "message": f"Checked {processed} URLs (scope: {scope}), {successful} saved to database in {elapsed:.1f}s",
+            "stats": {
+                "total": total,
+                "processed": processed,
+                "successful": successful,
+                "failed": failed,
+                "elapsed_seconds": round(elapsed, 1),
+                "urls_per_second": round(total / elapsed, 1) if elapsed > 0 else 0,
+            },
         }
 
 
-def get_user_check_config(user_id: int) -> List[Dict[str, Any]]:
+def get_user_check_config(user_id: int) -> list[dict[str, Any]]:
     """
     Get quality check configuration for a user.
 
@@ -376,7 +833,8 @@ def get_user_check_config(user_id: int) -> List[Dict[str, Any]]:
         List of check configurations with metadata
     """
     with db_cursor(commit=False) as cursor:
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT
                 check_type,
                 enabled,
@@ -385,31 +843,42 @@ def get_user_check_config(user_id: int) -> List[Dict[str, Any]]:
             FROM quality_check_config
             WHERE user_id = %s
             ORDER BY check_type
-        """, (user_id,))
+        """,
+            (user_id,),
+        )
 
         configs = cursor.fetchall()
 
     # Merge with available checks metadata
     result = []
     for config in configs:
-        check_type = config['check_type']
+        check_type = config["check_type"]
         check_info = PostCrawlQualityRunner.AVAILABLE_CHECKS.get(check_type, {})
 
-        result.append({
-            'check_type': check_type,
-            'name': check_info.get('name', check_type),
-            'description': check_info.get('description', ''),
-            'icon': check_info.get('icon', ''),
-            'available': check_info.get('available', True),
-            'enabled': config['enabled'],
-            'run_after_crawl': config['run_after_crawl'],
-            'scope': config['scope']
-        })
+        result.append(
+            {
+                "check_type": check_type,
+                "name": check_info.get("name", check_type),
+                "description": check_info.get("description", ""),
+                "icon": check_info.get("icon", ""),
+                "icon_name": check_info.get("icon_name", "check-square"),
+                "available": check_info.get("available", True),
+                "enabled": config["enabled"],
+                "run_after_crawl": config["run_after_crawl"],
+                "scope": config["scope"],
+            }
+        )
 
     return result
 
 
-def update_user_check_config(user_id: int, check_type: str, enabled: bool, run_after_crawl: bool, scope: str = 'priority') -> bool:
+def update_user_check_config(
+    user_id: int,
+    check_type: str,
+    enabled: bool,
+    run_after_crawl: bool,
+    scope: str = "priority",
+) -> bool:
     """
     Update quality check configuration for a user.
 
@@ -425,7 +894,8 @@ def update_user_check_config(user_id: int, check_type: str, enabled: bool, run_a
     """
     try:
         with db_cursor() as cursor:
-            cursor.execute("""
+            cursor.execute(
+                """
                 INSERT INTO quality_check_config (user_id, check_type, enabled, run_after_crawl, scope, updated_at)
                 VALUES (%s, %s, %s, %s, %s, NOW())
                 ON CONFLICT (user_id, check_type)
@@ -434,9 +904,13 @@ def update_user_check_config(user_id: int, check_type: str, enabled: bool, run_a
                     run_after_crawl = EXCLUDED.run_after_crawl,
                     scope = EXCLUDED.scope,
                     updated_at = NOW()
-            """, (user_id, check_type, enabled, run_after_crawl, scope))
+            """,
+                (user_id, check_type, enabled, run_after_crawl, scope),
+            )
 
-        logger.info(f"Updated check config for user {user_id}: {check_type} enabled={enabled} auto={run_after_crawl} scope={scope}")
+        logger.info(
+            f"Updated check config for user {user_id}: {check_type} enabled={enabled} auto={run_after_crawl} scope={scope}"
+        )
         return True
 
     except Exception as e:

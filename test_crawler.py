@@ -4,14 +4,14 @@ Test script for Phase 2.1 Crawler
 Tests crawler functionality with 50 URL limit
 """
 
-import os
 from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
 
 # Now import crawler after env is loaded
-from crawler import Crawler, CRAWLER_CONFIG
+from crawler import CRAWLER_CONFIG, Crawler
+
 
 def test_crawler():
     """Test crawler with 50 URL limit"""
@@ -19,7 +19,7 @@ def test_crawler():
     print("=" * 60)
     print("Testing Phase 2.1 Crawler")
     print("=" * 60)
-    print(f"\nConfiguration:")
+    print("\nConfiguration:")
     print(f"  Root URL: {CRAWLER_CONFIG['root_url']}")
     print(f"  Max URLs: {CRAWLER_CONFIG['max_urls']}")
     print(f"  Max Depth: {CRAWLER_CONFIG['max_depth']}")
@@ -32,7 +32,7 @@ def test_crawler():
     crawler = Crawler(CRAWLER_CONFIG)
 
     # Run crawl
-    stats = crawler.crawl(created_by='test-script')
+    stats = crawler.crawl(created_by="test-script")
 
     # Print results
     print("\n" + "=" * 60)
@@ -57,7 +57,7 @@ def test_crawler():
         crawl_run = cursor.fetchone()
 
         if crawl_run:
-            print(f"\nDatabase Verification:")
+            print("\nDatabase Verification:")
             print(f"  Crawl Run ID: {crawl_run['id']}")
             print(f"  Status: {crawl_run['status']}")
             print(f"  URLs in DB: {crawl_run['urls_discovered']}")
@@ -74,14 +74,15 @@ def test_crawler():
         sample_urls = cursor.fetchall()
 
         if sample_urls:
-            print(f"\nSample URLs discovered:")
+            print("\nSample URLs discovered:")
             for url_row in sample_urls:
-                status = url_row['status_code'] or 'pending'
+                status = url_row["status_code"] or "pending"
                 print(f"  [{url_row['depth']}] {url_row['url']} (status: {status})")
 
     print("\n" + "=" * 60)
     print("Test completed successfully! ✓")
     print("=" * 60)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     test_crawler()

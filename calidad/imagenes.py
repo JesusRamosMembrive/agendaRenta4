@@ -8,28 +8,42 @@ Checks images on a webpage for:
 - Broken images (404)
 """
 
+import logging
+from typing import Any
+from urllib.parse import urljoin, urlparse
+
 import requests
 from bs4 import BeautifulSoup
-from urllib.parse import urljoin, urlparse
-from typing import Optional, Dict, Any
+
 from calidad.base import QualityCheck, QualityCheckResult
 from constants import (
-    HTTP_FORBIDDEN,
     HTTP_CLIENT_ERROR_MIN,
+    HTTP_FORBIDDEN,
+    USER_AGENT_QUALITY_CHECKER,
     QualityCheckDefaults,
-    USER_AGENT_IMAGE_CHECKER,
 )
 
+logger = logging.getLogger(__name__)
 
-class ImagenesChecker(QualityCheck):
-    """Checker for image quality on web pages"""
+
+class ImageChecker(QualityCheck):
+    """
+    Checker for image quality on web pages.
+
+    Validates:
+    - Image accessibility (broken images, 404s)
+    - Hotlink protection (403 status)
+    - External vs internal images
+
+    Former name: ImagenesChecker (kept as alias for compatibility)
+    """
 
     DEFAULT_CONFIG = {
         "timeout": QualityCheckDefaults.IMAGE_CHECK_TIMEOUT,
         "ignore_external": QualityCheckDefaults.IMAGE_CHECK_IGNORE_EXTERNAL,
     }
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: dict[str, Any] | None = None):
         """Initialize checker with optional configuration"""
         merged_config = {**self.DEFAULT_CONFIG}
         if config:
@@ -40,7 +54,7 @@ class ImagenesChecker(QualityCheck):
         """Return the check type identifier"""
         return "image_quality"
 
-    def check(self, url: str, html_content: Optional[str] = None) -> QualityCheckResult:
+    def check(self, url: str, html_content: str | None = None) -> QualityCheckResult:
         """
         Check image quality for a given URL
 
@@ -52,10 +66,14 @@ class ImagenesChecker(QualityCheck):
             QualityCheckResult with image quality details
         """
         import time
+
         start_time = time.time()
+
+        logger.info(f"Starting image quality check for: {url}")
 
         # Validate URL
         if not self.validate_url(url):
+            logger.warning(f"Invalid URL format: {url}")
             execution_time = int((time.time() - start_time) * 1000)
             return self.create_result(
                 status="error",
@@ -76,6 +94,7 @@ class ImagenesChecker(QualityCheck):
             # Parse HTML
             soup = BeautifulSoup(html_content, "html.parser")
             images = soup.find_all("img")
+            logger.debug(f"Found {len(images)} img tags in HTML")
 
             # Initialize result data
             result_data = {
@@ -111,10 +130,7 @@ class ImagenesChecker(QualityCheck):
                 # Check if image is broken via HEAD request
                 try:
                     # Add realistic headers to avoid false positives
-                    headers = {
-                        'Referer': url,
-                        'User-Agent': 'Mozilla/5.0 (compatible; QualityChecker/1.0; +https://www.r4.com)'
-                    }
+                    headers = {"Referer": url, "User-Agent": USER_AGENT_QUALITY_CHECKER}
 
                     img_response = requests.head(
                         img_url,
@@ -126,31 +142,38 @@ class ImagenesChecker(QualityCheck):
                     # Special handling for 403 (likely hotlink protection, not a real error)
                     if img_response.status_code == HTTP_FORBIDDEN:
                         result_data["hotlink_protected"] += 1
-                        result_data["hotlink_protected_list"].append({
-                            "url": img_url,
-                            "status": HTTP_FORBIDDEN,
-                            "note": "Hotlink protection (not a real error)"
-                        })
+                        result_data["hotlink_protected_list"].append(
+                            {
+                                "url": img_url,
+                                "status": HTTP_FORBIDDEN,
+                                "note": "Hotlink protection (not a real error)",
+                            }
+                        )
                     # Check if broken (other 4xx or 5xx status)
                     elif img_response.status_code >= HTTP_CLIENT_ERROR_MIN:
                         result_data["broken_images"] += 1
-                        result_data["broken_images_list"].append({
-                            "url": img_url,
-                            "status": img_response.status_code
-                        })
+                        result_data["broken_images_list"].append(
+                            {"url": img_url, "status": img_response.status_code}
+                        )
 
                 except (requests.Timeout, requests.RequestException):
                     # If we can't reach the image, consider it broken
                     result_data["broken_images"] += 1
-                    result_data["broken_images_list"].append({
-                        "url": img_url,
-                        "status": "timeout/error"
-                    })
+                    result_data["broken_images_list"].append(
+                        {"url": img_url, "status": "timeout/error"}
+                    )
 
             # Calculate score and determine status
             # Only broken_images count as issues, hotlink_protected is just a warning
             issues_found = result_data["broken_images"]
             warnings_found = result_data["hotlink_protected"]
+
+            logger.info(
+                f"Image check complete for {url}: "
+                f"{result_data['total_images']} images, "
+                f"{issues_found} broken, "
+                f"{warnings_found} hotlink-protected"
+            )
 
             # Build message
             if result_data["total_images"] == 0:
@@ -185,16 +208,18 @@ class ImagenesChecker(QualityCheck):
             )
 
         except requests.Timeout as e:
+            logger.error(f"Timeout checking images for {url}: {e}")
             execution_time = int((time.time() - start_time) * 1000)
             return self.create_result(
                 status="error",
                 score=0,
-                message=f"Failed to fetch URL: Request timeout",
+                message="Failed to fetch URL: Request timeout",
                 details={"error": "timeout"},
                 issues_found=0,
                 execution_time_ms=execution_time,
             )
         except requests.RequestException as e:
+            logger.error(f"Request error checking images for {url}: {e}")
             execution_time = int((time.time() - start_time) * 1000)
             return self.create_result(
                 status="error",
@@ -205,6 +230,7 @@ class ImagenesChecker(QualityCheck):
                 execution_time_ms=execution_time,
             )
         except Exception as e:
+            logger.exception(f"Unexpected error checking images for {url}: {e}")
             execution_time = int((time.time() - start_time) * 1000)
             return self.create_result(
                 status="error",
@@ -215,3 +241,7 @@ class ImagenesChecker(QualityCheck):
                 execution_time_ms=execution_time,
             )
 
+
+# Backward compatibility alias
+# TODO: Remove in future version after updating all references
+ImagenesChecker = ImageChecker

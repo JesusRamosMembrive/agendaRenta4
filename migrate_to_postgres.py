@@ -7,38 +7,39 @@ Ejemplo:
     python3 migrate_to_postgres.py "postgresql://user:pass@host:port/dbname"
 """
 
-import sys
 import sqlite3
+import sys
+
 import psycopg2
 import psycopg2.extras
-from datetime import datetime
 
 # Tablas a migrar en orden (respetando foreign keys)
 TABLES_ORDER = [
     # Stage 1 - Sistema Manual
-    'sections',
-    'task_types',
-    'alert_settings',
-    'notification_preferences',
-    'notification_emails',
-    'users',
-    'tasks',
-    'notifications',
-    'pending_alerts',
-
+    "sections",
+    "task_types",
+    "alert_settings",
+    "notification_preferences",
+    "notification_emails",
+    "users",
+    "tasks",
+    "notifications",
+    "pending_alerts",
     # Stage 2 - Crawler Automático
-    'crawl_runs',           # Primero crawl_runs (no tiene FK)
-    'discovered_urls',      # Luego discovered_urls (FK a crawl_runs)
-    'url_changes',          # Luego url_changes (FK a discovered_urls)
-    'health_snapshots',     # Health snapshots (independiente)
+    "crawl_runs",  # Primero crawl_runs (no tiene FK)
+    "discovered_urls",  # Luego discovered_urls (FK a crawl_runs)
+    "url_changes",  # Luego url_changes (FK a discovered_urls)
+    "health_snapshots",  # Health snapshots (independiente)
 ]
 
 
 def get_sqlite_schema(table_name):
     """Get CREATE TABLE statement from SQLite"""
-    conn = sqlite3.connect('agendaRenta4.db')
+    conn = sqlite3.connect("agendaRenta4.db")
     cursor = conn.cursor()
-    cursor.execute(f"SELECT sql FROM sqlite_master WHERE type='table' AND name=?", (table_name,))
+    cursor.execute(
+        "SELECT sql FROM sqlite_master WHERE type='table' AND name=?", (table_name,)
+    )
     result = cursor.fetchone()
     conn.close()
     return result[0] if result else None
@@ -48,18 +49,18 @@ def convert_sqlite_to_postgres_schema(sqlite_schema):
     """Convert SQLite CREATE TABLE to PostgreSQL syntax"""
     # SQLite to PostgreSQL type mappings
     replacements = {
-        'INTEGER PRIMARY KEY AUTOINCREMENT': 'SERIAL PRIMARY KEY',
-        'INTEGER PRIMARY KEY': 'SERIAL PRIMARY KEY',
-        'DATETIME DEFAULT CURRENT_TIMESTAMP': 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP',
-        'DATETIME': 'TIMESTAMP',
-        'BOOLEAN DEFAULT 1': 'BOOLEAN DEFAULT TRUE',
-        'BOOLEAN DEFAULT 0': 'BOOLEAN DEFAULT FALSE',
-        'INTEGER DEFAULT 1': 'INTEGER DEFAULT 1',  # Keep INTEGER defaults as-is
-        'INTEGER DEFAULT 0': 'INTEGER DEFAULT 0',
-        'TEXT': 'TEXT',
-        'INTEGER': 'INTEGER',
-        'REAL': 'REAL',
-        'BOOLEAN': 'BOOLEAN',
+        "INTEGER PRIMARY KEY AUTOINCREMENT": "SERIAL PRIMARY KEY",
+        "INTEGER PRIMARY KEY": "SERIAL PRIMARY KEY",
+        "DATETIME DEFAULT CURRENT_TIMESTAMP": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+        "DATETIME": "TIMESTAMP",
+        "BOOLEAN DEFAULT 1": "BOOLEAN DEFAULT TRUE",
+        "BOOLEAN DEFAULT 0": "BOOLEAN DEFAULT FALSE",
+        "INTEGER DEFAULT 1": "INTEGER DEFAULT 1",  # Keep INTEGER defaults as-is
+        "INTEGER DEFAULT 0": "INTEGER DEFAULT 0",
+        "TEXT": "TEXT",
+        "INTEGER": "INTEGER",
+        "REAL": "REAL",
+        "BOOLEAN": "BOOLEAN",
     }
 
     pg_schema = sqlite_schema
@@ -86,16 +87,19 @@ def migrate_table_data(sqlite_conn, pg_conn, table_name):
     columns = [description[0] for description in sqlite_cursor.description]
 
     # Get PostgreSQL column types to know which need conversion
-    pg_cursor.execute(f"""
+    pg_cursor.execute(
+        """
         SELECT column_name, data_type
         FROM information_schema.columns
         WHERE table_name = %s
-    """, (table_name,))
+    """,
+        (table_name,),
+    )
     pg_columns = {row[0]: row[1] for row in pg_cursor.fetchall()}
 
     # Build INSERT statement
-    placeholders = ','.join(['%s'] * len(columns))
-    columns_str = ','.join(columns)
+    placeholders = ",".join(["%s"] * len(columns))
+    columns_str = ",".join(columns)
     insert_sql = f"INSERT INTO {table_name} ({columns_str}) VALUES ({placeholders})"
 
     # Insert data
@@ -106,10 +110,10 @@ def migrate_table_data(sqlite_conn, pg_conn, table_name):
             row_data = []
             for i, value in enumerate(row):
                 col_name = columns[i]
-                col_type = pg_columns.get(col_name, '')
+                col_type = pg_columns.get(col_name, "")
 
                 # Convert SQLite integers (0/1) to PostgreSQL booleans (False/True)
-                if col_type == 'boolean' and isinstance(value, int):
+                if col_type == "boolean" and isinstance(value, int):
                     row_data.append(bool(value))
                 else:
                     row_data.append(value)
@@ -132,10 +136,18 @@ def reset_sequences(pg_conn):
     # Tables with auto-increment IDs (Stage 1 + Stage 2)
     tables_with_id = [
         # Stage 1
-        'sections', 'task_types', 'tasks', 'notifications',
-        'pending_alerts', 'notification_emails', 'users',
+        "sections",
+        "task_types",
+        "tasks",
+        "notifications",
+        "pending_alerts",
+        "notification_emails",
+        "users",
         # Stage 2 - Crawler
-        'crawl_runs', 'discovered_urls', 'url_changes', 'health_snapshots'
+        "crawl_runs",
+        "discovered_urls",
+        "url_changes",
+        "health_snapshots",
     ]
 
     for table in tables_with_id:
@@ -158,7 +170,9 @@ def main():
         print(f"Usage: {sys.argv[0]} <database_url>")
         print()
         print("Example:")
-        print('  python3 migrate_to_postgres.py "postgresql://user:pass@host:port/dbname"')
+        print(
+            '  python3 migrate_to_postgres.py "postgresql://user:pass@host:port/dbname"'
+        )
         sys.exit(1)
 
     database_url = sys.argv[1]
@@ -167,14 +181,18 @@ def main():
     print("  Migration: SQLite → PostgreSQL")
     print("=" * 70)
     print()
-    print(f"Source:      agendaRenta4.db (SQLite)")
-    print(f"Destination: {database_url[:50]}..." if len(database_url) > 50 else database_url)
+    print("Source:      agendaRenta4.db (SQLite)")
+    print(
+        f"Destination: {database_url[:50]}..."
+        if len(database_url) > 50
+        else database_url
+    )
     print()
 
     # Connect to both databases
     print("Connecting to databases...")
     try:
-        sqlite_conn = sqlite3.connect('agendaRenta4.db')
+        sqlite_conn = sqlite3.connect("agendaRenta4.db")
         sqlite_conn.row_factory = sqlite3.Row
         print("  ✓ Connected to SQLite")
 
@@ -240,7 +258,7 @@ def main():
     pg_conn.close()
 
     print("=" * 70)
-    print(f"  ✅ Migration completed successfully!")
+    print("  ✅ Migration completed successfully!")
     print(f"  Total rows migrated: {total_rows}")
     print("=" * 70)
     print()
@@ -251,5 +269,5 @@ def main():
     print()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

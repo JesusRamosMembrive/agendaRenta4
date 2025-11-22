@@ -9,9 +9,12 @@ Uso:
 """
 
 import sys
-from werkzeug.security import generate_password_hash, check_password_hash
-from utils import db_cursor
+
 import psycopg2
+from werkzeug.security import generate_password_hash
+
+from utils import db_cursor
+
 
 def add_user(username, password, full_name):
     """Add a new user"""
@@ -20,12 +23,15 @@ def add_user(username, password, full_name):
             # Hash the password
             password_hash = generate_password_hash(password)
 
-            cursor.execute("""
+            cursor.execute(
+                """
                 INSERT INTO users (username, password_hash, full_name)
                 VALUES (%s, %s, %s)
-            """, (username, password_hash, full_name))
+            """,
+                (username, password_hash, full_name),
+            )
 
-        print(f"✓ Usuario creado exitosamente:")
+        print("✓ Usuario creado exitosamente:")
         print(f"  Usuario: {username}")
         print(f"  Nombre: {full_name}")
         print(f"  Contraseña: {password}")
@@ -37,6 +43,7 @@ def add_user(username, password, full_name):
     except Exception as e:
         print(f"✗ Error: {e}")
         return False
+
 
 def list_users():
     """List all users"""
@@ -54,28 +61,34 @@ def list_users():
             print("No hay usuarios registrados")
             return
 
-        print("\n" + "="*70)
+        print("\n" + "=" * 70)
         print("USUARIOS REGISTRADOS")
-        print("="*70)
+        print("=" * 70)
         print(f"{'ID':<5} {'Usuario':<20} {'Nombre Completo':<25} {'Creado'}")
-        print("-"*70)
+        print("-" * 70)
 
         for user in users:
-            created_date = user['created_at'][:10] if user['created_at'] else 'N/A'
-            print(f"{user['id']:<5} {user['username']:<20} {user['full_name']:<25} {created_date}")
+            created_date = user["created_at"][:10] if user["created_at"] else "N/A"
+            print(
+                f"{user['id']:<5} {user['username']:<20} {user['full_name']:<25} {created_date}"
+            )
 
-        print("="*70)
+        print("=" * 70)
         print(f"Total: {len(users)} usuario(s)\n")
 
     except Exception as e:
         print(f"✗ Error: {e}")
+
 
 def delete_user(username):
     """Delete a user"""
     try:
         with db_cursor(commit=False) as cursor:
             # Check if user exists
-            cursor.execute("SELECT id, username, full_name FROM users WHERE username = %s", (username,))
+            cursor.execute(
+                "SELECT id, username, full_name FROM users WHERE username = %s",
+                (username,),
+            )
             user = cursor.fetchone()
 
         if not user:
@@ -83,12 +96,12 @@ def delete_user(username):
             return False
 
         # Confirm deletion
-        print(f"\n⚠️  ¿Estás seguro de que quieres eliminar el usuario?")
+        print("\n⚠️  ¿Estás seguro de que quieres eliminar el usuario?")
         print(f"   Usuario: {user['username']}")
         print(f"   Nombre: {user['full_name']}")
         confirmation = input("\nEscribe 'SI' para confirmar: ")
 
-        if confirmation.upper() != 'SI':
+        if confirmation.upper() != "SI":
             print("Operación cancelada")
             return False
 
@@ -102,12 +115,15 @@ def delete_user(username):
         print(f"✗ Error: {e}")
         return False
 
+
 def change_password(username, new_password):
     """Change user password"""
     try:
         with db_cursor(commit=False) as cursor:
             # Check if user exists
-            cursor.execute("SELECT id, full_name FROM users WHERE username = %s", (username,))
+            cursor.execute(
+                "SELECT id, full_name FROM users WHERE username = %s", (username,)
+            )
             user = cursor.fetchone()
 
         if not user:
@@ -118,11 +134,14 @@ def change_password(username, new_password):
         password_hash = generate_password_hash(new_password)
 
         with db_cursor() as cursor:
-            cursor.execute("""
+            cursor.execute(
+                """
                 UPDATE users
                 SET password_hash = %s
                 WHERE username = %s
-            """, (password_hash, username))
+            """,
+                (password_hash, username),
+            )
 
         print(f"✓ Contraseña cambiada exitosamente para usuario '{username}'")
         print(f"  Nueva contraseña: {new_password}")
@@ -131,6 +150,7 @@ def change_password(username, new_password):
     except Exception as e:
         print(f"✗ Error: {e}")
         return False
+
 
 def show_help():
     """Show usage help"""
@@ -168,6 +188,7 @@ Notas:
     - El nombre completo debe ir entre comillas si contiene espacios
 """)
 
+
 def main():
     if len(sys.argv) < 2:
         show_help()
@@ -175,23 +196,25 @@ def main():
 
     command = sys.argv[1].lower()
 
-    if command == 'help' or command == '--help' or command == '-h':
+    if command == "help" or command == "--help" or command == "-h":
         show_help()
 
-    elif command == 'add':
+    elif command == "add":
         if len(sys.argv) != 5:
             print("✗ Error: Uso incorrecto")
-            print("   Uso: python3 manage_users.py add <username> <password> \"<nombre completo>\"")
+            print(
+                '   Uso: python3 manage_users.py add <username> <password> "<nombre completo>"'
+            )
             sys.exit(1)
         username = sys.argv[2]
         password = sys.argv[3]
         full_name = sys.argv[4]
         add_user(username, password, full_name)
 
-    elif command == 'list':
+    elif command == "list":
         list_users()
 
-    elif command == 'delete':
+    elif command == "delete":
         if len(sys.argv) != 3:
             print("✗ Error: Uso incorrecto")
             print("   Uso: python3 manage_users.py delete <username>")
@@ -199,10 +222,12 @@ def main():
         username = sys.argv[2]
         delete_user(username)
 
-    elif command == 'change-password':
+    elif command == "change-password":
         if len(sys.argv) != 4:
             print("✗ Error: Uso incorrecto")
-            print("   Uso: python3 manage_users.py change-password <username> <nueva_contraseña>")
+            print(
+                "   Uso: python3 manage_users.py change-password <username> <nueva_contraseña>"
+            )
             sys.exit(1)
         username = sys.argv[2]
         new_password = sys.argv[3]
@@ -213,5 +238,6 @@ def main():
         print("   Usa 'python3 manage_users.py help' para ver los comandos disponibles")
         sys.exit(1)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

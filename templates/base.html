@@ -31,89 +31,170 @@
 
       <div class="divider"></div>
 
+      <!-- Configuración -->
+      <nav class="nav">
+        <div class="nav-section-header" data-section="config" style="padding: 10px 20px; color: var(--text-muted); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none;">
+          <i data-lucide="chevron-down" class="section-chevron" style="width: 14px; height: 14px; transition: transform 0.2s;"></i>
+          <i data-lucide="settings" style="width: 14px; height: 14px;"></i>
+          <span>Configuración</span>
+        </div>
+        <div class="nav-section-content" id="nav-config">
+          <a href="{{ url_for('config.index') }}" class="{% if request.endpoint == 'config.index' %}active{% endif %}">
+            <i data-lucide="bell-ring" class="icon-sm"></i>
+            <span>Alertas de Tareas</span>
+          </a>
+          <a href="{{ url_for('config.urls') }}" class="{% if request.endpoint == 'config.urls' %}active{% endif %}">
+            <i data-lucide="link" class="icon-sm"></i>
+            <span>Gestión de URLs</span>
+          </a>
+          <a href="{{ url_for('config.herramientas') }}" class="{% if request.endpoint == 'config.herramientas' %}active{% endif %}">
+            <i data-lucide="wrench" class="icon-sm"></i>
+            <span>Herramientas de Análisis</span>
+          </a>
+          <a href="{{ url_for('custom_dictionary') }}" class="{% if request.endpoint == 'custom_dictionary' %}active{% endif %}">
+            <i data-lucide="book-open" class="icon-sm"></i>
+            <span>Diccionario Personalizado</span>
+          </a>
+          <a href="{{ url_for('crawler.cta_config') }}" class="{% if request.endpoint == 'crawler.cta_config' %}active{% endif %}">
+            <i data-lucide="target" class="icon-sm"></i>
+            <span>Configuración CTAs</span>
+          </a>
+        </div>
+      </nav>
+
+      <div class="divider"></div>
+
       <!-- Gestor Manual de Tareas -->
       <nav class="nav">
-        <div style="padding: 10px 20px; color: var(--text-muted); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">
-          📋 Gestor Manual de Tareas
+        <div class="nav-section-header" data-section="tareas" style="padding: 10px 20px; color: var(--text-muted); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none;">
+          <i data-lucide="chevron-down" class="section-chevron" style="width: 14px; height: 14px; transition: transform 0.2s;"></i>
+          <i data-lucide="clipboard-list" style="width: 14px; height: 14px;"></i>
+          <span>Gestor Manual de Tareas</span>
         </div>
-        <a href="{{ url_for('inicio') }}" class="{% if request.endpoint == 'inicio' %}active{% endif %}">
-          Inicio
-        </a>
-        <a href="{{ url_for('pendientes') }}" class="{% if request.endpoint == 'pendientes' %}active{% endif %}">
-          Pendientes
-          <span class="nav-counter">{{ task_counts.pending }}</span>
-        </a>
-        <a href="{{ url_for('alertas') }}" class="{% if request.endpoint == 'alertas' %}active{% endif %}">
-          Alertas
-          {% if task_counts.alerts > 0 %}
-            <span class="nav-counter alert-counter">{{ task_counts.alerts }}</span>
-          {% endif %}
-        </a>
-        <a href="{{ url_for('problemas') }}" class="{% if request.endpoint == 'problemas' %}active{% endif %}">
-          Problemas
-          <span class="nav-counter">{{ task_counts.problems }}</span>
-        </a>
-        <a href="{{ url_for('realizadas') }}" class="{% if request.endpoint == 'realizadas' %}active{% endif %}">
-          Realizadas
-          <span class="nav-counter">{{ task_counts.completed }}</span>
-        </a>
+        <div class="nav-section-content" id="nav-tareas">
+          <a href="{{ url_for('inicio') }}" class="{% if request.endpoint == 'inicio' %}active{% endif %}">
+            <i data-lucide="home" class="icon-sm"></i>
+            <span>Inicio</span>
+          </a>
+          <a href="{{ url_for('pendientes') }}" class="{% if request.endpoint == 'pendientes' %}active{% endif %}">
+            <i data-lucide="clock" class="icon-sm"></i>
+            <span>Pendientes</span>
+            <span class="nav-counter">{{ task_counts.pending }}</span>
+          </a>
+          <a href="{{ url_for('alertas') }}" class="{% if request.endpoint == 'alertas' %}active{% endif %}">
+            <i data-lucide="bell" class="icon-sm"></i>
+            <span>Alertas</span>
+            {% if task_counts.alerts > 0 %}
+              <span class="nav-counter alert-counter">{{ task_counts.alerts }}</span>
+            {% endif %}
+          </a>
+          <a href="{{ url_for('problemas') }}" class="{% if request.endpoint == 'problemas' %}active{% endif %}">
+            <i data-lucide="alert-triangle" class="icon-sm"></i>
+            <span>Problemas</span>
+            <span class="nav-counter">{{ task_counts.problems }}</span>
+          </a>
+          <a href="{{ url_for('realizadas') }}" class="{% if request.endpoint == 'realizadas' %}active{% endif %}">
+            <i data-lucide="check-circle" class="icon-sm"></i>
+            <span>Realizadas</span>
+            <span class="nav-counter">{{ task_counts.completed }}</span>
+          </a>
+        </div>
       </nav>
 
       <div class="divider"></div>
 
       <!-- Crawler -->
       <nav class="nav">
-        <div style="padding: 10px 20px; color: var(--text-muted); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">
-          🕷️ Crawler
+        <div class="nav-section-header" data-section="crawler" style="padding: 10px 20px; color: var(--text-muted); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none;">
+          <i data-lucide="chevron-down" class="section-chevron" style="width: 14px; height: 14px; transition: transform 0.2s;"></i>
+          <i data-lucide="search" style="width: 14px; height: 14px;"></i>
+          <span>Crawler</span>
         </div>
-        <a href="{{ url_for('crawler.dashboard') }}" class="{% if request.endpoint == 'crawler.dashboard' %}active{% endif %}">
-          📊 Dashboard
-        </a>
-        <a href="{{ url_for('crawler.tree') }}" class="{% if request.endpoint == 'crawler.tree' %}active{% endif %}">
-          🌳 Vista de Árbol
-        </a>
-        <a href="{{ url_for('crawler.results') }}" class="{% if request.endpoint == 'crawler.results' %}active{% endif %}">
-          🌐 URLs Descubiertas
-        </a>
-        <a href="{{ url_for('crawler.health') }}" class="{% if request.endpoint == 'crawler.health' %}active{% endif %}">
-          💚 Health
-        </a>
-        <a href="{{ url_for('crawler.scheduler') }}" class="{% if request.endpoint == 'crawler.scheduler' %}active{% endif %}">
-          ⚙️ Scheduler
-        </a>
+        <div class="nav-section-content" id="nav-crawler">
+          <a href="{{ url_for('crawler.dashboard') }}" class="{% if request.endpoint == 'crawler.dashboard' %}active{% endif %}">
+            <i data-lucide="bar-chart-3" class="icon-sm"></i>
+            <span>Dashboard</span>
+          </a>
+          <a href="{{ url_for('crawler.tree') }}" class="{% if request.endpoint == 'crawler.tree' %}active{% endif %}">
+            <i data-lucide="git-branch" class="icon-sm"></i>
+            <span>Vista de Árbol</span>
+          </a>
+          <a href="{{ url_for('crawler.results') }}" class="{% if request.endpoint == 'crawler.results' %}active{% endif %}">
+            <i data-lucide="globe" class="icon-sm"></i>
+            <span>URLs Descubiertas</span>
+          </a>
+          <a href="{{ url_for('crawler.health') }}" class="{% if request.endpoint == 'crawler.health' %}active{% endif %}">
+            <i data-lucide="heart-pulse" class="icon-sm"></i>
+            <span>Health</span>
+          </a>
+          <a href="{{ url_for('crawler.scheduler') }}" class="{% if request.endpoint == 'crawler.scheduler' %}active{% endif %}">
+            <i data-lucide="calendar-clock" class="icon-sm"></i>
+            <span>Scheduler</span>
+          </a>
+        </div>
       </nav>
 
       <div class="divider"></div>
 
       <!-- Control de Calidad -->
       <nav class="nav">
-        <div style="padding: 10px 20px; color: var(--text-muted); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">
-          🧪 Control de Calidad
+        <div class="nav-section-header" data-section="calidad" style="padding: 10px 20px; color: var(--text-muted); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none;">
+          <i data-lucide="chevron-down" class="section-chevron" style="width: 14px; height: 14px; transition: transform 0.2s;"></i>
+          <i data-lucide="test-tube" style="width: 14px; height: 14px;"></i>
+          <span>Control de Calidad</span>
         </div>
-        <a href="{{ url_for('crawler.broken') }}" class="{% if request.endpoint == 'crawler.broken' %}active{% endif %}">
-          🔗 Enlaces Rotos
-          {% if broken_count is defined and broken_count > 0 %}
-            <span class="nav-counter alert-counter">{{ broken_count }}</span>
-          {% endif %}
-        </a>
-        <a href="{{ url_for('crawler.quality') }}" class="{% if request.endpoint == 'crawler.quality' %}active{% endif %}">
-          🖼️ Calidad de Imágenes
-        </a>
-        <a href="{{ url_for('crawler.test_runner') }}" class="{% if request.endpoint == 'crawler.test_runner' %}active{% endif %}">
-          🎯 Test Runner
-        </a>
+        <div class="nav-section-content" id="nav-calidad">
+          <a href="{{ url_for('crawler.broken') }}" class="{% if request.endpoint == 'crawler.broken' %}active{% endif %}">
+            <i data-lucide="link-2-off" class="icon-sm"></i>
+            <span>Enlaces Rotos</span>
+            {% if broken_count is defined and broken_count > 0 %}
+              <span class="nav-counter alert-counter">{{ broken_count }}</span>
+            {% endif %}
+          </a>
+          <a href="{{ url_for('crawler.quality') }}" class="{% if request.endpoint == 'crawler.quality' %}active{% endif %}">
+            <i data-lucide="image" class="icon-sm"></i>
+            <span>Calidad de Imágenes</span>
+            {% if image_issues_count is defined and image_issues_count > 0 %}
+              <span class="nav-counter alert-counter">{{ image_issues_count }}</span>
+            {% endif %}
+          </a>
+          <a href="{{ url_for('crawler.spell_check') }}" class="{% if request.endpoint == 'crawler.spell_check' %}active{% endif %}">
+            <i data-lucide="type" class="icon-sm"></i>
+            <span>Corrección Ortográfica</span>
+            {% if spell_issues_count is defined and spell_issues_count > 0 %}
+              <span class="nav-counter alert-counter">{{ spell_issues_count }}</span>
+            {% endif %}
+          </a>
+          <a href="{{ url_for('crawler.test_runner') }}" class="{% if request.endpoint == 'crawler.test_runner' %}active{% endif %}">
+            <i data-lucide="play-circle" class="icon-sm"></i>
+            <span>Test Runner</span>
+          </a>
+          <a href="{{ url_for('crawler.cta_results') }}" class="{% if request.endpoint == 'crawler.cta_results' %}active{% endif %}">
+            <i data-lucide="target" class="icon-sm"></i>
+            <span>Test CTAs</span>
+          </a>
+        </div>
       </nav>
 
       <div class="divider"></div>
 
-      <!-- Configuración -->
+      <!-- Dev Tools -->
       <nav class="nav">
-        <div style="padding: 10px 20px; color: var(--text-muted); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">
-          ⚙️ Configuración
+        <div class="nav-section-header" data-section="dev" style="padding: 10px 20px; color: var(--text-muted); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none;">
+          <i data-lucide="chevron-down" class="section-chevron" style="width: 14px; height: 14px; transition: transform 0.2s;"></i>
+          <i data-lucide="code-2" style="width: 14px; height: 14px;"></i>
+          <span>Dev</span>
         </div>
-        <a href="{{ url_for('config.index') }}" class="{% if request.endpoint == 'config.index' %}active{% endif %}">
-          General
-        </a>
+        <div class="nav-section-content" id="nav-dev">
+          <a href="{{ url_for('dev.cleanup_page') }}" class="{% if request.endpoint == 'dev.cleanup_page' %}active{% endif %}">
+            <i data-lucide="trash-2" class="icon-sm"></i>
+            <span>Limpiar BD</span>
+          </a>
+          <a href="{{ url_for('dev.database_stats') }}" class="{% if request.endpoint == 'dev.database_stats' %}active{% endif %}">
+            <i data-lucide="database" class="icon-sm"></i>
+            <span>Estadísticas</span>
+          </a>
+        </div>
       </nav>
     </aside>
 
@@ -177,6 +258,11 @@
   </div>
 
   <!-- JavaScript -->
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- App Scripts -->
+  <script src="{{ url_for('static', filename='js/icons.js') }}"></script>
   <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 
   {% block extra_js %}{% endblock %}

@@ -5,17 +5,23 @@ Uso: python3 add_notification_email.py correo@ejemplo.com "Nombre Opcional"
 """
 
 import sys
-from utils import db_cursor
+
 import psycopg2
+
+from utils import db_cursor
+
 
 def add_email(email, name=None):
     """Añadir un email de notificación a la base de datos"""
     try:
         with db_cursor() as cursor:
-            cursor.execute("""
+            cursor.execute(
+                """
                 INSERT INTO notification_emails (email, name, active)
                 VALUES (%s, %s, TRUE)
-            """, (email, name or email))
+            """,
+                (email, name or email),
+            )
 
         print(f"✓ Email añadido: {email} ({name or email})")
 
@@ -23,6 +29,7 @@ def add_email(email, name=None):
         print(f"✗ El email {email} ya existe en la base de datos")
     except Exception as e:
         print(f"✗ Error: {e}")
+
 
 def list_emails():
     """Listar todos los emails de notificación"""
@@ -41,17 +48,20 @@ def list_emails():
         print(f"\nEmails de notificación ({len(rows)}):")
         print("-" * 70)
         for row in rows:
-            status = "✓ Activo" if row['active'] else "✗ Inactivo"
+            status = "✓ Activo" if row["active"] else "✗ Inactivo"
             print(f"[{row['id']}] {row['email']:<30} {row['name']:<20} {status}")
+
 
 def main():
     if len(sys.argv) < 2:
         print("Uso:")
-        print("  python3 add_notification_email.py correo@ejemplo.com \"Nombre Opcional\"")
+        print(
+            '  python3 add_notification_email.py correo@ejemplo.com "Nombre Opcional"'
+        )
         print("  python3 add_notification_email.py --list")
         sys.exit(1)
 
-    if sys.argv[1] == '--list':
+    if sys.argv[1] == "--list":
         list_emails()
     else:
         email = sys.argv[1]
@@ -60,5 +70,6 @@ def main():
         print()
         list_emails()
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

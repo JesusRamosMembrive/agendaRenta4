@@ -1,210 +1,367 @@
 {% extends "base.html" %}
-{% from 'components/stat_card.html' import stat_card %}
 
 {% block title %}Enlaces Rotos - Crawler{% endblock %}
 
 {% block content %}
-<div class="container">
-    <h1>❌ Enlaces Rotos</h1>
-    <p class="subtitle">URLs con errores detectadas por el crawler</p>
+<!-- ===============================================================
+     Page Header
+     =============================================================== -->
+<div class="page-header">
+  <h1 class="page-title">Enlaces Rotos</h1>
+  <p class="page-description">
+    URLs con errores detectadas por el crawler
+  </p>
+</div>
 
-    {% if not crawl_run %}
-    <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 20px; margin: 20px 0; border-radius: 8px; color: #78350f;">
-        <strong style="font-size: 16px;">⚠️ No hay crawls disponibles</strong>
-        <p style="margin: 10px 0 15px 0; font-size: 14px;">Ejecuta el crawler primero para descubrir URLs.</p>
-        <a href="{{ url_for('crawler.dashboard') }}" class="btn" style="display: inline-block; margin-top: 5px; background: #2563eb; color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none;">Ir al Dashboard</a>
+{% if not crawl_run %}
+  <!-- ===============================================================
+       No Crawls Available Warning
+       =============================================================== -->
+  <div class="card" style="border-left: 4px solid var(--warning); background: var(--warning-light);">
+    <div style="display: flex; align-items: center; gap: var(--space-md);">
+      <i data-lucide="alert-triangle" class="icon-xl" style="color: var(--warning);"></i>
+      <div style="flex: 1;">
+        <h3 style="margin: 0 0 var(--space-xs) 0; font-size: var(--text-lg); font-weight: var(--font-bold); color: var(--text);">
+          No hay crawls disponibles
+        </h3>
+        <p style="margin: 0 0 var(--space-md) 0; color: var(--text-secondary); font-size: var(--text-sm);">
+          Ejecuta el crawler primero para descubrir URLs.
+        </p>
+        <a href="{{ url_for('crawler.dashboard') }}" class="btn primary" style="text-decoration: none;">
+          <i data-lucide="home" class="icon-xs"></i>
+          <span>Ir al Dashboard</span>
+        </a>
+      </div>
     </div>
-    {% else %}
+  </div>
 
-    <!-- Stats Cards -->
-    <div class="stats-row" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin: 30px 0;">
-        {{ stat_card(value=stats.total_validated, label='URLs Validadas', gradient='green') }}
-        {{ stat_card(value=stats.priority_validated, label='⭐ URLs Prioritarias', gradient='orange') }}
-        {{ stat_card(value=stats.total_broken, label='❌ Enlaces Rotos', gradient='red') }}
+{% else %}
+  <!-- ===============================================================
+       Stats Cards - Horizontal Layout
+       =============================================================== -->
+  <div style="display: flex; gap: var(--space-lg); margin-bottom: var(--space-xl);">
+    <!-- URLs Validadas -->
+    <div class="card" style="flex: 1; border-left: 4px solid var(--success); text-align: center; padding: var(--space-md);">
+      <div style="display: flex; align-items: center; justify-content: center; gap: var(--space-xs); margin-bottom: var(--space-xs);">
+        <i data-lucide="check-circle" class="icon-xs" style="color: var(--muted);"></i>
+        <span style="font-size: var(--text-xs); font-weight: var(--font-semibold); color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px;">
+          URLs Validadas
+        </span>
+      </div>
+      <div style="font-size: 32px; font-weight: var(--font-bold); color: var(--success); line-height: 1;">
+        {{ stats.total_validated }}
+      </div>
     </div>
 
-    <!-- Action Button -->
-    <div style="margin: 30px 0; text-align: center;">
-        <button onclick="openValidateModal()" class="btn" style="background: #10b981; color: white; padding: 16px 24px; font-size: 16px; font-weight: 600; border: none; cursor: pointer; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: all 0.2s;">
-            ⚡ Validar URLs Ahora
-        </button>
+    <!-- URLs Prioritarias -->
+    <div class="card" style="flex: 1; border-left: 4px solid var(--warning); text-align: center; padding: var(--space-md);">
+      <div style="display: flex; align-items: center; justify-content: center; gap: var(--space-xs); margin-bottom: var(--space-xs);">
+        <i data-lucide="star" class="icon-xs" style="color: var(--muted);"></i>
+        <span style="font-size: var(--text-xs); font-weight: var(--font-semibold); color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px;">
+          URLs Prioritarias
+        </span>
+      </div>
+      <div style="font-size: 32px; font-weight: var(--font-bold); color: var(--warning); line-height: 1;">
+        {{ stats.priority_validated }}
+      </div>
     </div>
 
-    {% if broken_urls %}
-    <!-- Filter Buttons -->
-    <div style="margin: 20px 0;">
-        <button onclick="filterTable('all')" class="btn btn-primary" id="filter-all">Todas ({{ broken_urls|length }})</button>
-        <button onclick="filterTable('priority')" class="btn" id="filter-priority">⭐ Prioritarias ({{ stats.priority_broken }})</button>
-        <button onclick="filterTable('non-priority')" class="btn" id="filter-non-priority">📄 Nuevas ({{ stats.non_priority_broken }})</button>
+    <!-- Enlaces Rotos -->
+    <div class="card" style="flex: 1; border-left: 4px solid var(--danger); text-align: center; padding: var(--space-md);">
+      <div style="display: flex; align-items: center; justify-content: center; gap: var(--space-xs); margin-bottom: var(--space-xs);">
+        <i data-lucide="link-2-off" class="icon-xs" style="color: var(--muted);"></i>
+        <span style="font-size: var(--text-xs); font-weight: var(--font-semibold); color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px;">
+          Enlaces Rotos
+        </span>
+      </div>
+      <div style="font-size: 32px; font-weight: var(--font-bold); color: var(--danger); line-height: 1;">
+        {{ stats.total_broken }}
+      </div>
     </div>
-    <!-- Broken URLs Table -->
-    <div class="table-container" style="margin: 20px 0;">
-        <table>
-            <thead>
-                <tr>
-                    <th style="width: 50px;">#</th>
-                    <th style="width: 50px;">⭐</th>
-                    <th style="width: 500px;">URL</th>
-                    <th style="width: 100px;">Código</th>
-                    <th style="width: 120px;">Tiempo (s)</th>
-                    <th>Error</th>
-                    <th style="width: 180px;">Última Revisión</th>
-                </tr>
-            </thead>
-            <tbody id="broken-urls-table">
-                {% for url in broken_urls %}
-                <tr class="url-row" data-priority="{{ url.is_priority|lower }}">
-                    <td>{{ loop.index }}</td>
-                    <td style="text-align: center;">
-                        {% if url.is_priority %}
-                            <span style="font-size: 1.2em;">⭐</span>
-                        {% endif %}
-                    </td>
-                    <td>
-                        <a href="{{ url.url }}" target="_blank" style="color: #3b82f6; text-decoration: none; word-break: break-all;">
-                            {{ url.url }}
-                        </a>
-                    </td>
-                    <td>
-                        <span class="status-badge status-{{ url.status_code if url.status_code else 'error' }}">
-                            {{ url.status_code if url.status_code else 'N/A' }}
-                        </span>
-                    </td>
-                    <td style="text-align: right;">
-                        {% if url.response_time %}
-                            {{ "%.2f"|format(url.response_time) }}
-                        {% else %}
-                            -
-                        {% endif %}
-                    </td>
-                    <td>
-                        <span style="color: #dc2626; font-size: 13px;">
-                            {{ url.error_message if url.error_message else 'Error desconocido' }}
-                        </span>
-                    </td>
-                    <td style="font-size: 13px;">
-                        {% if url.last_checked %}
-                            {{ url.last_checked.strftime('%d/%m/%Y %H:%M') }}
-                        {% else %}
-                            No validada
-                        {% endif %}
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    {% else %}
-    <div style="background: #d1fae5; border-left: 4px solid #10b981; padding: 20px; margin: 20px 0; border-radius: 8px; color: #000000;">
-        <strong style="color: #000000;">✅ ¡Excelente!</strong>
-        <p style="margin: 10px 0 0 0; color: #000000;">No se encontraron enlaces rotos en el último crawl. Todas las {{ stats.total_validated }} URLs validadas funcionan correctamente.</p>
-    </div>
-    {% endif %}
+  </div>
 
-    <!-- Crawl Info -->
-    <div style="margin-top: 40px; padding: 20px; background: #f3f4f6; border-radius: 8px; color: #000000;">
-        <h3 style="margin: 0 0 10px 0; color: #000000;">Información del Crawl</h3>
-        <p style="margin: 5px 0; color: #000000;"><strong>Iniciado:</strong> {{ crawl_run.started_at.strftime('%d/%m/%Y %H:%M:%S') }}</p>
-        {% if crawl_run.finished_at %}
-        <p style="margin: 5px 0; color: #000000;"><strong>Finalizado:</strong> {{ crawl_run.finished_at.strftime('%d/%m/%Y %H:%M:%S') }}</p>
-        {% endif %}
-        <p style="margin: 5px 0; color: #000000;"><strong>URLs Descubiertas:</strong> {{ crawl_run.urls_discovered }}</p>
-        <p style="margin: 5px 0; color: #000000;"><strong>URLs Validadas:</strong> {{ stats.total_validated }}</p>
+  <!-- ===============================================================
+       Action Button - Validate URLs
+       =============================================================== -->
+  <div style="text-align: center; margin-bottom: var(--space-xl);">
+    <button onclick="openValidateModal()" class="btn primary" style="padding: var(--space-md) var(--space-xl); font-size: var(--text-lg); font-weight: var(--font-bold); box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+      <i data-lucide="zap" class="icon-sm"></i>
+      <span>Validar URLs Ahora</span>
+    </button>
+  </div>
+
+  {% if broken_urls %}
+    <!-- ===============================================================
+         Filter Buttons
+         =============================================================== -->
+    <div style="display: flex; gap: var(--space-md); margin-bottom: var(--space-lg); flex-wrap: wrap;">
+      <button onclick="filterTable('all')" class="btn primary" id="filter-all">
+        <i data-lucide="list" class="icon-xs"></i>
+        <span>Todas ({{ broken_urls|length }})</span>
+      </button>
+      <button onclick="filterTable('priority')" class="btn ghost" id="filter-priority">
+        <i data-lucide="star" class="icon-xs"></i>
+        <span>Prioritarias ({{ stats.priority_broken }})</span>
+      </button>
+      <button onclick="filterTable('non-priority')" class="btn ghost" id="filter-non-priority">
+        <i data-lucide="file-text" class="icon-xs"></i>
+        <span>Nuevas ({{ stats.non_priority_broken }})</span>
+      </button>
+    </div>
+
+    <!-- ===============================================================
+         Broken URLs Table
+         =============================================================== -->
+    <div class="card" style="overflow-x: auto; padding: 0;">
+      <table style="width: 100%; border-collapse: collapse;">
+        <thead>
+          <tr style="background: var(--bg-secondary); border-bottom: 2px solid var(--border);">
+            <th style="padding: var(--space-md); text-align: left; font-weight: var(--font-semibold); color: var(--text); font-size: var(--text-sm); width: 50px;">#</th>
+            <th style="padding: var(--space-md); text-align: center; font-weight: var(--font-semibold); color: var(--text); font-size: var(--text-sm); width: 50px;">
+              <i data-lucide="star" class="icon-xs"></i>
+            </th>
+            <th style="padding: var(--space-md); text-align: left; font-weight: var(--font-semibold); color: var(--text); font-size: var(--text-sm);">URL</th>
+            <th style="padding: var(--space-md); text-align: center; font-weight: var(--font-semibold); color: var(--text); font-size: var(--text-sm); width: 100px;">Código</th>
+            <th style="padding: var(--space-md); text-align: right; font-weight: var(--font-semibold); color: var(--text); font-size: var(--text-sm); width: 120px;">Tiempo (s)</th>
+            <th style="padding: var(--space-md); text-align: left; font-weight: var(--font-semibold); color: var(--text); font-size: var(--text-sm);">Error</th>
+            <th style="padding: var(--space-md); text-align: left; font-weight: var(--font-semibold); color: var(--text); font-size: var(--text-sm); width: 180px;">Última Revisión</th>
+          </tr>
+        </thead>
+        <tbody id="broken-urls-table">
+          {% for url in broken_urls %}
+          <tr class="url-row" data-priority="{{ url.is_priority|lower }}" style="border-bottom: 1px solid var(--border); transition: background 0.2s;"
+              onmouseover="this.style.background='var(--bg-secondary)'"
+              onmouseout="this.style.background='transparent'">
+            <td style="padding: var(--space-md); color: var(--text-secondary); font-size: var(--text-sm);">{{ loop.index }}</td>
+            <td style="padding: var(--space-md); text-align: center;">
+              {% if url.is_priority %}
+                <i data-lucide="star" class="icon-sm" style="color: var(--warning); fill: var(--warning);"></i>
+              {% endif %}
+            </td>
+            <td style="padding: var(--space-md);">
+              <a href="{{ url.url }}" target="_blank" style="word-break: break-all; color: var(--primary); text-decoration: none; transition: opacity 0.2s;"
+                 onmouseover="this.style.opacity='0.7'"
+                 onmouseout="this.style.opacity='1'">
+                {{ url.url }}
+              </a>
+            </td>
+            <td style="padding: var(--space-md); text-align: center;">
+              {% if url.status_code %}
+                {% if url.status_code == 404 %}
+                  <div class="badge badge-danger">
+                    <span>{{ url.status_code }}</span>
+                  </div>
+                {% elif url.status_code in [500, 503] %}
+                  <div class="badge" style="background: var(--warning-light); color: var(--warning);">
+                    <span>{{ url.status_code }}</span>
+                  </div>
+                {% else %}
+                  <div class="badge" style="background: var(--bg-secondary); color: var(--muted);">
+                    <span>{{ url.status_code }}</span>
+                  </div>
+                {% endif %}
+              {% else %}
+                <div class="badge" style="background: var(--bg-secondary); color: var(--muted);">
+                  <span>N/A</span>
+                </div>
+              {% endif %}
+            </td>
+            <td style="padding: var(--space-md); text-align: right; color: var(--text); font-size: var(--text-sm);">
+              {% if url.response_time %}
+                {{ "%.2f"|format(url.response_time) }}
+              {% else %}
+                <span style="color: var(--muted);">-</span>
+              {% endif %}
+            </td>
+            <td style="padding: var(--space-md);">
+              <span style="color: var(--danger); font-size: var(--text-sm);">
+                {{ url.error_message if url.error_message else 'Error desconocido' }}
+              </span>
+            </td>
+            <td style="padding: var(--space-md); color: var(--text-secondary); font-size: var(--text-sm);">
+              {% if url.last_checked %}
+                {{ url.last_checked.strftime('%d/%m/%Y %H:%M') }}
+              {% else %}
+                No validada
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+  {% else %}
+    <!-- ===============================================================
+         Success State - No Broken Links
+         =============================================================== -->
+    <div class="card" style="text-align: center; padding: var(--space-2xl); border-left: 4px solid var(--success); background: var(--success-light);">
+      <div style="width: 80px; height: 80px; margin: 0 auto var(--space-lg); border-radius: 50%; background: linear-gradient(135deg, var(--success-light) 0%, var(--success) 100%); display: flex; align-items: center; justify-content: center;">
+        <i data-lucide="check-circle" class="icon-2xl" style="color: white;"></i>
+      </div>
+      <h3 style="margin: 0 0 var(--space-sm) 0; font-size: var(--text-2xl); font-weight: var(--font-bold); color: var(--text);">
+        ¡Excelente!
+      </h3>
+      <p style="margin: 0; color: var(--text); font-size: var(--text-base);">
+        No se encontraron enlaces rotos en el último crawl. Todas las {{ stats.total_validated }} URLs validadas funcionan correctamente.
+      </p>
+    </div>
+  {% endif %}
+
+  <!-- ===============================================================
+       Crawl Info Card
+       =============================================================== -->
+  <div class="card" style="margin-top: var(--space-xl); border-left: 4px solid var(--primary);">
+    <h3 style="margin: 0 0 var(--space-md) 0; font-size: var(--text-xl); font-weight: var(--font-bold); color: var(--text); display: flex; align-items: center; gap: var(--space-sm);">
+      <i data-lucide="info" class="icon-md"></i>
+      <span>Información del Crawl</span>
+    </h3>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-lg);">
+      <div>
+        <div style="font-size: var(--text-xs); font-weight: var(--font-semibold); color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: var(--space-xs);">
+          Iniciado
+        </div>
+        <div style="color: var(--text); font-size: var(--text-base);">
+          {{ crawl_run.started_at.strftime('%d/%m/%Y %H:%M:%S') }}
+        </div>
+      </div>
+      {% if crawl_run.finished_at %}
+      <div>
+        <div style="font-size: var(--text-xs); font-weight: var(--font-semibold); color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: var(--space-xs);">
+          Finalizado
+        </div>
+        <div style="color: var(--text); font-size: var(--text-base);">
+          {{ crawl_run.finished_at.strftime('%d/%m/%Y %H:%M:%S') }}
+        </div>
+      </div>
+      {% endif %}
+      <div>
+        <div style="font-size: var(--text-xs); font-weight: var(--font-semibold); color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: var(--space-xs);">
+          URLs Descubiertas
+        </div>
+        <div style="color: var(--text); font-size: var(--text-base); font-weight: var(--font-bold);">
+          {{ crawl_run.urls_discovered }}
+        </div>
+      </div>
+      <div>
+        <div style="font-size: var(--text-xs); font-weight: var(--font-semibold); color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: var(--space-xs);">
+          URLs Validadas
+        </div>
+        <div style="color: var(--text); font-size: var(--text-base); font-weight: var(--font-bold);">
+          {{ stats.total_validated }}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===============================================================
+       Actions
+       =============================================================== -->
+  <div style="display: flex; gap: var(--space-md); margin-top: var(--space-xl); flex-wrap: wrap;">
+    <a href="{{ url_for('crawler.dashboard') }}" class="btn ghost" style="text-decoration: none;">
+      <i data-lucide="arrow-left" class="icon-xs"></i>
+      <span>Volver al Dashboard</span>
+    </a>
+    <a href="{{ url_for('crawler.results') }}" class="btn ghost" style="text-decoration: none;">
+      <i data-lucide="list" class="icon-xs"></i>
+      <span>Ver Todas las URLs</span>
+    </a>
+  </div>
+
+{% endif %}
+
+<!-- ===============================================================
+     Validation Modal
+     =============================================================== -->
+<div id="validateModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
+  <div class="card" style="max-width: 500px; width: 90%; margin: var(--space-xl);">
+    <h2 style="margin: 0 0 var(--space-lg) 0; font-size: var(--text-2xl); font-weight: var(--font-bold); color: var(--text); display: flex; align-items: center; gap: var(--space-sm);">
+      <i data-lucide="search" class="icon-lg"></i>
+      <span>Validar URLs</span>
+    </h2>
+
+    <p style="color: var(--text-secondary); margin-bottom: var(--space-xl); font-size: var(--text-sm); line-height: 1.6;">
+      Selecciona qué URLs validar. La validación verificará enlaces rotos, timeouts y códigos de estado HTTP.
+    </p>
+
+    <!-- Scope Selection -->
+    <div style="margin-bottom: var(--space-xl);">
+      <label style="display: block; font-weight: var(--font-semibold); margin-bottom: var(--space-md); color: var(--text);">
+        Alcance de la validación:
+      </label>
+
+      <label style="display: block; padding: var(--space-md); border: 2px solid var(--border); border-radius: var(--radius-sm); margin-bottom: var(--space-md); cursor: pointer; transition: all 0.2s;"
+             onmouseover="this.style.borderColor='var(--primary)'; this.style.background='var(--primary-light)'"
+             onmouseout="this.style.borderColor='var(--border)'; this.style.background='transparent'">
+        <input type="radio" name="validateScope" value="priority" checked style="margin-right: var(--space-sm);">
+        <strong style="color: var(--text); display: flex; align-items: center; gap: var(--space-xs);">
+          <i data-lucide="star" class="icon-xs" style="color: var(--warning);"></i>
+          URLs Prioritarias
+        </strong>
+        <span style="display: block; margin-left: var(--space-lg); font-size: var(--text-sm); color: var(--text-secondary); margin-top: var(--space-xs);">
+          {{ url_info.priority_count }} URLs • Tiempo estimado: {{ url_info.broken_links_priority_time }}
+        </span>
+      </label>
+
+      <label style="display: block; padding: var(--space-md); border: 2px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; transition: all 0.2s;"
+             onmouseover="this.style.borderColor='var(--primary)'; this.style.background='var(--primary-light)'"
+             onmouseout="this.style.borderColor='var(--border)'; this.style.background='transparent'">
+        <input type="radio" name="validateScope" value="all" style="margin-right: var(--space-sm);">
+        <strong style="color: var(--text); display: flex; align-items: center; gap: var(--space-xs);">
+          <i data-lucide="globe" class="icon-xs"></i>
+          Todas las URLs
+        </strong>
+        <span style="display: block; margin-left: var(--space-lg); font-size: var(--text-sm); color: var(--text-secondary); margin-top: var(--space-xs);">
+          {{ url_info.total_count }} URLs • Tiempo estimado: {{ url_info.broken_links_all_time }}
+        </span>
+      </label>
+    </div>
+
+    <!-- Progress (hidden initially) -->
+    <div id="validateProgress" style="display: none; margin: var(--space-lg) 0;">
+      <div style="background: var(--bg-secondary); border-radius: var(--radius-sm); height: 8px; overflow: hidden; position: relative;">
+        <div id="validateProgressBar" style="background: linear-gradient(90deg, var(--primary) 0%, var(--success) 100%); height: 100%; width: 0%; transition: width 0.3s ease;"></div>
+      </div>
+      <p id="validateProgressText" style="text-align: center; margin-top: var(--space-md); color: var(--text-secondary); font-size: var(--text-sm);">
+        Preparando validación...
+      </p>
     </div>
 
     <!-- Actions -->
-    <div style="margin: 30px 0;">
-        <a href="{{ url_for('crawler.dashboard') }}" class="btn">⬅️ Volver al Dashboard</a>
-        <a href="{{ url_for('crawler.results') }}" class="btn">📋 Ver Todas las URLs</a>
+    <div style="display: flex; gap: var(--space-md); justify-content: flex-end; margin-top: var(--space-xl);">
+      <button onclick="closeValidateModal()" id="validateCancelBtn" class="btn ghost">
+        Cancelar
+      </button>
+      <button onclick="runValidation()" id="validateRunBtn" class="btn primary">
+        <i data-lucide="rocket" class="icon-xs"></i>
+        <span>Validar</span>
+      </button>
     </div>
-
-    {% endif %}
-
-    <!-- Modal for Running Validation -->
-    <div id="validateModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
-        <div style="background: white; padding: 30px; border-radius: 12px; max-width: 500px; width: 90%;">
-            <h2 style="margin: 0 0 20px 0; color: #1f2937;">🔍 Validar URLs</h2>
-
-            <p style="color: #374151; margin-bottom: 25px; font-size: 14px;">
-                Selecciona qué URLs validar. La validación verificará enlaces rotos, timeouts y códigos de estado HTTP.
-            </p>
-
-            <!-- Scope Selection -->
-            <div style="margin-bottom: 25px;">
-                <label style="display: block; font-weight: 600; margin-bottom: 10px; color: #374151;">Alcance de la validación:</label>
-
-                <label style="display: block; padding: 12px; border: 2px solid #e5e7eb; border-radius: 6px; margin-bottom: 10px; cursor: pointer;">
-                    <input type="radio" name="validateScope" value="priority" checked style="margin-right: 8px;">
-                    <strong style="color: #1f2937;">⭐ URLs Prioritarias</strong>
-                    <span style="display: block; margin-left: 24px; font-size: 13px; color: #374151;">
-                        {{ url_info.priority_count }} URLs • Tiempo estimado: {{ url_info.broken_links_priority_time }}
-                    </span>
-                </label>
-
-                <label style="display: block; padding: 12px; border: 2px solid #e5e7eb; border-radius: 6px; cursor: pointer;">
-                    <input type="radio" name="validateScope" value="all" style="margin-right: 8px;">
-                    <strong style="color: #1f2937;">🌐 Todas las URLs</strong>
-                    <span style="display: block; margin-left: 24px; font-size: 13px; color: #374151;">
-                        {{ url_info.total_count }} URLs • Tiempo estimado: {{ url_info.broken_links_all_time }}
-                    </span>
-                </label>
-            </div>
-
-            <!-- Progress (hidden initially) -->
-            <div id="validateProgress" style="display: none; margin: 20px 0;">
-                <div style="background: #e5e7eb; border-radius: 8px; height: 8px; overflow: hidden;">
-                    <div id="validateProgressBar" style="background: #10b981; height: 100%; width: 0%; transition: width 0.3s;"></div>
-                </div>
-                <p id="validateProgressText" style="text-align: center; margin-top: 10px; color: #374151; font-size: 14px;">
-                    Preparando validación...
-                </p>
-            </div>
-
-            <!-- Actions -->
-            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 25px;">
-                <button onclick="closeValidateModal()" id="validateCancelBtn" class="btn" style="background: #e5e7eb; color: #374151; padding: 10px 20px; border: none; cursor: pointer; border-radius: 6px;">
-                    Cancelar
-                </button>
-                <button onclick="runValidation()" id="validateRunBtn" class="btn" style="background: #10b981; color: white; padding: 10px 20px; font-weight: 600; border: none; cursor: pointer; border-radius: 6px;">
-                    🚀 Validar
-                </button>
-            </div>
-        </div>
-    </div>
-
+  </div>
 </div>
 
 <style>
-.status-badge {
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-weight: bold;
-    font-size: 12px;
-    display: inline-block;
-}
-
-.status-404 {
-    background: #fee2e2;
-    color: #dc2626;
-}
-
-.status-500, .status-503 {
-    background: #fef3c7;
-    color: #f59e0b;
-}
-
-.status-error, .status-N/A {
-    background: #e5e7eb;
-    color: #6b7280;
-}
-
 .btn.active {
-    background: #3b82f6;
-    color: white;
+  background: var(--primary);
+  color: white;
 }
 
 .url-row.hidden {
-    display: none;
+  display: none;
+}
+
+/* Progress bar animation */
+@keyframes progressSlide {
+  0% {
+    left: -40%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
+#validateProgressBar {
+  position: relative;
 }
 </style>
 
@@ -212,181 +369,193 @@
 let currentFilter = 'all';
 
 function filterTable(filter) {
-    currentFilter = filter;
-    const rows = document.querySelectorAll('.url-row');
-    const buttons = {
-        'all': document.getElementById('filter-all'),
-        'priority': document.getElementById('filter-priority'),
-        'non-priority': document.getElementById('filter-non-priority')
-    };
+  currentFilter = filter;
+  const rows = document.querySelectorAll('.url-row');
+  const buttons = {
+    'all': document.getElementById('filter-all'),
+    'priority': document.getElementById('filter-priority'),
+    'non-priority': document.getElementById('filter-non-priority')
+  };
 
-    // Update button states
-    Object.values(buttons).forEach(btn => btn.classList.remove('active'));
-    buttons[filter].classList.add('active');
+  // Update button states
+  Object.keys(buttons).forEach(key => {
+    if (key === filter) {
+      buttons[key].classList.remove('ghost');
+      buttons[key].classList.add('primary');
+    } else {
+      buttons[key].classList.remove('primary');
+      buttons[key].classList.add('ghost');
+    }
+  });
 
-    // Filter rows
-    rows.forEach(row => {
-        const isPriority = row.dataset.priority === 'true';
+  // Filter rows
+  rows.forEach(row => {
+    const isPriority = row.dataset.priority === 'true';
 
-        if (filter === 'all') {
-            row.classList.remove('hidden');
-        } else if (filter === 'priority' && isPriority) {
-            row.classList.remove('hidden');
-        } else if (filter === 'non-priority' && !isPriority) {
-            row.classList.remove('hidden');
-        } else {
-            row.classList.add('hidden');
-        }
-    });
+    if (filter === 'all') {
+      row.classList.remove('hidden');
+    } else if (filter === 'priority' && isPriority) {
+      row.classList.remove('hidden');
+    } else if (filter === 'non-priority' && !isPriority) {
+      row.classList.remove('hidden');
+    } else {
+      row.classList.add('hidden');
+    }
+  });
 
-    // Update row numbers
-    let visibleIndex = 1;
-    rows.forEach(row => {
-        if (!row.classList.contains('hidden')) {
-            row.querySelector('td:first-child').textContent = visibleIndex++;
-        }
-    });
+  // Update row numbers
+  let visibleIndex = 1;
+  rows.forEach(row => {
+    if (!row.classList.contains('hidden')) {
+      row.querySelector('td:first-child').textContent = visibleIndex++;
+    }
+  });
 }
 
 // Initialize with 'all' filter active
 document.addEventListener('DOMContentLoaded', () => {
-    filterTable('all');
+  filterTable('all');
+  lucide.createIcons(); // Initialize Lucide icons
 });
 
 // ========== Validation Functions ==========
 
 function openValidateModal() {
-    const modal = document.getElementById('validateModal');
-    modal.style.display = 'flex';
+  const modal = document.getElementById('validateModal');
+  modal.style.display = 'flex';
+  lucide.createIcons(); // Re-initialize icons in modal
 }
 
 function closeValidateModal() {
-    const modal = document.getElementById('validateModal');
-    modal.style.display = 'none';
+  const modal = document.getElementById('validateModal');
+  modal.style.display = 'none';
 
-    // Reset progress
-    document.getElementById('validateProgress').style.display = 'none';
-    document.getElementById('validateProgressBar').style.width = '0%';
-    document.getElementById('validateProgressText').textContent = 'Preparando validación...';
+  // Reset progress
+  const progressBar = document.getElementById('validateProgressBar');
+  document.getElementById('validateProgress').style.display = 'none';
+  progressBar.style.width = '0%';
+  progressBar.style.animation = 'none';
+  progressBar.style.background = 'linear-gradient(90deg, var(--primary) 0%, var(--success) 100%)';
+  document.getElementById('validateProgressText').textContent = 'Preparando validación...';
 
-    // Re-enable buttons
-    document.getElementById('validateRunBtn').disabled = false;
-    document.getElementById('validateRunBtn').textContent = '🚀 Validar';
-    document.getElementById('validateCancelBtn').disabled = false;
+  // Re-enable buttons
+  document.getElementById('validateRunBtn').disabled = false;
+  document.getElementById('validateRunBtn').innerHTML = '<i data-lucide="rocket" class="icon-xs"></i><span>Validar</span>';
+  document.getElementById('validateCancelBtn').disabled = false;
+  lucide.createIcons();
 }
 
 async function runValidation() {
-    // Get selected scope
-    const scopeRadios = document.getElementsByName('validateScope');
-    let scope = 'priority';
-    for (const radio of scopeRadios) {
-        if (radio.checked) {
-            scope = radio.value;
-            break;
-        }
+  // Get selected scope
+  const scopeRadios = document.getElementsByName('validateScope');
+  let scope = 'priority';
+  for (const radio of scopeRadios) {
+    if (radio.checked) {
+      scope = radio.value;
+      break;
     }
+  }
 
-    // Disable buttons
-    const runButton = document.getElementById('validateRunBtn');
-    const cancelButton = document.getElementById('validateCancelBtn');
-    runButton.disabled = true;
-    runButton.textContent = '⏳ Validando...';
-    cancelButton.disabled = true;
+  // Disable buttons
+  const runButton = document.getElementById('validateRunBtn');
+  const cancelButton = document.getElementById('validateCancelBtn');
+  runButton.disabled = true;
+  runButton.innerHTML = '<i data-lucide="loader" class="icon-xs"></i><span>Validando...</span>';
+  cancelButton.disabled = true;
+  lucide.createIcons();
 
-    // Show progress
-    const progressDiv = document.getElementById('validateProgress');
-    const progressBar = document.getElementById('validateProgressBar');
-    const progressText = document.getElementById('validateProgressText');
-    progressDiv.style.display = 'block';
+  // Show progress
+  const progressDiv = document.getElementById('validateProgress');
+  const progressBar = document.getElementById('validateProgressBar');
+  const progressText = document.getElementById('validateProgressText');
+  progressDiv.style.display = 'block';
 
-    // Show estimated time (use values from template)
-    let estimatedTime = '';
-    if (scope === 'priority') {
-        estimatedTime = 'Validando {{ url_info.priority_count }} URLs ({{ url_info.broken_links_priority_time }})';
+  // Show estimated time
+  let estimatedTime = '';
+  if (scope === 'priority') {
+    estimatedTime = 'Validando {{ url_info.priority_count }} URLs ({{ url_info.broken_links_priority_time }})';
+  } else {
+    estimatedTime = 'Validando {{ url_info.total_count }} URLs ({{ url_info.broken_links_all_time }})';
+  }
+  progressText.textContent = estimatedTime + '...';
+
+  // Indeterminate animation
+  progressBar.style.width = '40%';
+  progressBar.style.animation = 'progressSlide 2s ease-in-out infinite';
+
+  try {
+    // Call API endpoint
+    const response = await fetch('/crawler/quality/run', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        check_types: ['broken_links'],
+        scope: scope
+      })
+    });
+
+    const data = await response.json();
+
+    // Stop progress animation
+    progressBar.style.animation = 'none';
+    progressBar.style.width = '100%';
+
+    if (data.success) {
+      // Get the broken_links check result
+      const checks = data.results.checks || [];
+      const brokenLinksCheck = checks.find(c => c.check_type === 'broken_links') || checks[0];
+
+      progressText.textContent = '✅ Validación completada';
+
+      // Show results
+      let message = `Validación completada!\n\n`;
+
+      if (brokenLinksCheck) {
+        message += `Estado: ${brokenLinksCheck.status || 'unknown'}\n`;
+
+        const stats = brokenLinksCheck.stats || {};
+        message += `URLs validadas: ${stats.validated || 0}\n`;
+        message += `Enlaces rotos encontrados: ${stats.broken || 0}\n`;
+
+        if (brokenLinksCheck.message) {
+          message += `\nDetalles: ${brokenLinksCheck.message}\n`;
+        }
+      } else {
+        message += 'No se encontraron resultados de validación.\n';
+      }
+
+      alert(message);
+
+      // Close modal and reload
+      closeValidateModal();
+      window.location.reload();
+
     } else {
-        estimatedTime = 'Validando {{ url_info.total_count }} URLs ({{ url_info.broken_links_all_time }})';
+      progressBar.style.animation = 'none';
+      progressBar.style.width = '100%';
+      progressBar.style.background = 'var(--danger)';
+      progressText.textContent = '❌ Error al ejecutar validación';
+      alert('Error: ' + (data.error || 'Error desconocido'));
+      runButton.disabled = false;
+      runButton.innerHTML = '<i data-lucide="rocket" class="icon-xs"></i><span>Validar</span>';
+      cancelButton.disabled = false;
+      lucide.createIcons();
     }
-    progressText.textContent = estimatedTime + '...';
 
-    // Simulate progress (indeterminate)
-    let progress = 0;
-    const progressInterval = setInterval(() => {
-        progress = (progress + 5) % 100;
-        progressBar.style.width = progress + '%';
-    }, 200);
-
-    try {
-        // Call API endpoint
-        const response = await fetch('/crawler/quality/run', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                check_types: ['broken_links'],
-                scope: scope
-            })
-        });
-
-        const data = await response.json();
-
-        // Stop progress animation
-        clearInterval(progressInterval);
-        progressBar.style.width = '100%';
-
-        if (data.success) {
-            // Get the broken_links check result from the checks array
-            const checks = data.results.checks || [];
-            const brokenLinksCheck = checks.find(c => c.check_type === 'broken_links') || checks[0];
-
-            progressText.textContent = '✅ Validación completada';
-
-            // Show results
-            let message = `Validación completada!\n\n`;
-
-            if (brokenLinksCheck) {
-                message += `Estado: ${brokenLinksCheck.status || 'unknown'}\n`;
-
-                // Access stats object correctly
-                const stats = brokenLinksCheck.stats || {};
-                message += `URLs validadas: ${stats.validated || 0}\n`;
-                message += `Enlaces rotos encontrados: ${stats.broken || 0}\n`;
-
-                if (brokenLinksCheck.message) {
-                    message += `\nDetalles: ${brokenLinksCheck.message}\n`;
-                }
-            } else {
-                message += 'No se encontraron resultados de validación.\n';
-            }
-
-            alert(message);
-
-            // Close modal and reload
-            closeValidateModal();
-            window.location.reload();
-
-        } else {
-            clearInterval(progressInterval);
-            progressText.textContent = '❌ Error al ejecutar validación';
-            alert('Error: ' + (data.error || 'Error desconocido'));
-            runButton.disabled = false;
-            runButton.textContent = '🚀 Validar';
-            cancelButton.disabled = false;
-        }
-
-    } catch (error) {
-        clearInterval(progressInterval);
-        console.error('Error:', error);
-        progressText.textContent = '❌ Error de conexión';
-        alert('Error al ejecutar validación: ' + error.message);
-        runButton.disabled = false;
-        runButton.textContent = '🚀 Validar';
-        cancelButton.disabled = false;
-    }
+  } catch (error) {
+    progressBar.style.animation = 'none';
+    progressBar.style.width = '100%';
+    progressBar.style.background = 'var(--danger)';
+    console.error('Error:', error);
+    progressText.textContent = '❌ Error de conexión';
+    alert('Error al ejecutar validación: ' + error.message);
+    runButton.disabled = false;
+    runButton.innerHTML = '<i data-lucide="rocket" class="icon-xs"></i><span>Validar</span>';
+    cancelButton.disabled = false;
+    lucide.createIcons();
+  }
 }
 </script>
-
-<!-- Load modal utilities -->
-<script src="{{ url_for('static', filename='js/modal-utils.js') }}"></script>
-
 {% endblock %}

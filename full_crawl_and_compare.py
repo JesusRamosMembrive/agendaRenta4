@@ -4,16 +4,17 @@ Full Crawl and Comparison Script
 Crawls entire r4.com site and compares with 173 hardcoded URLs
 """
 
-import os
-from dotenv import load_dotenv
 from datetime import datetime
+
+from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
 
 # Import crawler
-from crawler import Crawler, CRAWLER_CONFIG_FULL
+from crawler import CRAWLER_CONFIG_FULL, Crawler
 from utils import db_cursor
+
 
 def get_hardcoded_urls():
     """Get the 173 hardcoded URLs from sections table"""
@@ -26,17 +27,20 @@ def get_hardcoded_urls():
         """)
         return cursor.fetchall()
 
+
 def run_full_crawl():
     """Run full crawl without limits"""
     print("=" * 80)
     print("FULL CRAWL OF R4.COM")
     print("=" * 80)
-    print(f"\nConfiguration:")
+    print("\nConfiguration:")
     print(f"  Root URL: {CRAWLER_CONFIG_FULL['root_url']}")
-    print(f"  Max URLs: {'UNLIMITED' if CRAWLER_CONFIG_FULL['max_urls'] is None else CRAWLER_CONFIG_FULL['max_urls']}")
+    print(
+        f"  Max URLs: {'UNLIMITED' if CRAWLER_CONFIG_FULL['max_urls'] is None else CRAWLER_CONFIG_FULL['max_urls']}"
+    )
     print(f"  Max Depth: {CRAWLER_CONFIG_FULL['max_depth']}")
     print(f"  Delay: {CRAWLER_CONFIG_FULL['delay_between_requests']}s")
-    print(f"\n⚠️  This may take a LONG time (potentially hours)")
+    print("\n⚠️  This may take a LONG time (potentially hours)")
     print(f"⏱  Started at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print("=" * 80 + "\n")
 
@@ -44,7 +48,7 @@ def run_full_crawl():
     crawler = Crawler(CRAWLER_CONFIG_FULL)
 
     # Run crawl
-    stats = crawler.crawl(created_by='full-crawl-comparison')
+    stats = crawler.crawl(created_by="full-crawl-comparison")
 
     print("\n" + "=" * 80)
     print("CRAWL COMPLETED!")
@@ -57,6 +61,7 @@ def run_full_crawl():
 
     return stats
 
+
 def compare_urls():
     """Compare discovered URLs with hardcoded URLs"""
     print("=" * 80)
@@ -65,7 +70,7 @@ def compare_urls():
 
     # Get hardcoded URLs
     hardcoded = get_hardcoded_urls()
-    hardcoded_urls = set(row['url'] for row in hardcoded)
+    hardcoded_urls = set(row["url"] for row in hardcoded)
 
     print(f"📋 Hardcoded URLs (from sections table): {len(hardcoded_urls)}")
 
@@ -85,17 +90,22 @@ def compare_urls():
             print("❌ No full crawl found in database")
             return
 
-        crawl_run_id = crawl_run['id']
-        print(f"🕷️  Discovered URLs (crawl_run #{crawl_run_id}): {crawl_run['urls_discovered']}")
+        crawl_run_id = crawl_run["id"]
+        print(
+            f"🕷️  Discovered URLs (crawl_run #{crawl_run_id}): {crawl_run['urls_discovered']}"
+        )
 
         # Get all discovered URLs from this crawl
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT url
             FROM discovered_urls
             WHERE crawl_run_id = %s
-        """, (crawl_run_id,))
+        """,
+            (crawl_run_id,),
+        )
         discovered = cursor.fetchall()
-        discovered_urls = set(row['url'] for row in discovered)
+        discovered_urls = set(row["url"] for row in discovered)
 
     print("\n" + "=" * 80)
     print("COMPARISON RESULTS")
@@ -103,7 +113,9 @@ def compare_urls():
 
     # Find URLs in hardcoded but NOT discovered
     missing_in_crawl = hardcoded_urls - discovered_urls
-    print(f"❌ URLs in hardcoded list but NOT discovered by crawler: {len(missing_in_crawl)}")
+    print(
+        f"❌ URLs in hardcoded list but NOT discovered by crawler: {len(missing_in_crawl)}"
+    )
 
     if missing_in_crawl:
         print("\n  Missing URLs (first 20):")
@@ -129,7 +141,9 @@ def compare_urls():
 
     # Coverage percentage
     coverage = (len(exact_matches) / len(hardcoded_urls)) * 100 if hardcoded_urls else 0
-    print(f"\n📊 Coverage: {coverage:.1f}% of hardcoded URLs were discovered by crawler")
+    print(
+        f"\n📊 Coverage: {coverage:.1f}% of hardcoded URLs were discovered by crawler"
+    )
 
     print("\n" + "=" * 80)
     print("SUMMARY")
@@ -142,20 +156,28 @@ def compare_urls():
     print("=" * 80 + "\n")
 
     # Save detailed report
-    save_detailed_report(hardcoded_urls, discovered_urls, exact_matches, missing_in_crawl, new_in_crawl, crawl_run_id)
+    save_detailed_report(
+        hardcoded_urls,
+        discovered_urls,
+        exact_matches,
+        missing_in_crawl,
+        new_in_crawl,
+        crawl_run_id,
+    )
+
 
 def save_detailed_report(hardcoded, discovered, matches, missing, new, crawl_run_id):
     """Save detailed comparison report to file"""
     filename = f"crawl_comparison_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
 
-    with open(filename, 'w', encoding='utf-8') as f:
+    with open(filename, "w", encoding="utf-8") as f:
         f.write("=" * 80 + "\n")
         f.write("R4.COM CRAWL COMPARISON REPORT\n")
         f.write("=" * 80 + "\n\n")
         f.write(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
         f.write(f"Crawl Run ID: {crawl_run_id}\n\n")
 
-        f.write(f"STATISTICS:\n")
+        f.write("STATISTICS:\n")
         f.write(f"  - Hardcoded URLs: {len(hardcoded)}\n")
         f.write(f"  - Discovered URLs: {len(discovered)}\n")
         f.write(f"  - Exact Matches: {len(matches)}\n")
@@ -192,12 +214,13 @@ def save_detailed_report(hardcoded, discovered, matches, missing, new, crawl_run
 
     print(f"📄 Detailed report saved to: {filename}")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     print("\n🕷️  R4.COM FULL CRAWL AND COMPARISON")
-    print(f"   This script will:")
-    print(f"   1. Crawl the entire r4.com website (NO LIMITS)")
-    print(f"   2. Compare discovered URLs with 173 hardcoded URLs")
-    print(f"   3. Generate a detailed comparison report\n")
+    print("   This script will:")
+    print("   1. Crawl the entire r4.com website (NO LIMITS)")
+    print("   2. Compare discovered URLs with 173 hardcoded URLs")
+    print("   3. Generate a detailed comparison report\n")
 
     input("Press ENTER to start the full crawl (or Ctrl+C to cancel)...")
 

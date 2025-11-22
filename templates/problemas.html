@@ -3,81 +3,191 @@
 {% block title %}Problemas - Agenda Renta4{% endblock %}
 
 {% block content %}
-<div class="h1">Problemas — Tareas con incidencias</div>
+<!-- ===============================================================
+     Page Header
+     =============================================================== -->
+<div class="page-header">
+  <h1 class="page-title">Problemas — Tareas con incidencias</h1>
+  <p class="page-description">
+    Gestiona las tareas que requieren atención inmediata
+  </p>
+</div>
 
 {% if problem_tasks %}
-  <div class="panel" style="margin-bottom: 20px; background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%); border-left: 4px solid #ef4444;">
-    <strong>⚠ Total de tareas con problemas:</strong> {{ problem_tasks|length }}
-    <p style="margin: 8px 0 0 0; color: #991b1b; font-size: 0.9em;">
-      Mostrando tareas con incidencias desde octubre 2025 hasta {{ period|format_period }}
-    </p>
+  <!-- ===============================================================
+       Guía Rápida
+       =============================================================== -->
+  <div class="card card-glass" style="margin-bottom: var(--space-xl); border-left: 4px solid var(--danger);">
+    <div style="display: flex; align-items: flex-start; gap: var(--space-lg);">
+      <div style="width: 56px; height: 56px; border-radius: var(--radius-md); background: linear-gradient(135deg, var(--danger) 0%, var(--danger-hover) 100%); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+        <i data-lucide="alert-triangle" class="icon-2xl" style="color: white;"></i>
+      </div>
+      <div style="flex: 1;">
+        <h3 style="margin: 0 0 var(--space-sm) 0; font-size: var(--text-xl); font-weight: var(--font-bold); color: var(--text);">
+          Guía Rápida
+        </h3>
+        <ul style="margin: 0; padding-left: var(--space-lg); color: var(--text-secondary); line-height: 1.6;">
+          <li>Estas tareas han sido revisadas y se detectaron incidencias</li>
+          <li>Revisa las observaciones para conocer los detalles de cada problema</li>
+          <li>Haz clic en el nombre de la URL para acceder directamente a la sección</li>
+          <li>Mostrando tareas desde octubre 2025 hasta <strong>{{ period|format_period }}</strong></li>
+        </ul>
+      </div>
+    </div>
   </div>
 
-  <div class="table" role="table" aria-label="Listado de tareas con problemas">
-    <table>
-      <thead>
-        <tr>
-          <th class="sticky" style="width:12%">Período</th>
-          <th class="sticky" style="width:25%">URL / Sección</th>
-          <th class="sticky" style="width:18%">Tipo de Tarea</th>
-          <th class="sticky">Observaciones</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for task in problem_tasks %}
-          <tr>
-            <!-- Período -->
-            <td>
-              <strong>{{ task.period|format_period }}</strong>
-            </td>
+  <!-- ===============================================================
+       Stats Card
+       =============================================================== -->
+  <div class="card" style="margin-bottom: var(--space-xl); border-left: 4px solid var(--danger);">
+    <div style="display: flex; align-items: center; gap: var(--space-md);">
+      <div style="width: 64px; height: 64px; border-radius: var(--radius-md); background: linear-gradient(135deg, var(--danger) 0%, var(--danger-hover) 100%); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+        <i data-lucide="alert-octagon" class="icon-2xl" style="color: white;"></i>
+      </div>
+      <div style="flex: 1;">
+        <div style="font-size: var(--text-xs); font-weight: var(--font-semibold); color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px;">
+          Total de Tareas con Problemas
+        </div>
+        <div style="font-size: 48px; font-weight: var(--font-bold); color: var(--text); line-height: 1;">
+          {{ problem_tasks|length }}
+        </div>
+      </div>
+    </div>
+  </div>
 
-            <!-- URL / Sección (clickeable) -->
-            <td>
-              <a href="{{ task.section_url }}" target="_blank" rel="noopener noreferrer" style="color: #2563eb; text-decoration: none; font-weight: 500;">
+  <!-- ===============================================================
+       Problem Task Cards
+       =============================================================== -->
+  <div class="task-cards-grid">
+    {% for task in problem_tasks %}
+      <div class="card task-card problem-card" data-task-id="{{ task.id }}">
+        <!-- Card Header -->
+        <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-md); margin-bottom: var(--space-md); padding-bottom: var(--space-md); border-bottom: 1px solid var(--border);">
+          <div style="flex: 1; min-width: 0;">
+            <div style="display: flex; align-items: center; gap: var(--space-sm); margin-bottom: var(--space-xs);">
+              <i data-lucide="link" class="icon-sm" style="color: var(--primary); flex-shrink: 0;"></i>
+              <a href="{{ task.section_url }}"
+                 target="_blank"
+                 rel="noopener noreferrer"
+                 style="font-weight: var(--font-semibold); color: var(--primary); text-decoration: none; font-size: var(--text-lg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; transition: color 0.2s ease;"
+                 onmouseover="this.style.color='var(--primary-hover)'"
+                 onmouseout="this.style.color='var(--primary)'">
                 {{ task.section_name }}
               </a>
-            </td>
+            </div>
+            <div style="display: flex; align-items: center; gap: var(--space-sm);">
+              <i data-lucide="file-text" class="icon-xs" style="color: var(--muted);"></i>
+              <span style="color: var(--text-secondary); font-size: var(--text-sm);">
+                {{ task.task_type_name }}
+                {% if task.periodicity %}
+                  <span style="color: var(--muted);">({{ task.periodicity }})</span>
+                {% endif %}
+              </span>
+            </div>
+          </div>
 
-            <!-- Tipo de Tarea -->
-            <td>
-              {{ task.task_type_name }}
-              {% if task.periodicity %}
-                <span style="color: #6b7280; font-size: 0.85em;">({{ task.periodicity }})</span>
-              {% endif %}
-            </td>
+          <!-- Status Badge -->
+          <div class="badge badge-danger" style="flex-shrink: 0;">
+            <i data-lucide="alert-triangle" class="icon-xs"></i>
+            <span>Problema</span>
+          </div>
+        </div>
 
-            <!-- Observaciones -->
-            <td>
-              {% if task.observations %}
-                <div style="color: #374151; font-size: 0.9em;">
-                  {{ task.observations }}
-                </div>
-              {% else %}
-                <span style="color: #9ca3af; font-style: italic;">Sin observaciones</span>
-              {% endif %}
-            </td>
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
+        <!-- Card Body - Period and Observations -->
+        <div style="display: grid; grid-template-columns: auto 1fr; gap: var(--space-lg);">
+          <!-- Period -->
+          <div>
+            <div style="display: flex; align-items: center; gap: var(--space-xs); margin-bottom: var(--space-xs);">
+              <i data-lucide="calendar" class="icon-xs" style="color: var(--muted);"></i>
+              <span style="font-size: var(--text-xs); font-weight: var(--font-semibold); color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px;">
+                Período
+              </span>
+            </div>
+            <div style="font-weight: var(--font-semibold); color: var(--text); font-size: var(--text-base);">
+              {{ task.period|format_period }}
+            </div>
+          </div>
 
-  <div class="panel" style="margin-top: 14px; color: #6b7280;">
-    <strong>💡 Nota:</strong>
-    <ul style="margin: 8px 0; padding-left: 20px; font-size: 0.9em;">
-      <li>Estas tareas han sido revisadas y se detectaron incidencias</li>
-      <li>Revisa las observaciones para conocer los detalles de cada problema</li>
-      <li>Haz clic en el nombre de la URL para acceder directamente a la sección</li>
-    </ul>
+          <!-- Observations (Highlighted for problems) -->
+          <div style="min-width: 0;">
+            <div style="display: flex; align-items: center; gap: var(--space-xs); margin-bottom: var(--space-xs);">
+              <i data-lucide="message-square" class="icon-xs" style="color: var(--danger);"></i>
+              <span style="font-size: var(--text-xs); font-weight: var(--font-semibold); color: var(--danger); text-transform: uppercase; letter-spacing: 0.5px;">
+                Detalles del Problema
+              </span>
+            </div>
+            {% if task.observations %}
+              <div style="padding: var(--space-sm); background: var(--danger-light); border-left: 3px solid var(--danger); border-radius: var(--radius-sm); color: var(--text); font-size: var(--text-sm); line-height: 1.5; word-break: break-word;">
+                {{ task.observations }}
+              </div>
+            {% else %}
+              <div style="color: var(--muted); font-style: italic; font-size: var(--text-sm);">
+                Sin detalles especificados
+              </div>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Card Footer - Actions -->
+        <div style="display: flex; gap: var(--space-sm); padding-top: var(--space-md); margin-top: var(--space-md); border-top: 1px solid var(--border);">
+          <a href="{{ url_for('inicio') }}" class="btn danger btn-sm" style="text-decoration: none;">
+            <i data-lucide="wrench" class="icon-xs"></i>
+            <span>Resolver en Inicio</span>
+          </a>
+          <a href="{{ task.section_url }}"
+             target="_blank"
+             rel="noopener noreferrer"
+             class="btn ghost btn-sm"
+             style="text-decoration: none;">
+            <i data-lucide="external-link" class="icon-xs"></i>
+            <span>Abrir URL</span>
+          </a>
+        </div>
+      </div>
+    {% endfor %}
   </div>
 
 {% else %}
-  <div class="panel" style="text-align: center; padding: 40px; background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); border-left: 4px solid #10b981;">
-    <div style="font-size: 48px; margin-bottom: 16px;">✅</div>
-    <h3 style="color: #065f46; margin: 0 0 8px 0;">¡Sin problemas detectados!</h3>
-    <p style="color: #047857; margin: 0;">
+  <!-- ===============================================================
+       Empty State
+       =============================================================== -->
+  <div class="card" style="text-align: center; padding: var(--space-2xl);">
+    <div style="width: 80px; height: 80px; margin: 0 auto var(--space-lg); border-radius: 50%; background: linear-gradient(135deg, var(--success-light) 0%, var(--success) 100%); display: flex; align-items: center; justify-content: center;">
+      <i data-lucide="check-circle" class="icon-2xl" style="color: white;"></i>
+    </div>
+    <h3 style="margin: 0 0 var(--space-sm) 0; font-size: var(--text-2xl); font-weight: var(--font-bold); color: var(--text);">
+      ¡Sin problemas detectados!
+    </h3>
+    <p style="margin: 0; color: var(--text-secondary); font-size: var(--text-base);">
       No hay tareas con incidencias en este momento.
     </p>
   </div>
 {% endif %}
+
+<style>
+  /* Task Cards Grid */
+  .task-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(450px, 1fr));
+    gap: var(--space-lg);
+  }
+
+  /* Problem Card Specific Styling */
+  .problem-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    border-left: 3px solid var(--danger);
+  }
+
+  .problem-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(239, 68, 68, 0.12);
+  }
+
+  /* Responsive adjustments */
+  @media (max-width: 768px) {
+    .task-cards-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
 {% endblock %}

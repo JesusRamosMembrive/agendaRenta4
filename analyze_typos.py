@@ -4,12 +4,14 @@ Analyze typos in hardcoded URLs
 Find similar URLs in discovered set that might be corrections
 """
 
-import os
-from dotenv import load_dotenv
 from difflib import SequenceMatcher
+
+from dotenv import load_dotenv
+
 from utils import db_cursor
 
 load_dotenv()
+
 
 def get_missing_urls():
     """Get URLs that are in sections but not discovered"""
@@ -25,6 +27,7 @@ def get_missing_urls():
         """)
         return cursor.fetchall()
 
+
 def get_discovered_urls():
     """Get all discovered URLs"""
     with db_cursor() as cursor:
@@ -33,11 +36,13 @@ def get_discovered_urls():
             FROM discovered_urls
             WHERE crawl_run_id = 2
         """)
-        return [row['url'] for row in cursor.fetchall()]
+        return [row["url"] for row in cursor.fetchall()]
+
 
 def similarity(a, b):
     """Calculate similarity ratio between two strings"""
     return SequenceMatcher(None, a, b).ratio()
+
 
 def find_closest_match(missing_url, discovered_urls, threshold=0.85):
     """Find closest matching URL from discovered set"""
@@ -52,6 +57,7 @@ def find_closest_match(missing_url, discovered_urls, threshold=0.85):
 
     return best_match, best_ratio
 
+
 def categorize_errors(missing_urls, discovered_urls):
     """Categorize missing URLs into error types"""
 
@@ -59,51 +65,65 @@ def categorize_errors(missing_urls, discovered_urls):
     not_found = []  # URLs genuinely not found
 
     for missing in missing_urls:
-        url = missing['url']
+        url = missing["url"]
 
         # Find closest match
         match, ratio = find_closest_match(url, discovered_urls)
 
         if match and ratio >= 0.85:
             # Likely a typo
-            typos.append({
-                'id': missing['id'],
-                'wrong_url': url,
-                'correct_url': match,
-                'name': missing['name'],
-                'similarity': ratio
-            })
+            typos.append(
+                {
+                    "id": missing["id"],
+                    "wrong_url": url,
+                    "correct_url": match,
+                    "name": missing["name"],
+                    "similarity": ratio,
+                }
+            )
         else:
             # Genuinely not found
-            not_found.append({
-                'id': missing['id'],
-                'url': url,
-                'name': missing['name'],
-                'best_match': match,
-                'similarity': ratio if match else 0
-            })
+            not_found.append(
+                {
+                    "id": missing["id"],
+                    "url": url,
+                    "name": missing["name"],
+                    "best_match": match,
+                    "similarity": ratio if match else 0,
+                }
+            )
 
     return typos, not_found
+
 
 def identify_obvious_typos(typos):
     """Identify obvious character-level typos"""
     obvious = []
 
     for typo in typos:
-        wrong = typo['wrong_url']
-        correct = typo['correct_url']
+        wrong = typo["wrong_url"]
+        correct = typo["correct_url"]
 
         # Find differences
         if len(wrong) == len(correct):
             # Same length - likely single char substitution/transposition
-            diffs = sum(1 for a, b in zip(wrong, correct) if a != b)
+            diffs = sum(1 for a, b in zip(wrong, correct, strict=False) if a != b)
             if diffs <= 2:
-                obvious.append({**typo, 'diff_type': 'substitution', 'diff_count': diffs})
+                obvious.append(
+                    {**typo, "diff_type": "substitution", "diff_count": diffs}
+                )
         elif abs(len(wrong) - len(correct)) <= 2:
             # Length differs by 1-2 - likely insertion/deletion
-            obvious.append({**typo, 'diff_type': 'insertion/deletion', 'diff_count': abs(len(wrong) - len(correct))})
+            obvious.append(
+                {
+                    **typo,
+                    "diff_type": "insertion/deletion",
+                    "diff_count": abs(len(wrong) - len(correct)),
+                }
+            )
 
     return obvious
+
 
 def generate_report():
     """Generate typo analysis report"""
@@ -136,21 +156,21 @@ def generate_report():
     if typos:
         print(f"Total de errores tipográficos detectados: {len(typos)}\n")
 
-        for i, typo in enumerate(sorted(typos, key=lambda x: -x['similarity']), 1):
+        for i, typo in enumerate(sorted(typos, key=lambda x: -x["similarity"]), 1):
             print(f"{i}. {typo['name']}")
             print(f"   ❌ Incorrecto: {typo['wrong_url']}")
             print(f"   ✓  Correcto:   {typo['correct_url']}")
             print(f"   📊 Similitud:  {typo['similarity']*100:.1f}%")
 
             # Highlight differences
-            wrong = typo['wrong_url']
-            correct = typo['correct_url']
+            wrong = typo["wrong_url"]
+            correct = typo["correct_url"]
 
             # Find first difference
-            for j, (w, c) in enumerate(zip(wrong, correct)):
+            for j, (w, c) in enumerate(zip(wrong, correct, strict=False)):
                 if w != c:
-                    start = max(0, j-20)
-                    end = min(len(wrong), j+20)
+                    start = max(0, j - 20)
+                    end = min(len(wrong), j + 20)
                     print(f"   🔍 Diferencia: ...{wrong[start:end]}...")
                     print(f"                  ...{correct[start:end]}...")
                     break
@@ -167,18 +187,20 @@ def generate_report():
         for i, item in enumerate(not_found, 1):
             print(f"{i}. {item['name']}")
             print(f"   URL: {item['url']}")
-            if item['best_match']:
-                print(f"   Más parecida ({item['similarity']*100:.1f}%): {item['best_match'][:80]}...")
+            if item["best_match"]:
+                print(
+                    f"   Más parecida ({item['similarity']*100:.1f}%): {item['best_match'][:80]}..."
+                )
             print()
 
     # Save to file
     filename = f"analisis_typos_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
 
-    with open(filename, 'w', encoding='utf-8') as f:
+    with open(filename, "w", encoding="utf-8") as f:
         f.write("ANÁLISIS DE ERRORES TIPOGRÁFICOS\n")
         f.write("=" * 100 + "\n\n")
 
-        f.write(f"RESUMEN:\n")
+        f.write("RESUMEN:\n")
         f.write(f"  - URLs faltantes totales: {len(missing_urls)}\n")
         f.write(f"  - Errores tipográficos: {len(typos)}\n")
         f.write(f"  - URLs no encontradas: {len(not_found)}\n\n")
@@ -189,9 +211,11 @@ def generate_report():
 
         f.write("-- SQL para corregir errores tipográficos:\n\n")
 
-        for typo in sorted(typos, key=lambda x: x['id']):
+        for typo in sorted(typos, key=lambda x: x["id"]):
             f.write(f"-- {typo['name']}\n")
-            f.write(f"UPDATE sections SET url = '{typo['correct_url']}' WHERE id = {typo['id']};\n")
+            f.write(
+                f"UPDATE sections SET url = '{typo['correct_url']}' WHERE id = {typo['id']};\n"
+            )
             f.write(f"-- Antes: {typo['wrong_url']}\n\n")
 
         f.write("\n" + "=" * 100 + "\n")
@@ -202,7 +226,7 @@ def generate_report():
             f.write(f"ID: {item['id']}\n")
             f.write(f"Nombre: {item['name']}\n")
             f.write(f"URL: {item['url']}\n")
-            if item['best_match']:
+            if item["best_match"]:
                 f.write(f"Más parecida: {item['best_match']}\n")
             f.write("\n")
 
@@ -210,14 +234,16 @@ def generate_report():
 
     return typos, not_found
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     from datetime import datetime
+
     typos, not_found = generate_report()
 
     print("\n" + "=" * 100)
     print("✅ ANÁLISIS COMPLETADO")
     print("=" * 100)
-    print(f"\n📊 Resumen:")
+    print("\n📊 Resumen:")
     print(f"   - Errores tipográficos: {len(typos)}")
     print(f"   - URLs no encontradas: {len(not_found)}")
     print("\n")
