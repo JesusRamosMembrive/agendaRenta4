@@ -113,6 +113,16 @@
 {% endif %}
 
 <!-- ===============================================================
+     Action Button
+     =============================================================== -->
+<div style="text-align: center; margin: var(--space-lg) 0 var(--space-xl) 0;">
+  <button onclick="openCtaValidationModal()" class="btn primary" style="padding: var(--space-md) var(--space-xl); font-size: var(--text-lg); font-weight: var(--font-bold); box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+    <i data-lucide="zap" class="icon-sm"></i>
+    <span>Ejecutar Análisis Ahora</span>
+  </button>
+</div>
+
+<!-- ===============================================================
      Results Table
      =============================================================== -->
 <div class="card" style="margin-bottom: var(--space-xl);">
@@ -286,15 +296,90 @@
       No hay resultados de validación
     </h4>
     <p style="margin: 0 0 var(--space-md) 0; color: var(--text-secondary);">
-      No se han ejecutado validaciones de CTAs aún. Para ejecutar una validación:
+      No se han ejecutado validaciones de CTAs aún. Lanza una validación ahora o configura las reglas antes de ejecutarla.
     </p>
-    <ol style="margin: 0 auto; padding-left: var(--space-lg); text-align: left; max-width: 500px; line-height: 1.8; color: var(--text-secondary);">
-      <li>Ve al <a href="{{ url_for('crawler.quality') }}" style="color: var(--primary); text-decoration: underline;">Dashboard de Calidad</a></li>
-      <li>Selecciona "Validación de CTAs" en los checks disponibles</li>
-      <li>Ejecuta la validación manualmente</li>
-    </ol>
+    <div style="display: flex; gap: var(--space-md); justify-content: center; flex-wrap: wrap;">
+      <button onclick="openCtaValidationModal()" class="btn primary" style="text-decoration: none;">
+        <i data-lucide="zap" class="icon-xs"></i>
+        <span>Ejecutar Análisis Ahora</span>
+      </button>
+      <a href="{{ url_for('crawler.quality') }}" class="btn ghost" style="text-decoration: none;">
+        <i data-lucide="arrow-right" class="icon-xs"></i>
+        <span>Ir al Dashboard de Calidad</span>
+      </a>
+    </div>
   </div>
   {% endif %}
+</div>
+
+<!-- ===============================================================
+     Modal for Running CTA Validation
+     =============================================================== -->
+<div id="ctaValidationModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
+  <div class="card" style="max-width: 520px; width: 90%; margin: var(--space-xl);">
+    <h2 style="margin: 0 0 var(--space-lg) 0; font-size: var(--text-2xl); font-weight: var(--font-bold); color: var(--text); display: flex; align-items: center; gap: var(--space-sm);">
+      <i data-lucide="target" class="icon-lg"></i>
+      <span>Validación de CTAs</span>
+    </h2>
+
+    <p style="color: var(--text-secondary); margin-bottom: var(--space-xl); font-size: var(--text-sm); line-height: 1.6;">
+      Selecciona el alcance del análisis. El checker revisará los CTAs de las páginas y guardará los resultados más recientes.
+    </p>
+
+    <!-- Scope Selection -->
+    <div style="margin-bottom: var(--space-xl);">
+      <label style="display: block; font-weight: var(--font-semibold); margin-bottom: var(--space-md); color: var(--text);">
+        Alcance del análisis:
+      </label>
+
+      <label style="display: block; padding: var(--space-md); border: 2px solid var(--border); border-radius: var(--radius-sm); margin-bottom: var(--space-md); cursor: pointer; transition: all 0.2s;"
+             onmouseover="this.style.borderColor='var(--primary)'; this.style.background='var(--primary-light)'"
+             onmouseout="this.style.borderColor='var(--border)'; this.style.background='transparent'">
+        <input type="radio" name="ctaValidationScope" value="priority" checked style="margin-right: var(--space-sm);">
+        <strong style="color: var(--text); display: flex; align-items: center; gap: var(--space-xs);">
+          <i data-lucide="star" class="icon-xs" style="color: var(--warning);"></i>
+          URLs Prioritarias
+        </strong>
+        <span style="display: block; margin-left: var(--space-lg); font-size: var(--text-sm); color: var(--text-secondary); margin-top: var(--space-xs);">
+          {{ url_info.priority_count }} URLs prioritarias
+        </span>
+      </label>
+
+      <label style="display: block; padding: var(--space-md); border: 2px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; transition: all 0.2s;"
+             onmouseover="this.style.borderColor='var(--primary)'; this.style.background='var(--primary-light)'"
+             onmouseout="this.style.borderColor='var(--border)'; this.style.background='transparent'">
+        <input type="radio" name="ctaValidationScope" value="all" style="margin-right: var(--space-sm);">
+        <strong style="color: var(--text); display: flex; align-items: center; gap: var(--space-xs);">
+          <i data-lucide="globe" class="icon-xs"></i>
+          Todas las URLs
+        </strong>
+        <span style="display: block; margin-left: var(--space-lg); font-size: var(--text-sm); color: var(--text-secondary); margin-top: var(--space-xs);">
+          {{ url_info.total_count }} URLs totales
+        </span>
+      </label>
+    </div>
+
+    <!-- Progress (hidden initially) -->
+    <div id="ctaValidationProgress" style="display: none; margin: var(--space-lg) 0;">
+      <div style="background: var(--bg-secondary); border-radius: var(--radius-sm); height: 8px; overflow: hidden; position: relative;">
+        <div id="ctaValidationProgressBar" style="background: linear-gradient(90deg, var(--primary) 0%, var(--success) 100%); height: 100%; width: 0%; transition: width 0.3s ease;"></div>
+      </div>
+      <p id="ctaValidationProgressText" style="text-align: center; margin-top: var(--space-md); color: var(--text-secondary); font-size: var(--text-sm);">
+        Preparando análisis...
+      </p>
+    </div>
+
+    <!-- Actions -->
+    <div style="display: flex; gap: var(--space-md); justify-content: flex-end; margin-top: var(--space-xl);">
+      <button onclick="closeCtaValidationModal()" id="ctaCancelBtn" class="btn ghost">
+        Cancelar
+      </button>
+      <button onclick="runCtaValidation()" id="ctaRunBtn" class="btn primary">
+        <i data-lucide="rocket" class="icon-xs"></i>
+        <span>Ejecutar Análisis</span>
+      </button>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -302,6 +387,128 @@
 document.addEventListener('DOMContentLoaded', function() {
   lucide.createIcons();
 });
+
+// ========== CTA Validation Modal ==========
+
+function openCtaValidationModal() {
+  document.getElementById('ctaValidationModal').style.display = 'flex';
+  lucide.createIcons();
+}
+
+function closeCtaValidationModal() {
+  const modal = document.getElementById('ctaValidationModal');
+  modal.style.display = 'none';
+
+  // Reset progress
+  const progressBar = document.getElementById('ctaValidationProgressBar');
+  document.getElementById('ctaValidationProgress').style.display = 'none';
+  progressBar.style.width = '0%';
+  progressBar.style.animation = 'none';
+  progressBar.style.background = 'linear-gradient(90deg, var(--primary) 0%, var(--success) 100%)';
+  document.getElementById('ctaValidationProgressText').textContent = 'Preparando análisis...';
+
+  // Re-enable buttons
+  const runButton = document.getElementById('ctaRunBtn');
+  const cancelButton = document.getElementById('ctaCancelBtn');
+  runButton.disabled = false;
+  cancelButton.disabled = false;
+  runButton.innerHTML = '<i data-lucide="rocket" class="icon-xs"></i><span>Ejecutar Análisis</span>';
+  lucide.createIcons();
+}
+
+async function runCtaValidation() {
+  // Get selected scope
+  const scopeRadios = document.getElementsByName('ctaValidationScope');
+  let scope = 'priority';
+  for (const radio of scopeRadios) {
+    if (radio.checked) {
+      scope = radio.value;
+      break;
+    }
+  }
+
+  // Disable buttons
+  const runButton = document.getElementById('ctaRunBtn');
+  const cancelButton = document.getElementById('ctaCancelBtn');
+  runButton.disabled = true;
+  runButton.innerHTML = '<i data-lucide="loader" class="icon-xs"></i><span>Analizando...</span>';
+  cancelButton.disabled = true;
+  lucide.createIcons();
+
+  // Show progress
+  const progressDiv = document.getElementById('ctaValidationProgress');
+  const progressBar = document.getElementById('ctaValidationProgressBar');
+  const progressText = document.getElementById('ctaValidationProgressText');
+  progressDiv.style.display = 'block';
+
+  // Estimated scope text
+  if (scope === 'priority') {
+    progressText.textContent = 'Analizando {{ url_info.priority_count }} URLs prioritarias...';
+  } else {
+    progressText.textContent = 'Analizando {{ url_info.total_count }} URLs...';
+  }
+
+  // Indeterminate animation
+  progressBar.style.width = '40%';
+  progressBar.style.animation = 'progressSlide 2s ease-in-out infinite';
+
+  try {
+    // Call API endpoint
+    const response = await fetch('/crawler/quality/run', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        check_types: ['cta_validation'],
+        scope: scope
+      })
+    });
+
+    const data = await response.json();
+
+    // Stop progress animation
+    progressBar.style.animation = 'none';
+    progressBar.style.width = '100%';
+
+    if (data.success) {
+      const checks = (data.results && data.results.checks) ? data.results.checks : [];
+      const ctaCheck = checks.find(c => c.check_type === 'cta_validation') || checks[0];
+
+      progressText.textContent = '✅ Análisis completado';
+
+      let message = 'Validación de CTAs completada!\n\n';
+
+      if (ctaCheck) {
+        const stats = ctaCheck.stats || {};
+        message += `URLs procesadas: ${stats.processed || 0}/${stats.total || 0}\n`;
+        message += `Éxitos: ${stats.successful || 0}\n`;
+        message += `Fallos: ${stats.failed || 0}\n`;
+
+        if (ctaCheck.message) {
+          message += `\nMensaje: ${ctaCheck.message}`;
+        }
+      }
+
+      setTimeout(() => {
+        alert(message);
+        window.location.reload();
+      }, 500);
+    } else {
+      progressBar.style.background = 'var(--danger)';
+      progressText.textContent = '❌ Error en el análisis';
+      alert('Error: ' + (data.error || data.message || 'Error desconocido'));
+      closeCtaValidationModal();
+    }
+  } catch (error) {
+    progressBar.style.animation = 'none';
+    progressBar.style.width = '100%';
+    progressBar.style.background = 'var(--danger)';
+    progressText.textContent = '❌ Error de conexión';
+    alert('Error de conexión: ' + error.message);
+    closeCtaValidationModal();
+  }
+}
 
 // Toggle details row
 function toggleDetails(id) {
